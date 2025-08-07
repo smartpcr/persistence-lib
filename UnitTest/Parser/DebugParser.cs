@@ -25,7 +25,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var parser = new SqlParser(tokens);
             var ast = parser.Parse();
 
-            return (SelectStatement)ast;
+            return ast;
         }
 
         public static void DebugArithmeticExpression()

@@ -575,7 +575,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // First expression with explicit alias
             var expr1 = ast.SelectList[0].Expression as BinaryExpression;
             Assert.IsNotNull(expr1);
-            Assert.AreEqual(TokenType.MULTIPLY, expr1.Operator);
+            Assert.AreEqual(TokenType.STAR, expr1.Operator);
             Assert.AreEqual("total_price", ast.SelectList[0].Alias);
             
             // Second expression with implicit alias
@@ -602,7 +602,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // First: (price + tax) * quantity
             var expr1 = ast.SelectList[0].Expression as BinaryExpression;
             Assert.IsNotNull(expr1);
-            Assert.AreEqual(TokenType.MULTIPLY, expr1.Operator);
+            Assert.AreEqual(TokenType.STAR, expr1.Operator);
             Assert.AreEqual("total_with_tax", ast.SelectList[0].Alias);
             
             // Verify the grouped expression
@@ -613,7 +613,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Second: price * 0.9
             var expr2 = ast.SelectList[1].Expression as BinaryExpression;
             Assert.IsNotNull(expr2);
-            Assert.AreEqual(TokenType.MULTIPLY, expr2.Operator);
+            Assert.AreEqual(TokenType.STAR, expr2.Operator);
             Assert.AreEqual(0.9, ((LiteralExpression)expr2.Right).Value);
             
             // Third: CASE expression

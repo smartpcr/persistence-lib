@@ -10,7 +10,7 @@ namespace SqlParser
     public enum TokenType
     {
         // Keywords
-        SELECT, FROM, WHERE, JOIN, INNER, LEFT, RIGHT, FULL, OUTER, ON,
+        SELECT, FROM, WHERE, JOIN, INNER, LEFT, RIGHT, FULL, CROSS, OUTER, ON,
         WITH, AS, RECURSIVE, UNION, ALL, DISTINCT, GROUP, BY, HAVING,
         ORDER, ASC, DESC, LIMIT, OFFSET, INSERT, INTO, VALUES, UPDATE,
         SET, DELETE, CREATE, TABLE, ALTER, DROP, AND, OR, NOT, IN,
@@ -71,6 +71,7 @@ namespace SqlParser
                 ["LEFT"] = TokenType.LEFT,
                 ["RIGHT"] = TokenType.RIGHT,
                 ["FULL"] = TokenType.FULL,
+                ["CROSS"] = TokenType.CROSS,
                 ["OUTER"] = TokenType.OUTER,
                 ["ON"] = TokenType.ON,
                 ["WITH"] = TokenType.WITH,
@@ -332,6 +333,7 @@ namespace SqlParser
         public string? Schema { get; set; }
         public string? TableName { get; set; }
         public string? Alias { get; set; }
+        public SelectStatement? Subquery { get; set; }
     }
 
     public class JoinClause : SqlNode
@@ -384,6 +386,7 @@ namespace SqlParser
     {
         public string? FunctionName { get; set; }
         public List<Expression> Arguments { get; set; } = new List<Expression>();
+        public bool IsDistinct { get; set; }
     }
 
     public class CaseExpression : Expression
@@ -442,14 +445,18 @@ namespace SqlParser
             select.SelectList = ParseSelectList();
 
             // Parse FROM clause
+            bool hasFrom = false;
             if (Match(TokenType.FROM))
             {
                 select.From = ParseFromClause();
+                hasFrom = true;
             }
 
             // Parse WHERE clause
             if (Match(TokenType.WHERE))
             {
+                if (!hasFrom)
+                    throw new Exception("WHERE clause requires FROM");
                 select.Where = ParseExpression();
             }
 
@@ -529,33 +536,22 @@ namespace SqlParser
         {
             var items = new List<SelectItem>();
 
-            if (Check(TokenType.STAR))
+            do
             {
-                Advance();
-                items.Add(new SelectItem 
-                { 
-                    Expression = new ColumnExpression { ColumnName = "*" } 
-                });
-            }
-            else
-            {
-                do
+                var item = new SelectItem { Expression = ParseExpression() };
+
+                if (Match(TokenType.AS))
                 {
-                    var item = new SelectItem { Expression = ParseExpression() };
-                    
-                    if (Match(TokenType.AS))
-                    {
-                        item.Alias = Consume(TokenType.IDENTIFIER, "Expected alias").Value;
-                    }
-                    else if (Check(TokenType.IDENTIFIER))
-                    {
-                        // Implicit alias
-                        item.Alias = Advance().Value;
-                    }
-                    
-                    items.Add(item);
-                } while (Match(TokenType.COMMA));
-            }
+                    item.Alias = Consume(TokenType.IDENTIFIER, "Expected alias").Value;
+                }
+                else if (Check(TokenType.IDENTIFIER))
+                {
+                    // Implicit alias
+                    item.Alias = Advance().Value;
+                }
+
+                items.Add(item);
+            } while (Match(TokenType.COMMA));
 
             return items;
         }
@@ -575,9 +571,9 @@ namespace SqlParser
 
         private bool IsJoinKeyword()
         {
-            return Check(TokenType.JOIN) || Check(TokenType.INNER) || 
-                   Check(TokenType.LEFT) || Check(TokenType.RIGHT) || 
-                   Check(TokenType.FULL);
+            return Check(TokenType.JOIN) || Check(TokenType.INNER) ||
+                   Check(TokenType.LEFT) || Check(TokenType.RIGHT) ||
+                   Check(TokenType.FULL) || Check(TokenType.CROSS);
         }
 
         private JoinClause ParseJoin()
@@ -607,6 +603,11 @@ namespace SqlParser
                 Match(TokenType.OUTER); // Optional OUTER
                 Consume(TokenType.JOIN, "Expected JOIN");
             }
+            else if (Match(TokenType.CROSS))
+            {
+                join.Type = JoinType.Cross;
+                Consume(TokenType.JOIN, "Expected JOIN");
+            }
             else if (Match(TokenType.JOIN))
             {
                 join.Type = JoinType.Inner; // Default to INNER
@@ -625,16 +626,27 @@ namespace SqlParser
         private TableReference ParseTableReference()
         {
             var table = new TableReference();
-            var firstPart = Consume(TokenType.IDENTIFIER, "Expected table name").Value;
 
-            if (Match(TokenType.DOT))
+            if (Match(TokenType.LEFT_PAREN))
             {
-                table.Schema = firstPart;
-                table.TableName = Consume(TokenType.IDENTIFIER, "Expected table name after schema").Value;
+                // Subquery in FROM
+                var subquery = ParseSelectStatement();
+                Consume(TokenType.RIGHT_PAREN, "Expected ) after subquery");
+                table.Subquery = subquery;
             }
             else
             {
-                table.TableName = firstPart;
+                var firstPart = Consume(TokenType.IDENTIFIER, "Expected table name").Value;
+
+                if (Match(TokenType.DOT))
+                {
+                    table.Schema = firstPart;
+                    table.TableName = Consume(TokenType.IDENTIFIER, "Expected table name after schema").Value;
+                }
+                else
+                {
+                    table.TableName = firstPart;
+                }
             }
 
             if (Match(TokenType.AS))
@@ -707,19 +719,34 @@ namespace SqlParser
                 if (op == TokenType.IN)
                 {
                     Consume(TokenType.LEFT_PAREN, "Expected ( after IN");
+
+                    if (Check(TokenType.SELECT))
+                    {
+                        var subquery = ParseSelectStatement();
+                        Consume(TokenType.RIGHT_PAREN, "Expected ) after subquery");
+                        return new FunctionExpression
+                        {
+                            FunctionName = "IN",
+                            Arguments = new List<Expression>
+                            {
+                                expr,
+                                new SubqueryExpression { Query = subquery }
+                            }
+                        };
+                    }
+
                     var values = new List<Expression>();
-                    
                     do
                     {
                         values.Add(ParseExpression());
                     } while (Match(TokenType.COMMA));
-                    
+
                     Consume(TokenType.RIGHT_PAREN, "Expected ) after IN values");
-                    
+
                     // For simplicity, represent IN as a function call
-                    return new FunctionExpression 
-                    { 
-                        FunctionName = "IN", 
+                    return new FunctionExpression
+                    {
+                        FunctionName = "IN",
                         Arguments = new List<Expression> { expr }.Concat(values).ToList()
                     };
                 }
@@ -832,21 +859,31 @@ namespace SqlParser
                 {
                     // Function call
                     var func = new FunctionExpression { FunctionName = name };
-                    
+
                     if (!Check(TokenType.RIGHT_PAREN))
                     {
+                        if (Match(TokenType.DISTINCT))
+                        {
+                            func.IsDistinct = true;
+                        }
+
                         do
                         {
                             func.Arguments.Add(ParseExpression());
                         } while (Match(TokenType.COMMA));
                     }
-                    
+
                     Consume(TokenType.RIGHT_PAREN, "Expected ) after function arguments");
                     return func;
                 }
                 else if (Match(TokenType.DOT))
                 {
-                    // Table.Column
+                    // Table.Column or Table.*
+                    if (Match(TokenType.STAR))
+                    {
+                        return new ColumnExpression { TableAlias = name, ColumnName = "*" };
+                    }
+
                     var columnName = Consume(TokenType.IDENTIFIER, "Expected column name").Value;
                     return new ColumnExpression { TableAlias = name, ColumnName = columnName };
                 }

@@ -381,9 +381,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         {
             var expr = this.ParseUnary();
 
-            while (this.Match(SqlTokenType.STAR, SqlTokenType.DIVIDE, SqlTokenType.MODULO))
+            while (this.Match(SqlTokenType.STAR, SqlTokenType.MULTIPLY, SqlTokenType.DIVIDE, SqlTokenType.MODULO))
             {
                 var op = this.Previous().Type;
+                if (op == SqlTokenType.STAR)
+                {
+                    op = SqlTokenType.MULTIPLY;
+                }
+
                 var right = this.ParseUnary();
                 expr = new BinaryExpression { Left = expr, Operator = op, Right = right };
             }

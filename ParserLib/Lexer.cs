@@ -114,6 +114,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 ["LEFT"] = SqlTokenType.LEFT,
                 ["RIGHT"] = SqlTokenType.RIGHT,
                 ["FULL"] = SqlTokenType.FULL,
+                ["CROSS"] = SqlTokenType.CROSS,
                 ["OUTER"] = SqlTokenType.OUTER,
                 ["ON"] = SqlTokenType.ON,
                 ["WITH"] = SqlTokenType.WITH,

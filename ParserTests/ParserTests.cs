@@ -407,7 +407,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 "Expression should be BinaryExpression for multiplication");
 
             var binaryExpr = (BinaryExpression)expr;
-            Assert.AreEqual(SqlTokenType.STAR, binaryExpr.Operator);
+            Assert.AreEqual(SqlTokenType.MULTIPLY, binaryExpr.Operator);
             Assert.AreEqual("price", ((ColumnExpression)binaryExpr.Left).ColumnName);
             Assert.AreEqual(2.0, ((LiteralExpression)binaryExpr.Right).Value);
         }
@@ -448,7 +448,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             // Left side of addition should be multiplication: price * quantity
             var multiplyExpr = leftExpr.Left as BinaryExpression;
             Assert.IsNotNull(multiplyExpr);
-            Assert.AreEqual(SqlTokenType.STAR, multiplyExpr.Operator);
+            Assert.AreEqual(SqlTokenType.MULTIPLY, multiplyExpr.Operator);
             Assert.AreEqual("price", ((ColumnExpression)multiplyExpr.Left).ColumnName);
             Assert.AreEqual("quantity", ((ColumnExpression)multiplyExpr.Right).ColumnName);
 
@@ -472,7 +472,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             // First expression with explicit alias
             var expr1 = ast.SelectList[0].Expression as BinaryExpression;
             Assert.IsNotNull(expr1);
-            Assert.AreEqual(SqlTokenType.STAR, expr1.Operator);
+            Assert.AreEqual(SqlTokenType.MULTIPLY, expr1.Operator);
             Assert.AreEqual("total_price", ast.SelectList[0].Alias);
 
             // Second expression with implicit alias
@@ -499,7 +499,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             // First: (price + tax) * quantity
             var expr1 = ast.SelectList[0].Expression as BinaryExpression;
             Assert.IsNotNull(expr1);
-            Assert.AreEqual(SqlTokenType.STAR, expr1.Operator);
+            Assert.AreEqual(SqlTokenType.MULTIPLY, expr1.Operator);
             Assert.AreEqual("total_with_tax", ast.SelectList[0].Alias);
 
             // Verify the grouped expression
@@ -510,7 +510,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             // Second: price * 0.9
             var expr2 = ast.SelectList[1].Expression as BinaryExpression;
             Assert.IsNotNull(expr2);
-            Assert.AreEqual(SqlTokenType.STAR, expr2.Operator);
+            Assert.AreEqual(SqlTokenType.MULTIPLY, expr2.Operator);
             Assert.AreEqual(0.9, ((LiteralExpression)expr2.Right).Value);
 
             // Third: CASE expression

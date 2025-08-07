@@ -40,12 +40,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         /// <summary>
         /// Gets or sets the precision for numeric columns.
         /// </summary>
-        public int Precision { get; set; } = 0;
+        public byte Precision { get; set; } = 0;
 
         /// <summary>
         /// Gets or sets the scale for numeric columns.
         /// </summary>
-        public int Scale { get; set; } = 0;
+        public byte Scale { get; set; } = 0;
 
 
         /// <summary>

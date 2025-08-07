@@ -168,52 +168,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
 
         public virtual string GetSqlTypeString(PropertyMapping mapping)
         {
-            string typeStr;
-
-            // Handle special cases for SQLite
-            switch (mapping.SqlType)
-            {
-                case SqlDbType.NVarChar:
-                case SqlDbType.VarChar:
-                case SqlDbType.NChar:
-                case SqlDbType.Char:
-                    typeStr = "TEXT";
-                    break;
-                case SqlDbType.Int:
-                case SqlDbType.BigInt:
-                case SqlDbType.SmallInt:
-                case SqlDbType.TinyInt:
-                case SqlDbType.Bit:
-                    typeStr = "INTEGER";
-                    break;
-                case SqlDbType.Float:
-                case SqlDbType.Real:
-                case SqlDbType.Decimal:
-                case SqlDbType.Money:
-                case SqlDbType.SmallMoney:
-                    typeStr = "REAL";
-                    break;
-                case SqlDbType.Binary:
-                case SqlDbType.VarBinary:
-                case SqlDbType.Image:
-                    typeStr = "BLOB";
-                    break;
-                case SqlDbType.DateTime:
-                case SqlDbType.DateTime2:
-                case SqlDbType.DateTimeOffset:
-                case SqlDbType.Date:
-                case SqlDbType.Time:
-                    typeStr = "TEXT"; // SQLite stores dates as text
-                    break;
-                case SqlDbType.UniqueIdentifier:
-                    typeStr = "TEXT";
-                    break;
-                default:
-                    typeStr = "TEXT";
-                    break;
-            }
-
-            return typeStr;
+            var sqlDbType = mapping.SqlType ?? SqlDbType.Text;
+            return sqlDbType.ToSqlTypeString(mapping.Size, mapping.Precision, mapping.Scale);
         }
 
         /// <summary>
@@ -2082,7 +2038,9 @@ FROM {fromClause}{joinClause}
                 var firstColumn = group.Value.First();
                 var firstIndexAttr = properties
                     .SelectMany(p => p.GetCustomAttributes<IndexAttribute>()
-                        .Where(a => (a.Name ?? $"IX_{this.TableName}_{this.PropertyMappings[p].ColumnName}") == group.Key))
+                        .Where(a => (a.Name ?? (this.PropertyMappings.TryGetValue(p, out var mapping)
+                            ? $"IX_{this.TableName}_{mapping.ColumnName}"
+                            : $"IX_{this.TableName}_{p.Name}")) == group.Key))
                     .First();
 
                 this.Indexes.Add(new IndexDefinition

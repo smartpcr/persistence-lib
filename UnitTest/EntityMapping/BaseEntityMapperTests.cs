@@ -7,13 +7,11 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.EntityMapping
 {
     using System;
-    using System.Collections.Generic;
     using System.Linq;
-    using System.Reflection;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Extensions;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
+    using FluentAssertions;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.EntityMapping;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     [TestClass]
@@ -35,8 +33,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var properties = this.mapper.GetProperties();
 
             // Assert
-            Assert.IsNotNull(properties);
-            Assert.IsFalse(properties.Any(p => p.Name == "Ignored"), 
+            properties.Should().NotBeNull();
+            properties.Any(p => p.Name == "Ignored").Should().BeFalse(
                 "Properties marked with [NotMapped] should be excluded");
         }
 
@@ -54,7 +52,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             // Assert
             foreach (var expected in expectedProperties)
             {
-                Assert.IsTrue(propertyNames.Contains(expected), 
+                propertyNames.Should().Contain(expected,
                     $"Property {expected} should be included in discovered properties");
             }
         }
@@ -63,17 +61,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
         [TestCategory("EntityMapping")]
         public void GetSqlType_MapsAllSupportedTypes()
         {
-            // Arrange & Act & Assert
-            Assert.AreEqual("VARCHAR(36)", this.mapper.TestGetSqlType(typeof(Guid)));
-            Assert.AreEqual("NVARCHAR(MAX)", this.mapper.TestGetSqlType(typeof(string)));
-            Assert.AreEqual("INTEGER", this.mapper.TestGetSqlType(typeof(int)));
-            Assert.AreEqual("DATETIME", this.mapper.TestGetSqlType(typeof(DateTime)));
-            Assert.AreEqual("DECIMAL(18,6)", this.mapper.TestGetSqlType(typeof(decimal)));
-            Assert.AreEqual("BIT", this.mapper.TestGetSqlType(typeof(bool)));
-            Assert.AreEqual("BIGINT", this.mapper.TestGetSqlType(typeof(long)));
-            Assert.AreEqual("REAL", this.mapper.TestGetSqlType(typeof(float)));
-            Assert.AreEqual("FLOAT", this.mapper.TestGetSqlType(typeof(double)));
-            Assert.AreEqual("VARBINARY(MAX)", this.mapper.TestGetSqlType(typeof(byte[])));
+            this.mapper.TestGetSqlType(typeof(Guid)).Should().Be("UNIQUEIDENTIFIER");
+            this.mapper.TestGetSqlType(typeof(string)).Should().Be("NVARCHAR(255)");
+            this.mapper.TestGetSqlType(typeof(int)).Should().Be("INT");
+            this.mapper.TestGetSqlType(typeof(DateTime)).Should().Be("DATETIME2");
+            this.mapper.TestGetSqlType(typeof(decimal)).Should().Be("DECIMAL(18,2)");
+            this.mapper.TestGetSqlType(typeof(bool)).Should().Be("BIT");
+            this.mapper.TestGetSqlType(typeof(long)).Should().Be("BIGINT");
+            this.mapper.TestGetSqlType(typeof(float)).Should().Be("REAL");
+            this.mapper.TestGetSqlType(typeof(double)).Should().Be("FLOAT");
+            this.mapper.TestGetSqlType(typeof(byte[])).Should().Be("VARBINARY(MAX)");
         }
 
         [TestMethod]
@@ -81,22 +78,22 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
         public void GetSqlType_HandlesNullableTypes()
         {
             // Arrange & Act & Assert
-            Assert.AreEqual("INTEGER", this.mapper.TestGetSqlType(typeof(int?)));
-            Assert.AreEqual("DECIMAL(18,6)", this.mapper.TestGetSqlType(typeof(decimal?)));
-            Assert.AreEqual("DATETIME", this.mapper.TestGetSqlType(typeof(DateTime?)));
-            Assert.AreEqual("BIT", this.mapper.TestGetSqlType(typeof(bool?)));
+            this.mapper.TestGetSqlType(typeof(int?)).Should().Be("INT");
+            this.mapper.TestGetSqlType(typeof(decimal?)).Should().Be("DECIMAL(18,2)");
+            this.mapper.TestGetSqlType(typeof(DateTime?)).Should().Be("DATETIME2");
+            this.mapper.TestGetSqlType(typeof(bool?)).Should().Be("BIT");
         }
 
         [TestMethod]
         [TestCategory("EntityMapping")]
-        public void GenerateColumnName_ConvertsPascalToSnakeCase()
+        public void GenerateColumnName_RetainPascalCase()
         {
             // Arrange & Act & Assert
-            Assert.AreEqual("id", this.mapper.TestGenerateColumnName("Id"));
-            Assert.AreEqual("name", this.mapper.TestGenerateColumnName("Name"));
-            Assert.AreEqual("created_date", this.mapper.TestGenerateColumnName("CreatedDate"));
-            Assert.AreEqual("last_write_time", this.mapper.TestGenerateColumnName("LastWriteTime"));
-            Assert.AreEqual("my_long_property_name", this.mapper.TestGenerateColumnName("MyLongPropertyName"));
+            this.mapper.TestGenerateColumnName("Id").Should().Be("Id");
+            this.mapper.TestGenerateColumnName("Name").Should().Be("Name");
+            this.mapper.TestGenerateColumnName("CreatedDate").Should().Be("CreatedDate");
+            this.mapper.TestGenerateColumnName("LastWriteTime").Should().Be("LastWriteTime");
+            this.mapper.TestGenerateColumnName("MyLongPropertyName").Should().BeNull();
         }
 
         [TestMethod]
@@ -109,13 +106,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             // Act
             var sql = mapperWithSoftDelete.TestGenerateCreateTableSql();
 
-            // Assert
-            Assert.IsNotNull(sql);
-            Assert.IsTrue(sql.Contains("CREATE TABLE IF NOT EXISTS"), "Should have CREATE TABLE statement");
-            Assert.IsTrue(sql.Contains("TestEntity"), "Should reference correct table name");
-            Assert.IsTrue(sql.Contains("Version"), "Should include Version column for soft delete");
-            Assert.IsTrue(sql.Contains("IsDeleted"), "Should include IsDeleted column for soft delete");
-            Assert.IsTrue(sql.Contains("PRIMARY KEY"), "Should define primary key");
+            sql.Should().NotBeNull();
+            sql.Should().Contain("CREATE TABLE IF NOT EXISTS", "Should have CREATE TABLE statement");
+            sql.Should().Contain("TestEntity", "Should reference correct table name");
+            sql.Should().Contain("Version", "Should include Version column for soft delete");
+            sql.Should().Contain("IsDeleted", "Should include IsDeleted column for soft delete");
+            sql.Should().Contain("PRIMARY KEY", "Should define primary key");
         }
 
         [TestMethod]
@@ -129,9 +125,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var sql = mapperWithExpiry.TestGenerateCreateTableSql();
 
             // Assert
-            Assert.IsNotNull(sql);
-            Assert.IsTrue(sql.Contains("AbsoluteExpiration"), "Should include AbsoluteExpiration column");
-            Assert.IsTrue(sql.Contains("DATETIME"), "AbsoluteExpiration should be DATETIME type");
+            sql.Should().NotBeNull();
+            sql.Should().Contain("AbsoluteExpiration", "Should include AbsoluteExpiration column");
+            sql.Should().Contain("DATETIME", "AbsoluteExpiration should be DATETIME type");
         }
 
         [TestMethod]
@@ -142,36 +138,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var indexSql = this.mapper.TestGenerateCreateIndexSql();
 
             // Assert
-            Assert.IsNotNull(indexSql);
-            Assert.IsTrue(indexSql.Count > 0, "Should generate at least one index");
-            
-            // Check for primary key index
-            Assert.IsTrue(indexSql.Any(sql => sql.Contains("idx_TestEntity_Id")), 
-                "Should create index on primary key");
-        }
-
-        // Test helper mapper class for accessing protected methods
-        private class TestEntityMapper : BaseEntityMapper<BaseMapperTestEntity, Guid>
-        {
-            public PropertyInfo[] GetProperties() => this.GetPropertyMappings().Keys.ToArray();
-            
-            public string TestGetSqlType(Type type) => type.ToSqlTypeString();
-            
-            public string TestGenerateColumnName(string propertyName) => this.GetPropertyMappings().First(p => p.Key.Name ==propertyName).Value.ColumnName;
-            
-            public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
-            
-            public List<string> TestGenerateCreateIndexSql() => this.GenerateCreateIndexSql().ToList();
-        }
-
-        private class TestEntityMapperWithSoftDelete : BaseEntityMapper<BaseMapperSoftDeleteEntity, Guid>
-        {
-            public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
-        }
-
-        private class TestEntityMapperWithExpiry : BaseEntityMapper<BaseMapperExpiryEntity, Guid>
-        {
-            public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
+            indexSql.Should().NotBeNull();
+            indexSql.Should().NotBeEmpty("Should generate at least one index SQL statement");
+            indexSql.Any(i => i.Contains("CREATE INDEX")).Should().BeTrue("Should contain CREATE INDEX statement");
+            indexSql.Any(i => i.Contains("IX_TestEntity_Version")).Should().BeTrue("Should create index on Version column");
+            indexSql.Any(i => i.Contains("ON TestEntity (Version)")).Should().BeTrue("Should create index on Version column");
+            indexSql.Any(i => i.Contains("IX_TestEntity_LastWriteTime")).Should().BeTrue("Should create index on LastWriteTime column");
+            indexSql.Any(i => i.Contains("ON TestEntity (LastWriteTime)")).Should().BeTrue("Should create index on LastWriteTime column");
         }
     }
 }

@@ -21,7 +21,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         [JsonProperty("CacheKey")]
         [PrimaryKey(Order = 1)]
         [Column("CacheKey", SqlDbType.Text, NotNull = true)]
-        [Index("IX_CacheEntry_Key")]
+        [Index]
         public TKey Id { get; set; }
 
         /// <summary>
@@ -33,7 +33,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         [JsonProperty("Version")]
         [AuditField(AuditFieldType.Version)]
         [Column("Version", SqlDbType.BigInt, NotNull = true)]
-        [Index("IX_CacheEntry_Version")]
+        [Index]
         public long Version { get; set; }
 
         [DataMember]
@@ -46,7 +46,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         [JsonProperty("LastWriteTime")]
         [AuditField(AuditFieldType.LastWriteTime)]
         [Column("LastWriteTime", SqlDbType.DateTime, NotNull = true)]
-        [Index("IX_CacheEntry_LastWriteTime")]
+        [Index]
         public DateTimeOffset LastWriteTime { get; set; }
 
         public virtual long EstimateEntitySize()

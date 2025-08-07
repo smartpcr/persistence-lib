@@ -7,9 +7,14 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.EntityMapping
 {
     using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Reflection;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Extensions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
 
+    #region entities
     [Table("TestEntity")]
     public class BaseMapperTestEntity : BaseEntity<Guid>
     {
@@ -33,4 +38,31 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     {
         public DateTimeOffset? AbsoluteExpiration { get; set; }
     }
+    #endregion
+
+    #region entity mappers
+    public class TestEntityMapper : BaseEntityMapper<BaseMapperTestEntity, Guid>
+    {
+        public PropertyInfo[] GetProperties() => this.GetPropertyMappings().Keys.ToArray();
+
+        public string TestGetSqlType(Type type) => type.ToSqlTypeString();
+
+        public string TestGenerateColumnName(string propertyName) => this.GetPropertyMappings()
+            .FirstOrDefault(p => p.Key.Name ==propertyName).Value?.ColumnName;
+
+        public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
+
+        public List<string> TestGenerateCreateIndexSql() => this.GenerateCreateIndexSql().ToList();
+    }
+
+    public class TestEntityMapperWithSoftDelete : BaseEntityMapper<BaseMapperSoftDeleteEntity, Guid>
+    {
+        public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
+    }
+
+    public class TestEntityMapperWithExpiry : BaseEntityMapper<BaseMapperExpiryEntity, Guid>
+    {
+        public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
+    }
+    #endregion
 }

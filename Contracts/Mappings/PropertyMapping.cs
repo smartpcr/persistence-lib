@@ -21,8 +21,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         public string ColumnName { get; set; }
         public SqlDbType? SqlType { get; set; }
         public int? Size { get; set; }
-        public int? Precision { get; set; }
-        public int? Scale { get; set; }
+        public byte? Precision { get; set; }
+        public byte? Scale { get; set; }
         public bool IsNotNull { get; set; }
         public object DefaultValue { get; set; }
         public string DefaultConstraintName { get; set; }

@@ -11,26 +11,43 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
     public class DebugParser
     {
-        public static void DebugArithmeticExpression()
+        public static SelectStatement ParseSqlStatement(string sql)
         {
-            var sql = "SELECT price * quantity + tax - discount / 2 FROM orders";
             var lexer = new Lexer(sql);
             var tokens = lexer.Tokenize();
-            
+
             Console.WriteLine("Tokens:");
             foreach (var token in tokens)
             {
                 Console.WriteLine($"  {token.Type}: {token.Value}");
             }
-            
+
             var parser = new SqlParser(tokens);
             var ast = parser.Parse();
-            
+
+            return ast;
+        }
+
+        public static void DebugArithmeticExpression()
+        {
+            var sql = "SELECT price * quantity + tax - discount / 2 FROM orders";
+            var lexer = new Lexer(sql);
+            var tokens = lexer.Tokenize();
+
+            Console.WriteLine("Tokens:");
+            foreach (var token in tokens)
+            {
+                Console.WriteLine($"  {token.Type}: {token.Value}");
+            }
+
+            var parser = new SqlParser(tokens);
+            var ast = parser.Parse();
+
             Console.WriteLine("\nAST:");
             Console.WriteLine($"SelectList Count: {ast.SelectList.Count}");
             var expr = ast.SelectList[0].Expression;
             Console.WriteLine($"Expression Type: {expr.GetType().Name}");
-            
+
             if (expr is BinaryExpression binExpr)
             {
                 PrintBinaryExpression(binExpr, 0);
@@ -40,7 +57,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 Console.WriteLine($"Column: {colExpr.ColumnName}");
             }
         }
-        
+
         private static void PrintBinaryExpression(BinaryExpression expr, int indent)
         {
             var indentStr = new string(' ', indent * 2);
@@ -50,7 +67,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             Console.WriteLine($"{indentStr}Right:");
             PrintExpression(expr.Right, indent + 1);
         }
-        
+
         private static void PrintExpression(Expression expr, int indent)
         {
             var indentStr = new string(' ', indent * 2);

@@ -126,7 +126,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
             }
 
             // XML type
-            if (underlyingType == typeof(System.Xml.XmlDocument) || 
+            if (underlyingType == typeof(System.Xml.XmlDocument) ||
                 underlyingType == typeof(System.Xml.Linq.XDocument))
             {
                 return SqlDbType.Xml;
@@ -209,19 +209,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
             }
 
             var definition = new StringBuilder();
-            
+
             // Column name
             definition.Append($"[{columnName}] ");
-            
+
             // Data type
             definition.Append(clrType.ToSqlTypeString());
-            
+
             // Identity
             if (isIdentity)
             {
                 definition.Append(" IDENTITY(1,1)");
             }
-            
+
             // Nullability
             bool actualNullability = isNullable ?? clrType.IsNullable();
             if (!actualNullability || isPrimaryKey)
@@ -232,25 +232,25 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
             {
                 definition.Append(" NULL");
             }
-            
+
             // Default value
             if (defaultValue != null)
             {
                 definition.Append($" DEFAULT {FormatSqlValue(defaultValue, clrType)}");
             }
-            
+
             // Primary key
             if (isPrimaryKey)
             {
                 definition.Append(" PRIMARY KEY");
             }
-            
+
             // Check constraint
             if (!string.IsNullOrWhiteSpace(checkConstraint))
             {
                 definition.Append($" CHECK ({checkConstraint})");
             }
-            
+
             return definition.ToString();
         }
 
@@ -273,12 +273,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
             if (value is string strValue)
             {
                 var upperValue = strValue.ToUpperInvariant();
-                if (upperValue == "GETDATE()" || upperValue == "NEWID()" || 
+                if (upperValue == "GETDATE()" || upperValue == "NEWID()" ||
                     upperValue == "GETUTCDATE()" || upperValue == "CURRENT_TIMESTAMP")
                 {
                     return strValue;
                 }
-                
+
                 // Regular string value
                 return $"N'{strValue.Replace("'", "''")}'";
             }
@@ -321,6 +321,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
         {
             var sqlType = clrType.ToSqlDbType(out var size, out var precision, out var scale);
 
+            return ToSqlTypeString(sqlType, size, precision, scale);
+        }
+
+        public static string ToSqlTypeString(this SqlDbType sqlType, int? size, byte? precision, byte? scale)
+        {
             return sqlType switch
             {
                 SqlDbType.BigInt => "BIGINT",
@@ -331,8 +336,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
                 SqlDbType.DateTime => "DATETIME",
                 SqlDbType.DateTime2 => "DATETIME2",
                 SqlDbType.DateTimeOffset => "DATETIMEOFFSET",
-                SqlDbType.Decimal => precision.HasValue && scale.HasValue 
-                    ? $"DECIMAL({precision},{scale})" 
+                SqlDbType.Decimal => precision.HasValue && scale.HasValue
+                    ? $"DECIMAL({precision},{scale})"
                     : "DECIMAL(18,2)",
                 SqlDbType.Float => "FLOAT",
                 SqlDbType.Image => "IMAGE",

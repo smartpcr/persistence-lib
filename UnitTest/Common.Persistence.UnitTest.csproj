@@ -4,6 +4,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest</RootNamespace>
     <AssemblyName>Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest</AssemblyName>
+    <IsTestProject>true</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Contracts\Common.Persistence.Contracts.csproj" />

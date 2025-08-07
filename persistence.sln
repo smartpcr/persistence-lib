@@ -26,6 +26,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".build", ".build", "{14F42C
 		readme.md = readme.md
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "docs", "docs", "{D55D7F47-E610-4205-8E3B-9930F2413C2E}"
+	ProjectSection(SolutionItems) = preProject
+		docs\persistence.md = docs\persistence.md
+		docs\persistence_test_scenarios.md = docs\persistence_test_scenarios.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

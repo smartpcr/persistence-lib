@@ -140,6 +140,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 ["IS"] = SqlTokenType.IS,
                 ["NULL"] = SqlTokenType.NULL,
                 ["EXISTS"] = SqlTokenType.EXISTS,
+                ["IF"] = SqlTokenType.IF,
                 ["CASE"] = SqlTokenType.CASE,
                 ["WHEN"] = SqlTokenType.WHEN,
                 ["THEN"] = SqlTokenType.THEN,

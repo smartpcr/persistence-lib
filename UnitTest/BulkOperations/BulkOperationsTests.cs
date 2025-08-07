@@ -8,7 +8,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
 {
     using System;
     using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
@@ -16,22 +15,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Newtonsoft.Json;
+    using BulkTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.BulkOperations.BulkTestEntity;
 
     [TestClass]
     public class BulkOperationsTests
     {
-        [Table("BulkTestEntity")]
-        public class BulkTestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public string Category { get; set; }
-            public int Value { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<BulkTestEntity, Guid> provider;
         private CallerInfo callerInfo;

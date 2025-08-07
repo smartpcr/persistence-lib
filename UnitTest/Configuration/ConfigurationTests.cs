@@ -13,22 +13,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using ConfigTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Configuration.ConfigTestEntity;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Newtonsoft.Json;
 
     [TestClass]
     public class ConfigurationTests
     {
-        [Table("ConfigTestEntity")]
-        public class ConfigTestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private CallerInfo callerInfo;
 

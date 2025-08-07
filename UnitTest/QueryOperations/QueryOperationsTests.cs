@@ -7,30 +7,16 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.QueryOperations
 {
     using System;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using QueryTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.QueryOperations.QueryTestEntity;
 
     [TestClass]
     public class QueryOperationsTests
     {
-        [Table("QueryTestEntity")]
-        public class QueryTestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public string Status { get; set; }
-            public int Amount { get; set; }
-            public string Category { get; set; }
-            public DateTime DateCreated { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<QueryTestEntity, Guid> provider;
         private CallerInfo callerInfo;

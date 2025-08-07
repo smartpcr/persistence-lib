@@ -8,59 +8,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
 {
     using System;
     using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Integration;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     [TestClass]
     [TestCategory("Integration")]
     public class IntegrationTests
     {
-        [Table("Order", SoftDeleteEnabled = true, EnableAuditTrail = true)]
-        public class Order : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string OrderNumber { get; set; }
-            public string CustomerName { get; set; }
-            public string Status { get; set; }
-            public decimal TotalAmount { get; set; }
-            public DateTime OrderDate { get; set; }
-            public int Version { get; set; }
-            public bool IsDeleted { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
-        [Table("OrderItem")]
-        public class OrderItem : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public Guid OrderId { get; set; }
-            public string ProductName { get; set; }
-            public int Quantity { get; set; }
-            public decimal UnitPrice { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
-        [Table("Product")]
-        public class Product : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public string Category { get; set; }
-            public decimal Price { get; set; }
-            public int StockQuantity { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<Order, Guid> orderProvider;
         private SQLitePersistenceProvider<OrderItem, Guid> orderItemProvider;

@@ -8,28 +8,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
 {
     using System;
     using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using CartItem = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ListOperations.CartItem;
 
     [TestClass]
     public class ListOperationsTests
     {
-        [Table("CartItem")]
-        public class CartItem : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string ProductName { get; set; }
-            public int Quantity { get; set; }
-            public decimal Price { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<CartItem, Guid> provider;
         private CallerInfo callerInfo;

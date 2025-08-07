@@ -7,27 +7,16 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Transaction
 {
     using System;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using TransactionTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Transaction.TransactionTestEntity;
 
     [TestClass]
     public class TransactionScopeTests
     {
-        [Table("TransactionTestEntity")]
-        public class TransactionTestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Value { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<TransactionTestEntity, Guid> provider;
         private CallerInfo callerInfo;

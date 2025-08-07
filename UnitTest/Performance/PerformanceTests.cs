@@ -8,30 +8,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
 {
     using System;
     using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Diagnostics;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using PerfTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Performance.PerfTestEntity;
 
     [TestClass]
     [TestCategory("Performance")]
     public class PerformanceTests
     {
-        [Table("PerfTestEntity")]
-        public class PerfTestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public string Data { get; set; }
-            public int Value { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<PerfTestEntity, Guid> provider;
         private CallerInfo callerInfo;

@@ -7,58 +7,27 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CorePersistence
 {
     using System;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exceptions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Errors;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using CrudTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence.CrudTestEntity;
+    using CrudSoftDeleteEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence.CrudSoftDeleteEntity;
+    using CrudExpiryEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence.CrudExpiryEntity;
 
     [TestClass]
     public class CrudOperationsTests
     {
-        [Table("TestEntity")]
-        public class TestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public string Status { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
-        [Table("SoftDeleteEntity", SoftDeleteEnabled = true)]
-        public class SoftDeleteEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Version { get; set; }
-            public bool IsDeleted { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
-        [Table("ExpiryEntity", ExpirySpan = "00:00:01")] // 1 second expiry for testing
-        public class ExpiryEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Version { get; set; }
-            public DateTime? AbsoluteExpiration { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
-        private SQLitePersistenceProvider<TestEntity, Guid> provider;
+        private SQLitePersistenceProvider<CrudTestEntity, Guid> provider;
         private CallerInfo callerInfo;
 
         [TestInitialize]
         public async Task Setup()
         {
             this.connectionString = "Data Source=:memory:";
-            this.provider = new SQLitePersistenceProvider<TestEntity, Guid>(this.connectionString);
+            this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString);
             await this.provider.InitializeAsync();
             
             this.callerInfo = new CallerInfo
@@ -157,10 +126,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task CreateAsync_WithSoftDelete_CreatesVersion()
         {
             // Arrange
-            var provider = new SQLitePersistenceProvider<SoftDeleteEntity, Guid>(this.connectionString);
+            var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
             
-            var entity = new SoftDeleteEntity
+            var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Soft Delete Test"
@@ -181,10 +150,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task CreateAsync_WithExpiry_SetsExpirationTime()
         {
             // Arrange
-            var provider = new SQLitePersistenceProvider<ExpiryEntity, Guid>(this.connectionString);
+            var provider = new SQLitePersistenceProvider<CrudExpiryEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
             
-            var entity = new ExpiryEntity
+            var entity = new CrudExpiryEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Expiry Test"
@@ -245,10 +214,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task GetAsync_SoftDeletedEntity_ReturnsNull()
         {
             // Arrange
-            var provider = new SQLitePersistenceProvider<SoftDeleteEntity, Guid>(this.connectionString);
+            var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
             
-            var entity = new SoftDeleteEntity
+            var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "To Be Deleted"
@@ -269,10 +238,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task GetAsync_ExpiredEntity_ReturnsNull()
         {
             // Arrange
-            var provider = new SQLitePersistenceProvider<ExpiryEntity, Guid>(this.connectionString);
+            var provider = new SQLitePersistenceProvider<CrudExpiryEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
             
-            var entity = new ExpiryEntity
+            var entity = new CrudExpiryEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Will Expire"
@@ -295,10 +264,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task GetByKeyAsync_IncludeAllVersions_ReturnsHistory()
         {
             // Arrange
-            var provider = new SQLitePersistenceProvider<SoftDeleteEntity, Guid>(this.connectionString);
+            var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
             
-            var entity = new SoftDeleteEntity
+            var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Version 1"
@@ -329,10 +298,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task GetByKeyAsync_IncludeDeleted_ReturnsSoftDeleted()
         {
             // Arrange
-            var provider = new SQLitePersistenceProvider<SoftDeleteEntity, Guid>(this.connectionString);
+            var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
             
-            var entity = new SoftDeleteEntity
+            var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "To Be Deleted"
@@ -459,10 +428,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task UpdateAsync_WithSoftDelete_CreatesNewVersion()
         {
             // Arrange
-            var provider = new SQLitePersistenceProvider<SoftDeleteEntity, Guid>(this.connectionString);
+            var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
             
-            var entity = new SoftDeleteEntity
+            var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Version 1"
@@ -532,10 +501,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task DeleteAsync_SoftDelete_CreatesDeletedVersion()
         {
             // Arrange
-            var provider = new SQLitePersistenceProvider<SoftDeleteEntity, Guid>(this.connectionString);
+            var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
             
-            var entity = new SoftDeleteEntity
+            var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "To Soft Delete"

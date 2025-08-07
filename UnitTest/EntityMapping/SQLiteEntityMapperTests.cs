@@ -22,19 +22,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     [TestClass]
     public class SQLiteEntityMapperTests
     {
-        public class TestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Count { get; set; }
-            public DateTime CreatedDate { get; set; }
-            public decimal? Amount { get; set; }
-            public ComplexObject ComplexData { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         public class ComplexObject
         {
             public string Field1 { get; set; }
@@ -42,7 +29,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             public List<string> Items { get; set; }
         }
 
-        private SQLiteEntityMapper<TestEntity, Guid> mapper;
+        private SQLiteEntityMapper<Entities.EntityMapping.SQLiteMapperTestEntity, Guid> mapper;
         private SqliteConfiguration configuration;
 
         [TestInitialize]
@@ -52,7 +39,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             {
                 CommandTimeout = 30
             };
-            this.mapper = new SQLiteEntityMapper<TestEntity, Guid>(this.configuration);
+            this.mapper = new SQLiteEntityMapper<Entities.EntityMapping.SQLiteMapperTestEntity, Guid>(this.configuration);
         }
 
         [TestMethod]
@@ -60,7 +47,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
         public void CreateCommand_GeneratesCorrectInsertSql()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new Entities.EntityMapping.SQLiteMapperTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Test",
@@ -71,7 +58,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
                 LastWriteTime = DateTime.UtcNow
             };
 
-            var context = new CommandContext<TestEntity, Guid>
+            var context = new CommandContext<Entities.EntityMapping.SQLiteMapperTestEntity, Guid>
             {
                 Entity = entity,
                 CommandTimeout = 30
@@ -95,7 +82,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
         public void CreateCommand_GeneratesCorrectUpdateSql()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new Entities.EntityMapping.SQLiteMapperTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Updated",
@@ -104,7 +91,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
                 LastWriteTime = DateTime.UtcNow
             };
 
-            var context = new CommandContext<TestEntity, Guid>
+            var context = new CommandContext<Entities.EntityMapping.SQLiteMapperTestEntity, Guid>
             {
                 Entity = entity,
                 Key = entity.Id,
@@ -130,7 +117,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
         {
             // Arrange
             var key = Guid.NewGuid();
-            var context = new CommandContext<TestEntity, Guid>
+            var context = new CommandContext<Entities.EntityMapping.SQLiteMapperTestEntity, Guid>
             {
                 Key = key,
                 CommandTimeout = 30

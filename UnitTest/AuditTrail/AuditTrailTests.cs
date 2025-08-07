@@ -13,21 +13,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
+    using AuditTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.AuditTrail.AuditTestEntity;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     [TestClass]
     public class AuditTrailTests
     {
-        [Table("AuditTestEntity", EnableAuditTrail = true)]
-        public class AuditTestEntity : BaseEntity<Guid>
-        {
-            [PrimaryKey]
-            public new Guid Id { get; set; }
-            public string Name { get; set; }
-            public string Status { get; set; }
-            public int Value { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<AuditTestEntity, Guid> provider;
         private CallerInfo callerInfo;

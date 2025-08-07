@@ -7,50 +7,19 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ErrorHandling
 {
     using System;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Data.SQLite;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exceptions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Errors;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using ErrorTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ErrorHandling.ErrorTestEntity;
+    using ParentEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ErrorHandling.ParentEntity;
+    using ChildEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ErrorHandling.ChildEntity;
 
     [TestClass]
     public class ErrorHandlingTests
     {
-        [Table("ErrorTestEntity")]
-        public class ErrorTestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public string UniqueField { get; set; }
-            public int Value { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
-        [Table("ParentEntity")]
-        public class ParentEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
-        [Table("ChildEntity")]
-        public class ChildEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public Guid ParentId { get; set; }
-            public string Name { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<ErrorTestEntity, Guid> provider;
         private CallerInfo callerInfo;
@@ -125,7 +94,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
 
         [TestMethod]
         [TestCategory("ErrorHandling")]
-        [ExpectedException(typeof(PersistenceException))]
+        [ExpectedException(typeof(EntityWriteException))]
         public async Task ConnectionLoss_PersistentFailure_ThrowsException()
         {
             // Arrange
@@ -189,7 +158,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
                 await childProvider.CreateAsync(child, this.callerInfo);
                 Assert.Fail("Should have thrown foreign key constraint exception");
             }
-            catch (PersistenceException ex)
+            catch (EntityWriteException ex)
             {
                 Assert.IsTrue(ex.Message.Contains("constraint") || ex.Message.Contains("foreign"),
                     "Exception should mention constraint violation");
@@ -232,7 +201,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             {
                 // Expected for duplicate key
             }
-            catch (PersistenceException ex)
+            catch (EntityWriteException ex)
             {
                 Assert.IsTrue(ex.Message.Contains("unique") || ex.Message.Contains("constraint"),
                     "Exception should mention unique constraint violation");
@@ -272,7 +241,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
                 // If we get here, SQLite might have coerced the value
                 Assert.IsNotNull(result);
             }
-            catch (PersistenceException ex)
+            catch (EntityWriteException ex)
             {
                 // Assert
                 Assert.IsTrue(ex.Message.Contains("type") || ex.Message.Contains("convert") || ex.Message.Contains("cast"),

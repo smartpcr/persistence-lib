@@ -7,8 +7,12 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.EntityMapping
 {
     using System;
+    using System.Collections.Generic;
     using System.Data;
+    using System.Linq;
+    using System.Reflection;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Extensions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
 
     [Table("TestEntity")]
@@ -28,5 +32,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
 
         [Column("ComplexData", SqlDbType.Text)]
         public string ComplexData { get; set; }
+    }
+
+    public class SQLiteTestEntityMapper : BaseEntityMapper<SQLiteMapperTestEntity, Guid>
+    {
+        public PropertyInfo[] GetProperties() => this.GetPropertyMappings().Keys.ToArray();
+
+        public string TestGetSqlType(Type type) => type.ToSqlTypeString();
+
+        public string TestGenerateColumnName(string propertyName) => this.GetPropertyMappings()
+            .FirstOrDefault(p => p.Key.Name ==propertyName).Value?.ColumnName;
+
+        public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
+
+        public List<string> TestGenerateCreateIndexSql() => this.GenerateCreateIndexSql().ToList();
     }
 }

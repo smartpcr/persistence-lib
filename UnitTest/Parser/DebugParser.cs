@@ -11,7 +11,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
     public class DebugParser
     {
-        public static SelectStatement ParseSqlStatement(string sql)
+        public static SqlNode ParseSqlStatement(string sql)
         {
             var lexer = new Lexer(sql);
             var tokens = lexer.Tokenize();
@@ -39,10 +39,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             {
                 Console.WriteLine($"  {token.Type}: {token.Value}");
             }
-            
+
             var parser = new SqlParser(tokens);
             var ast = (SelectStatement)parser.Parse();
-            
+
             Console.WriteLine("\nAST:");
             Console.WriteLine($"SelectList Count: {ast.SelectList.Count}");
             var expr = ast.SelectList[0].Expression;

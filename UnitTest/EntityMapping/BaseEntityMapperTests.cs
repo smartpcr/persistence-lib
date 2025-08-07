@@ -105,6 +105,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
 
             // Act
             var sql = mapperWithSoftDelete.TestGenerateCreateTableSql();
+            var node = DebugParser.ParseSqlStatement(sql);
+
+            node.Should().NotBeNull();
+            node.Should().BeOfType<CreateTableStatement>("Should parse as CREATE TABLE statement");
+            var createTable = (CreateTableStatement)node;
+            createTable.TableName.Should().Be("TestEntity", "Should reference correct table name");
+            createTable.Columns.Should().Contain(c => c.Name == "Version", "Should include Version column for soft delete");
+            createTable.Columns.Should().Contain(c => c.Name == "IsDeleted", "Should include IsDeleted column for soft delete");
+            createTable.Constraints.Any(c =>
+                    c.Type == ConstraintType.PrimaryKey &&
+                    c.Columns.Count == 2 &&
+                    c.Columns.Contains("Id") &&
+                    c.Columns.Contains("Version"))
+                .Should().BeTrue("Should define primary key on both Id and Version column");
 
             sql.Should().NotBeNull();
             sql.Should().Contain("CREATE TABLE IF NOT EXISTS", "Should have CREATE TABLE statement");

@@ -294,6 +294,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// </summary>
         EXISTS,
 
+        /// <summary>
+        /// IF keyword - used in conditional clauses such as IF NOT EXISTS.
+        /// </summary>
+        IF,
+
         #endregion
 
         #region Keywords - Conditional Expressions

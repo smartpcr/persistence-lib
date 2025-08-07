@@ -58,5 +58,32 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             Assert.AreEqual(ConstraintType.PrimaryKey, constraint.Type);
             CollectionAssert.AreEqual(new[] { "id" }, constraint.Columns);
         }
+
+        [TestMethod]
+        public void TestCreateTableIfNotExistsWithCompositePrimaryKey()
+        {
+            var sql = "CREATE TABLE IF NOT EXISTS TestEntity (" +
+                      "IsDeleted BIT, " +
+                      "Id UNIQUEIDENTIFIER NOT NULL, " +
+                      "Name NVARCHAR(255), " +
+                      "Count INT, " +
+                      "CreatedDate DATETIME2, " +
+                      "Amount DECIMAL(18,2), " +
+                      "Version BIGINT NOT NULL, " +
+                      "CreatedTime TEXT NOT NULL, " +
+                      "LastWriteTime DATETIME NOT NULL, " +
+                      "PRIMARY KEY (Id, Version)" +
+                      ")";
+
+            var node = this.ParseStatement(sql);
+            Assert.IsInstanceOfType(node, typeof(CreateTableStatement));
+            var stmt = (CreateTableStatement)node;
+            Assert.AreEqual("TestEntity", stmt.TableName);
+            Assert.AreEqual(9, stmt.Columns.Count);
+            Assert.AreEqual(1, stmt.Constraints.Count);
+            var pk = stmt.Constraints[0];
+            Assert.AreEqual(ConstraintType.PrimaryKey, pk.Type);
+            CollectionAssert.AreEqual(new[] { "Id", "Version" }, pk.Columns);
+        }
     }
 }

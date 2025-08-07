@@ -9,6 +9,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Text;
 
 
     // Parser
@@ -130,6 +131,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private CreateTableStatement ParseCreateTable()
         {
             var stmt = new CreateTableStatement();
+
+            // Optional IF NOT EXISTS
+            if (this.Match(SqlTokenType.IF))
+            {
+                this.Consume(SqlTokenType.NOT, "Expected NOT after IF");
+                this.Consume(SqlTokenType.EXISTS, "Expected EXISTS after NOT");
+            }
+
             stmt.TableName = this.Consume(SqlTokenType.IDENTIFIER, "Expected table name").Value;
             this.Consume(SqlTokenType.LEFT_PAREN, "Expected ( after table name");
 
@@ -142,7 +151,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 }
                 first = false;
 
-                if (this.Match(SqlTokenType.CONSTRAINT))
+                if (this.Check(SqlTokenType.CONSTRAINT) || this.Check(SqlTokenType.PRIMARY) ||
+                    this.Check(SqlTokenType.UNIQUE) || this.Check(SqlTokenType.FOREIGN))
                 {
                     stmt.Constraints.Add(this.ParseTableConstraint());
                 }
@@ -161,13 +171,27 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             var column = new ColumnDefinition();
             column.Name = this.Consume(SqlTokenType.IDENTIFIER, "Expected column name").Value;
             column.DataType = this.Consume(SqlTokenType.IDENTIFIER, "Expected data type").Value;
+
+            var sb = new StringBuilder(column.DataType);
+            while (!this.Check(SqlTokenType.COMMA) && !this.Check(SqlTokenType.RIGHT_PAREN) &&
+                   !this.Check(SqlTokenType.CONSTRAINT) && !this.Check(SqlTokenType.PRIMARY) &&
+                   !this.Check(SqlTokenType.UNIQUE) && !this.Check(SqlTokenType.FOREIGN))
+            {
+                sb.Append(' ').Append(this.Advance().Value);
+            }
+
+            column.DataType = sb.ToString();
             return column;
         }
 
         private TableConstraint ParseTableConstraint()
         {
             var constraint = new TableConstraint();
-            constraint.Name = this.Consume(SqlTokenType.IDENTIFIER, "Expected constraint name").Value;
+
+            if (this.Match(SqlTokenType.CONSTRAINT))
+            {
+                constraint.Name = this.Consume(SqlTokenType.IDENTIFIER, "Expected constraint name").Value;
+            }
 
             if (this.Match(SqlTokenType.PRIMARY))
             {

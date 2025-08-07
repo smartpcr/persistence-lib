@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest</RootNamespace>
+    <AssemblyName>Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Contracts\Common.Persistence.Contracts.csproj" />
+    <ProjectReference Include="..\Providers\SQLite\Common.Persistence.Provider.SQLite.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+  </ItemGroup>
+</Project>

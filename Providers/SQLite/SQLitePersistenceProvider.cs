@@ -1,0 +1,146 @@
+﻿//-------------------------------------------------------------------------------
+// <copyright file="SQLitePersistenceProvider.cs" company="Microsoft Corp.">
+//     Copyright (c) Microsoft Corp. All rights reserved.
+// </copyright>
+//-------------------------------------------------------------------------------
+
+namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite
+{
+    using System;
+    using System.Data.SQLite;
+    using System.Threading;
+    using System.Threading.Tasks;
+    using Config;
+    using Contracts;
+    using Entities;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Mappings;
+
+    /// <summary>
+    /// Non-generic static class to hold shared state across all SQLitePersistenceProvider instances.
+    /// This ensures the audit table is only created once regardless of how many different
+    /// generic type instances are created.
+    /// </summary>
+    internal static class SQLiteProviderSharedState
+    {
+        internal static readonly object AuditTableLock = new object();
+        internal static bool AuditTableCreated;
+    }
+
+    /// <summary>
+    /// SQLite implementation of IPersistenceProvider that translates CRUD operations to SQL.
+    /// </summary>
+    public partial class SQLitePersistenceProvider<T, TKey> : IPersistenceProvider<T, TKey>
+        where T : class, IEntity<TKey>
+        where TKey : IEquatable<TKey>
+    {
+        private static readonly TimeSpan DefaultCacheExpiration = TimeSpan.FromHours(1);
+        private readonly string connectionString;
+        private readonly VersionMapper versionMapper;
+        private readonly EntryListMappingMapper entryListMappingMapper;
+        private readonly SqliteConfiguration configuration;
+        private readonly IEntityMapper<AuditRecord, long> auditMapper;
+        private bool isInitialized;
+        private bool isDisposed;
+
+        public IEntityMapper<T, TKey> Mapper { get; private set; }
+
+        public SQLitePersistenceProvider(string connectionString, SqliteConfiguration configuration = null)
+        {
+            this.connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+            this.configuration = configuration ?? new SqliteConfiguration();
+            this.Mapper = new SQLiteEntityMapper<T, TKey>();
+            this.versionMapper = new VersionMapper();
+            this.entryListMappingMapper = new EntryListMappingMapper();
+            this.auditMapper = new SQLiteAuditMapper();
+            this.isInitialized = false;
+        }
+
+        /// <summary>
+        /// Creates a new SQLitePersistenceProvider with configuration loaded from a JSON file.
+        /// </summary>
+        /// <param name="connectionString">The SQLite connection string</param>
+        /// <param name="configFilePath">Path to JSON config file. If null, looks for 'sqlite.json' in current directory.</param>
+        /// <returns>A new SQLitePersistenceProvider instance</returns>
+        public static SQLitePersistenceProvider<T, TKey> CreateWithJsonConfig(string connectionString, string configFilePath = null)
+        {
+            var configuration = SqliteConfiguration.FromJsonFile(configFilePath);
+            return new SQLitePersistenceProvider<T, TKey>(connectionString, configuration);
+        }
+
+        #region init
+
+        public async Task InitializeAsync(CancellationToken cancel = default)
+        {
+            if (this.isInitialized)
+            {
+                return;
+            }
+
+            // Create database file if it doesn't exist
+            this.EnsureDatabaseExistsAsync(cancel);
+
+            // Initialize database with configuration and create schema
+            await this.InitializeDatabaseAsync(cancel);
+
+            this.isInitialized = true;
+        }
+
+        #endregion
+
+        public ITransactionScope<T, TKey> BeginTransaction(CancellationToken cancellationToken = default)
+        {
+            return new TransactionScope<T, TKey>(this.connectionString);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            if (!this.isDisposed)
+            {
+                // Async cleanup
+                // Clear the connection pool for this specific database to release file locks
+                // This is especially important for unit tests to allow database file deletion
+                try
+                {
+                    using var connection = new SQLiteConnection(this.connectionString);
+                    SQLiteConnection.ClearPool(connection);
+                }
+                catch
+                {
+                    // Ignore any errors during disposal
+                }
+
+                // Suppress finalizer
+                GC.SuppressFinalize(this);
+
+                this.isDisposed = true;
+            }
+
+            return new ValueTask(Task.CompletedTask);
+        }
+
+        #region size estimation
+
+        /// <summary>
+        /// Estimates the size of an entity by serializing it.
+        /// </summary>
+        private long EstimateEntitySize(T entity)
+        {
+            if (entity == null) return 0;
+
+            try
+            {
+                var serialized = this.Mapper.SerializeEntity(entity);
+                return serialized?.Length ?? 0;
+            }
+            catch
+            {
+                // If serialization fails, return 0
+                return 0;
+            }
+        }
+
+        #endregion
+
+    }
+}

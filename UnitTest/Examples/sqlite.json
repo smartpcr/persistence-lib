@@ -1,0 +1,8 @@
+{
+  "CacheSize": -4000,
+  "PageSize": 8192,
+  "JournalMode": "WAL",
+  "SynchronousMode": "Normal",
+  "BusyTimeout": 10000,
+  "EnableForeignKeys": true
+}

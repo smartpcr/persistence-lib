@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+  <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>library</OutputType>
+    <AssemblyName>Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts</AssemblyName>
+    <RootNamespace>Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" />
+    <PackageReference Include="System.Text.Json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="System.ComponentModel.DataAnnotations" />
+  </ItemGroup>
+</Project>

@@ -23,9 +23,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             this.current = 0;
         }
 
-        public SelectStatement Parse()
+        public SqlNode Parse()
         {
-            return this.ParseSelectStatement();
+            if (this.Check(SqlTokenType.SELECT) || this.Check(SqlTokenType.WITH))
+            {
+                return this.ParseSelectStatement();
+            }
+
+            if (this.Check(SqlTokenType.CREATE))
+            {
+                return this.ParseCreateStatement();
+            }
+
+            throw new Exception("Unsupported statement type");
         }
 
         private SelectStatement ParseSelectStatement()
@@ -98,6 +108,121 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
 
             return select;
+        }
+
+        private SqlNode ParseCreateStatement()
+        {
+            this.Consume(SqlTokenType.CREATE, "Expected CREATE");
+
+            if (this.Match(SqlTokenType.TABLE))
+            {
+                return this.ParseCreateTable();
+            }
+
+            if (this.Match(SqlTokenType.INDEX))
+            {
+                return this.ParseCreateIndex();
+            }
+
+            throw new Exception("Expected TABLE or INDEX after CREATE");
+        }
+
+        private CreateTableStatement ParseCreateTable()
+        {
+            var stmt = new CreateTableStatement();
+            stmt.TableName = this.Consume(SqlTokenType.IDENTIFIER, "Expected table name").Value;
+            this.Consume(SqlTokenType.LEFT_PAREN, "Expected ( after table name");
+
+            var first = true;
+            while (!this.Check(SqlTokenType.RIGHT_PAREN))
+            {
+                if (!first)
+                {
+                    this.Consume(SqlTokenType.COMMA, "Expected comma between definitions");
+                }
+                first = false;
+
+                if (this.Match(SqlTokenType.CONSTRAINT))
+                {
+                    stmt.Constraints.Add(this.ParseTableConstraint());
+                }
+                else
+                {
+                    stmt.Columns.Add(this.ParseColumnDefinition());
+                }
+            }
+
+            this.Consume(SqlTokenType.RIGHT_PAREN, "Expected ) after table definition");
+            return stmt;
+        }
+
+        private ColumnDefinition ParseColumnDefinition()
+        {
+            var column = new ColumnDefinition();
+            column.Name = this.Consume(SqlTokenType.IDENTIFIER, "Expected column name").Value;
+            column.DataType = this.Consume(SqlTokenType.IDENTIFIER, "Expected data type").Value;
+            return column;
+        }
+
+        private TableConstraint ParseTableConstraint()
+        {
+            var constraint = new TableConstraint();
+            constraint.Name = this.Consume(SqlTokenType.IDENTIFIER, "Expected constraint name").Value;
+
+            if (this.Match(SqlTokenType.PRIMARY))
+            {
+                this.Consume(SqlTokenType.KEY, "Expected KEY after PRIMARY");
+                constraint.Type = ConstraintType.PrimaryKey;
+            }
+            else if (this.Match(SqlTokenType.UNIQUE))
+            {
+                constraint.Type = ConstraintType.Unique;
+            }
+            else if (this.Match(SqlTokenType.FOREIGN))
+            {
+                this.Consume(SqlTokenType.KEY, "Expected KEY after FOREIGN");
+                constraint.Type = ConstraintType.ForeignKey;
+            }
+            else
+            {
+                throw new Exception("Unsupported constraint type");
+            }
+
+            this.Consume(SqlTokenType.LEFT_PAREN, "Expected ( after constraint type");
+            do
+            {
+                constraint.Columns.Add(this.Consume(SqlTokenType.IDENTIFIER, "Expected column name").Value);
+            } while (this.Match(SqlTokenType.COMMA));
+            this.Consume(SqlTokenType.RIGHT_PAREN, "Expected ) after constraint columns");
+
+            // For FOREIGN KEY, optionally parse REFERENCES clause but ignore details
+            if (constraint.Type == ConstraintType.ForeignKey && this.Match(SqlTokenType.REFERENCES))
+            {
+                this.Consume(SqlTokenType.IDENTIFIER, "Expected referenced table");
+                this.Consume(SqlTokenType.LEFT_PAREN, "Expected (");
+                do
+                {
+                    this.Consume(SqlTokenType.IDENTIFIER, "Expected referenced column");
+                } while (this.Match(SqlTokenType.COMMA));
+                this.Consume(SqlTokenType.RIGHT_PAREN, "Expected )");
+            }
+
+            return constraint;
+        }
+
+        private CreateIndexStatement ParseCreateIndex()
+        {
+            var stmt = new CreateIndexStatement();
+            stmt.IndexName = this.Consume(SqlTokenType.IDENTIFIER, "Expected index name").Value;
+            this.Consume(SqlTokenType.ON, "Expected ON");
+            stmt.TableName = this.Consume(SqlTokenType.IDENTIFIER, "Expected table name").Value;
+            this.Consume(SqlTokenType.LEFT_PAREN, "Expected (");
+            do
+            {
+                stmt.Columns.Add(this.Consume(SqlTokenType.IDENTIFIER, "Expected column name").Value);
+            } while (this.Match(SqlTokenType.COMMA));
+            this.Consume(SqlTokenType.RIGHT_PAREN, "Expected )");
+            return stmt;
         }
 
         private List<CteDefinition> ParseCTEs()

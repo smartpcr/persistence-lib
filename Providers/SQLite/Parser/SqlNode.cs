@@ -122,4 +122,39 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     {
         public SelectStatement Query { get; set; }
     }
+
+    // DDL nodes
+    public class CreateTableStatement : SqlNode
+    {
+        public string TableName { get; set; }
+        public List<ColumnDefinition> Columns { get; set; } = new List<ColumnDefinition>();
+        public List<TableConstraint> Constraints { get; set; } = new List<TableConstraint>();
+    }
+
+    public class ColumnDefinition : SqlNode
+    {
+        public string Name { get; set; }
+        public string DataType { get; set; }
+    }
+
+    public class TableConstraint : SqlNode
+    {
+        public string Name { get; set; }
+        public ConstraintType Type { get; set; }
+        public List<string> Columns { get; set; } = new List<string>();
+    }
+
+    public enum ConstraintType
+    {
+        PrimaryKey,
+        Unique,
+        ForeignKey,
+    }
+
+    public class CreateIndexStatement : SqlNode
+    {
+        public string IndexName { get; set; }
+        public string TableName { get; set; }
+        public List<string> Columns { get; set; } = new List<string>();
+    }
 }

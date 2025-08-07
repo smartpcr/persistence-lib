@@ -18,7 +18,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var lexer = new Lexer(sql);
             var tokens = lexer.Tokenize();
             var parser = new SqlParser(tokens);
-            return parser.Parse();
+            return (SelectStatement)parser.Parse();
         }
 
         [TestMethod]

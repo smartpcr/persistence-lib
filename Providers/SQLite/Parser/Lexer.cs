@@ -145,6 +145,27 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 ["THEN"] = SqlTokenType.THEN,
                 ["ELSE"] = SqlTokenType.ELSE,
                 ["END"] = SqlTokenType.END,
+
+                // Data modification
+                ["INSERT"] = SqlTokenType.INSERT,
+                ["INTO"] = SqlTokenType.INTO,
+                ["VALUES"] = SqlTokenType.VALUES,
+                ["UPDATE"] = SqlTokenType.UPDATE,
+                ["SET"] = SqlTokenType.SET,
+                ["DELETE"] = SqlTokenType.DELETE,
+
+                // Schema operations
+                ["CREATE"] = SqlTokenType.CREATE,
+                ["TABLE"] = SqlTokenType.TABLE,
+                ["INDEX"] = SqlTokenType.INDEX,
+                ["CONSTRAINT"] = SqlTokenType.CONSTRAINT,
+                ["PRIMARY"] = SqlTokenType.PRIMARY,
+                ["KEY"] = SqlTokenType.KEY,
+                ["FOREIGN"] = SqlTokenType.FOREIGN,
+                ["UNIQUE"] = SqlTokenType.UNIQUE,
+                ["REFERENCES"] = SqlTokenType.REFERENCES,
+                ["ALTER"] = SqlTokenType.ALTER,
+                ["DROP"] = SqlTokenType.DROP,
             };
         }
 

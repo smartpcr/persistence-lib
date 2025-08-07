@@ -24,7 +24,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             }
             
             var parser = new SqlParser(tokens);
-            var ast = parser.Parse();
+            var ast = (SelectStatement)parser.Parse();
             
             Console.WriteLine("\nAST:");
             Console.WriteLine($"SelectList Count: {ast.SelectList.Count}");

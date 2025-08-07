@@ -197,6 +197,41 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         TABLE,
 
         /// <summary>
+        /// INDEX keyword - creates indexes.
+        /// </summary>
+        INDEX,
+
+        /// <summary>
+        /// CONSTRAINT keyword - defines table constraints.
+        /// </summary>
+        CONSTRAINT,
+
+        /// <summary>
+        /// PRIMARY keyword - used with KEY in constraints.
+        /// </summary>
+        PRIMARY,
+
+        /// <summary>
+        /// KEY keyword - used in PRIMARY KEY and FOREIGN KEY declarations.
+        /// </summary>
+        KEY,
+
+        /// <summary>
+        /// FOREIGN keyword - defines foreign key constraints.
+        /// </summary>
+        FOREIGN,
+
+        /// <summary>
+        /// UNIQUE keyword - defines unique constraints or indexes.
+        /// </summary>
+        UNIQUE,
+
+        /// <summary>
+        /// REFERENCES keyword - specifies referenced table in foreign key constraints.
+        /// </summary>
+        REFERENCES,
+
+        /// <summary>
         /// ALTER keyword - modifies existing database objects.
         /// </summary>
         ALTER,

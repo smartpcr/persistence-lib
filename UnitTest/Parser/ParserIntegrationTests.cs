@@ -26,7 +26,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var parser = new SqlParser(tokens);
 
             // Act & Assert - Should not throw
-            var ast = parser.Parse();
+            var ast = (SelectStatement)parser.Parse();
             Assert.IsNotNull(ast);
         }
 
@@ -77,7 +77,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var parser = new SqlParser(tokens);
 
             // Act
-            var ast = parser.Parse();
+            var ast = (SelectStatement)parser.Parse();
 
             // Assert
             Assert.IsNotNull(ast);

@@ -5,6 +5,8 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <RootNamespace>Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser</RootNamespace>
+    <AssemblyName>Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

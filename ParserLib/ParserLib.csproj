@@ -4,6 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <AssemblyName>Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser</AssemblyName>
+    <RootNamespace>Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser</RootNamespace>
   </PropertyGroup>
 
 </Project>

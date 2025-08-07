@@ -170,13 +170,44 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         {
             var column = new ColumnDefinition();
             column.Name = this.Consume(SqlTokenType.IDENTIFIER, "Expected column name").Value;
-            column.DataType = this.Consume(SqlTokenType.IDENTIFIER, "Expected data type").Value;
+            var firstTypeToken = this.Consume(SqlTokenType.IDENTIFIER, "Expected data type").Value;
 
-            var sb = new StringBuilder(column.DataType);
-            while (!this.Check(SqlTokenType.COMMA) && !this.Check(SqlTokenType.RIGHT_PAREN) &&
-                   !this.Check(SqlTokenType.CONSTRAINT) && !this.Check(SqlTokenType.PRIMARY) &&
-                   !this.Check(SqlTokenType.UNIQUE) && !this.Check(SqlTokenType.FOREIGN))
+            var sb = new StringBuilder(firstTypeToken);
+            int parenDepth = 0;
+
+            while (true)
             {
+                if (this.Check(SqlTokenType.LEFT_PAREN))
+                {
+                    parenDepth++;
+                    sb.Append(' ').Append(this.Advance().Value);
+                    continue;
+                }
+
+                if (this.Check(SqlTokenType.RIGHT_PAREN))
+                {
+                    if (parenDepth > 0)
+                    {
+                        parenDepth--;
+                        sb.Append(' ').Append(this.Advance().Value);
+                        continue;
+                    }
+                    break;
+                }
+
+                if (parenDepth == 0 &&
+                    (this.Check(SqlTokenType.COMMA) || this.Check(SqlTokenType.RIGHT_PAREN) ||
+                     this.Check(SqlTokenType.CONSTRAINT) || this.Check(SqlTokenType.PRIMARY) ||
+                     this.Check(SqlTokenType.UNIQUE) || this.Check(SqlTokenType.FOREIGN)))
+                {
+                    break;
+                }
+
+                if (this.Check(SqlTokenType.EOF))
+                {
+                    break;
+                }
+
                 sb.Append(' ').Append(this.Advance().Value);
             }
 

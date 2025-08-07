@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(python3:*)",
+      "Bash(ls:*)",
+      "Bash(pip3 install:*)",
+      "Bash(rg:*)",
+      "Bash(find:*)",
+      "Bash(sed:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(mkdir:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(awk:*)",
+      "Bash(pip install:*)",
+      "Bash(chmod:*)",
+      "Bash(./convert_with_pandoc.sh:*)",
+      "Bash(./create_conversion_instructions.sh:*)",
+      "Bash(unzip:*)",
+      "Bash(python:*)",
+      "Bash(true)",
+      "Bash(pandoc:*)",
+      "Bash(cp:*)",
+      "Bash(.dev/restore)",
+      "Bash(for file in *.cs)",
+      "Bash(do sed -i 's/namespace Microsoft\\.AzureStack\\.Services\\.Update\\.Common\\.Persistence\\.Provider\\.SQLite\\.Mappings/namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings/g' \"$file\")",
+      "Bash(done)",
+      "Bash(touch:*)",
+      "Bash(for file in /mnt/e/work/hci/urp/src/Common/Persistence/Providers/SQLite/SQLitePersistenceProvider.*.cs)",
+      "Bash(do sed -i 's/new SQLiteCommand(/this.CreateCommand(/g' \"$file\")",
+      "Bash(dotnet restore:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet --version)",
+      "Bash(dotnet build:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}

@@ -13,6 +13,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using PerfTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Performance.PerfTestEntity;
 
@@ -30,8 +31,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             this.connectionString = "Data Source=:memory:";
             var config = new SqliteConfiguration
             {
-                JournalMode = "WAL",
-                Synchronous = "NORMAL",
+                JournalMode = JournalMode.WAL,
+                SynchronousMode = SynchronousMode.Normal,
                 CacheSize = 10000
             };
             this.provider = new SQLitePersistenceProvider<PerfTestEntity, Guid>(this.connectionString, config);
@@ -130,7 +131,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             stopwatch.Stop();
 
             // Assert
-            Assert.AreEqual(1000, results.Count);
+            Assert.AreEqual(1000, results.Count());
             Assert.IsTrue(stopwatch.ElapsedMilliseconds < 2000,
                 $"Batch create of 1000 entities took {stopwatch.ElapsedMilliseconds}ms, target is < 2000ms");
         }
@@ -157,11 +158,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             var stopwatch = Stopwatch.StartNew();
             var results = await this.provider.QueryAsync(
                 e => e.Value < 50,
+                null,
                 this.callerInfo);
             stopwatch.Stop();
 
             // Assert
-            Assert.AreEqual(500, results.Count); // 50% should match
+            Assert.AreEqual(500, results.Count()); // 50% should match
             Assert.IsTrue(stopwatch.ElapsedMilliseconds < 500,
                 $"Query returning 1000 results took {stopwatch.ElapsedMilliseconds}ms, target is < 500ms");
         }
@@ -185,12 +187,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
 
             // Act
             var stopwatch = Stopwatch.StartNew();
-            var result = await this.provider.BulkImportAsync(entities, this.callerInfo);
+            var result = await this.provider.BulkImportAsync(entities);
             stopwatch.Stop();
 
             // Assert
-            Assert.IsTrue(result.Success);
-            Assert.AreEqual(10000, result.ImportedCount);
+            Assert.AreEqual(10000, result.SuccessCount);
             Assert.IsTrue(stopwatch.ElapsedMilliseconds < 30000,
                 $"Bulk import of 10000 entities took {stopwatch.ElapsedMilliseconds}ms, target is < 30s");
         }

@@ -12,6 +12,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -70,8 +71,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var configuration = new SqliteConfiguration
             {
-                JournalMode = "WAL",
-                Synchronous = "NORMAL",
+                JournalMode = JournalMode.WAL,
+                SynchronousMode = SynchronousMode.Normal,
                 CacheSize = 10000
             };
             
@@ -103,7 +104,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var configuration = new SqliteConfiguration
             {
-                EnableAuditTrail = true
+                // Note: EnableAuditTrail is not yet implemented in SqliteConfiguration
+                BusyTimeout = 5000
             };
             
             this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString, configuration);

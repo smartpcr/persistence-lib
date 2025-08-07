@@ -39,46 +39,46 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Examp
 
             // Example 1: Order by Name ascending
             var orderedByName = await this.provider.QueryAsync(
-                predicate: null,
-                orderBy: q => q.OrderBy(e => e.Name),
-                callerInfo: new CallerInfo());
+                null,
+                q => q.OrderBy(e => e.Name),
+                new CallerInfo());
             // Result: Alice, Bob, Charlie, David
 
             // Example 2: Order by Value descending
             var orderedByValueDesc = await this.provider.QueryAsync(
-                predicate: null,
-                orderBy: q => q.OrderByDescending(e => e.Value),
-                callerInfo: new CallerInfo());
+                null,
+                q => q.OrderByDescending(e => e.Value),
+                new CallerInfo());
             // Result: Charlie (30), David (25), Bob (20), Alice (10)
 
             // Example 3: Order by Name then by Value
             var orderedByNameThenValue = await this.provider.QueryAsync(
-                predicate: e => e.Value > 15,
-                orderBy: q => q.OrderBy(e => e.Name).ThenBy(e => e.Value),
-                callerInfo: new CallerInfo());
+                e => e.Value > 15,
+                q => q.OrderBy(e => e.Name).ThenBy(e => e.Value),
+                new CallerInfo());
             // Result: Bob (20), Charlie (30), David (25) - filtered and ordered
 
             // Example 4: Complex ordering with multiple ThenBy
             var complexOrdering = await this.provider.QueryAsync(
-                predicate: null,
-                orderBy: q => q.OrderBy(e => e.IsActive)
+                null,
+                q => q.OrderBy(e => e.IsActive)
                               .ThenByDescending(e => e.Value)
                               .ThenBy(e => e.Name),
-                callerInfo: new CallerInfo());
+                new CallerInfo());
 
             // Example 5: No ordering (pass null)
             var unordered = await this.provider.QueryAsync(
-                predicate: null,
-                orderBy: null,
-                callerInfo: new CallerInfo());
+                null,
+                null,
+                new CallerInfo());
             // Result: Default database order
 
             // Example 6: With paged query
             var pagedResult = await this.provider.QueryPagedAsync(
-                predicate: null,
-                pageSize: 10,
-                pageNumber: 1,
-                orderBy: q => q.OrderBy(e => e.Name));
+                null,
+                10,
+                1,
+                q => q.OrderBy(e => e.Name));
         }
 
         public class TestEntity : BaseEntity<string>

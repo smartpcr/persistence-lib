@@ -52,7 +52,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task CreateAsync_ValidEntity_Success()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Test Entity",
@@ -79,8 +79,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         {
             // Arrange
             var id = Guid.NewGuid();
-            var entity1 = new TestEntity { Id = id, Name = "Entity 1" };
-            var entity2 = new TestEntity { Id = id, Name = "Entity 2" };
+            var entity1 = new CrudTestEntity { Id = id, Name = "Entity 1" };
+            var entity2 = new CrudTestEntity { Id = id, Name = "Entity 2" };
 
             // Act
             await this.provider.CreateAsync(entity1, this.callerInfo);
@@ -94,7 +94,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task CreateAsync_NullEntity_ThrowsException()
         {
             // Act
-            await this.provider.CreateAsync(null, this.callerInfo);
+            await this.provider.CreateAsync((CrudTestEntity)null, this.callerInfo);
         }
 
         [TestMethod]
@@ -103,7 +103,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task CreateAsync_SetsTrackingFields()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Test"
@@ -175,7 +175,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task GetAsync_ExistingEntity_ReturnsEntity()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Test Entity",
@@ -283,11 +283,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 includeAllVersions: true, 
                 includeDeleted: false, 
                 includeExpired: false,
-                this.callerInfo);
+                callerInfo: this.callerInfo);
 
             // Assert
             Assert.IsNotNull(results);
-            Assert.AreEqual(2, results.Count, "Should return all versions");
+            Assert.AreEqual(2, results.Count(), "Should return all versions");
             Assert.IsTrue(results.Any(e => e.Version == 1));
             Assert.IsTrue(results.Any(e => e.Version == 2));
         }
@@ -316,11 +316,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 includeAllVersions: false,
                 includeDeleted: true,
                 includeExpired: false,
-                this.callerInfo);
+                callerInfo: this.callerInfo);
 
             // Assert
             Assert.IsNotNull(results);
-            Assert.AreEqual(1, results.Count);
+            Assert.AreEqual(1, results.Count());
             Assert.IsTrue(results[0].IsDeleted);
         }
 
@@ -330,7 +330,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task UpdateAsync_ValidEntity_Success()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Original Name",
@@ -359,7 +359,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task UpdateAsync_ConcurrencyConflict_ThrowsException()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Original"
@@ -385,7 +385,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task UpdateAsync_NonExistentEntity_ThrowsException()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Non-existent",
@@ -402,7 +402,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task UpdateAsync_IncrementsVersion()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Test"
@@ -453,7 +453,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 includeExpired: false,
                 this.callerInfo);
             
-            Assert.AreEqual(2, allVersions.Count);
+            Assert.AreEqual(2, allVersions.Count());
         }
 
         [TestMethod]
@@ -462,7 +462,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task DeleteAsync_ExistingEntity_Success()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "To Delete"
@@ -525,7 +525,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 includeExpired: false,
                 this.callerInfo);
             
-            Assert.IsTrue(allVersions.Count >= 2, "Should have at least 2 versions after soft delete");
+            Assert.IsTrue(allVersions.Count() >= 2, "Should have at least 2 versions after soft delete");
             Assert.IsTrue(allVersions.Any(v => v.IsDeleted), "Should have a deleted version");
         }
 
@@ -535,7 +535,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task DeleteAsync_HardDelete_RemovesPhysically()
         {
             // Arrange
-            var entity = new TestEntity
+            var entity = new CrudTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "To Hard Delete"
@@ -560,7 +560,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 includeExpired: true,
                 this.callerInfo);
             
-            Assert.AreEqual(0, allResults.Count, "Hard delete should physically remove the entity");
+            Assert.AreEqual(0, allResults.Count(), "Hard delete should physically remove the entity");
         }
     }
 }

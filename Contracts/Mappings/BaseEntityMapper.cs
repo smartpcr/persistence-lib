@@ -36,9 +36,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         protected readonly List<PropertyInfo> CompositeKeyProperties;
         protected readonly ISerializer<T> Serializer;
 
-
         // List of SQL reserved keywords that need escaping
-        protected HashSet<string> ReservedKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        protected readonly HashSet<string> ReservedKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "SELECT", "FROM", "WHERE", "ORDER", "BY", "GROUP", "HAVING", "INSERT", "UPDATE", "DELETE",
             "CREATE", "DROP", "ALTER", "TABLE", "INDEX", "VIEW", "TRIGGER", "PROCEDURE", "FUNCTION",
@@ -83,7 +82,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             var tableAttr = this.EntityType.GetCustomAttribute<TableAttribute>();
             if (tableAttr != null)
             {
-                this.TableName = string.IsNullOrEmpty(tableAttr.Name) ? this.EntityType.Name : tableAttr.Name; 
+                this.TableName = string.IsNullOrEmpty(tableAttr.Name) ? this.EntityType.Name : tableAttr.Name;
                 this.SchemaName = tableAttr.Schema;
                 this.EnableSoftDelete = tableAttr.SoftDeleteEnabled;
                 this.EnableExpiry = tableAttr.ExpirySpan.HasValue;
@@ -220,7 +219,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         /// <summary>
         /// Gets the fully qualified table name including schema.
         /// </summary>
-        public virtual string GetFullTableName() => !string.IsNullOrEmpty(this.SchemaName) 
+        public virtual string GetFullTableName() => !string.IsNullOrEmpty(this.SchemaName)
             ? $"{this.SchemaName}.{this.TableName}"
             : this.TableName;
 
@@ -447,7 +446,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             {
                 return dateTime.ToString("O");
             }
-            
+
             if (value is DateTimeOffset dateTimeOffset)
             {
                 return dateTimeOffset.ToString("O");
@@ -555,7 +554,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             {
                 var parameterName = $"@{mapping.ColumnName}";
                 var value = mapping.PropertyInfo.GetValue(entity);
-                
+
                 // Convert null to DBNull.Value
                 parameters[parameterName] = value ?? DBNull.Value;
             }
@@ -585,7 +584,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         {
             var mapping = this.PropertyMappings.Values
                 .FirstOrDefault(m => m.PropertyName == propertyName && !m.IsNotMapped);
-            
+
             return mapping?.ColumnName;
         }
 
@@ -671,7 +670,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         }
 
         /// <summary>
-        /// Generates the DELETE SQL statement. 
+        /// Generates the DELETE SQL statement.
         /// When soft-delete is enabled, it assumes NextVersion has been retrieved.
         /// </summary>
         /// <returns>The DELETE SQL statement.</returns>
@@ -701,7 +700,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
 
             var insertColumns = this.GetInsertColumns();
             var escapedColumnNames = string.Join(", ", insertColumns.Select(col => this.EscapeIdentifier(col)));
-            
+
             var valueClauses = new List<string>();
             for (var i = 0; i < entityCount; i++)
             {
@@ -709,7 +708,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                 var parameterNames = string.Join(", ", insertColumns.Select(col => $"@{col}{i1}"));
                 valueClauses.Add($"({parameterNames})");
             }
-            
+
             return $"INSERT INTO {this.GetFullTableName()} ({escapedColumnNames}) VALUES {string.Join(", ", valueClauses)}";
         }
 
@@ -972,7 +971,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                     WhereClause = $"{this.EscapeIdentifier(pkColName)} = @{pkColName}"
                 }
             };
-            
+
             return this.CreateCommand(DbOperationType.Select, context);
         }
 
@@ -987,17 +986,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         public virtual IDbCommand CreateCommand(DbOperationType operation, CommandContext<T, TKey> context)
         {
             var command = this.CreateDbCommand();
-            
+
             if (context.CommandTimeout.HasValue)
             {
                 command.CommandTimeout = context.CommandTimeout.Value;
             }
-            
+
             if (context.Transaction != null)
             {
                 command.Transaction = context.Transaction;
             }
-            
+
             switch (operation)
             {
                 case DbOperationType.Select:
@@ -1021,7 +1020,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                 default:
                     throw new NotSupportedException($"Operation {operation} is not supported");
             }
-            
+
             return command;
         }
 
@@ -1029,12 +1028,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         {
             var options = context.SelectOptions ?? new SelectOptions();
             command.CommandText = this.GenerateSelectSql(options);
-            
+
             if (context.Id != null)
             {
                 this.AddParameter(command, this.GetPrimaryKeyColumn(), context.Id);
             }
-            
+
             if (context.WhereParameters != null)
             {
                 foreach (var param in context.WhereParameters)
@@ -1048,10 +1047,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         {
             if (context.Entity == null)
                 throw new ArgumentException("Entity is required for insert operation");
-                
+
             command.CommandText = this.GenerateInsertStatement();
             this.AddEntityParameters(command, context.Entity);
-            
+
             if (this.EnableSoftDelete)
             {
                 this.AddParameter(command, "NextVersion", this.GetNextVersion(context));
@@ -1062,7 +1061,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         {
             if (context.Entity == null)
                 throw new ArgumentException("Entity is required for update operation");
-            
+
             if (this.EnableSoftDelete)
             {
                 // For soft delete, update is actually an insert of a new version
@@ -1081,12 +1080,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         {
             if (context.Id == null && context.Entity == null)
                 throw new ArgumentException("Id or Entity is required for delete operation");
-                
+
             command.CommandText = this.GenerateDeleteStatement();
-            
+
             var id = context.Id ?? context.Entity.Id;
             this.AddParameter(command, this.GetPrimaryKeyColumn(), id);
-            
+
             if (this.EnableSoftDelete && context.Entity != null)
             {
                 this.AddParameter(command, "Version", context.Entity.Version);
@@ -1097,9 +1096,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         {
             if (context.Entities == null || !context.Entities.Any())
                 throw new ArgumentException("Entities are required for batch insert");
-                
+
             command.CommandText = this.GenerateBatchInsertSql(context.Entities.Count());
-            
+
             int index = 0;
             foreach (var entity in context.Entities)
             {
@@ -1162,37 +1161,37 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         protected virtual string GenerateSelectSql(SelectOptions options)
         {
             options = options ?? new SelectOptions();
-            
+
             var tableName = this.GetFullTableName();
             var primaryKeyColumn = this.GetPrimaryKeyColumn();
-            
+
             // Check if WHERE clause specifies a version
-            bool hasVersionInWhere = !string.IsNullOrEmpty(options.WhereClause) && 
+            bool hasVersionInWhere = !string.IsNullOrEmpty(options.WhereClause) &&
                                    options.WhereClause.Contains("Version");
-            
+
             // Determine query strategy for soft-delete scenarios
             // Single entity query: has WHERE clause that filters to a specific ID
-            bool isSingleEntityQuery = !string.IsNullOrEmpty(options.WhereClause) && 
+            bool isSingleEntityQuery = !string.IsNullOrEmpty(options.WhereClause) &&
                                      options.WhereClause.Contains(primaryKeyColumn) &&
                                      options.WhereClause.Contains("@");
-            
+
             // Use JOIN for queries that:
             // 1. Have soft delete enabled
             // 2. Want only latest version (not all versions)
             // 3. Don't already specify a version in WHERE
             // Note: We always use JOIN to ensure correct soft delete behavior
-            bool needsLatestVersionJoin = this.EnableSoftDelete && 
-                                         !options.IncludeAllVersions && 
+            bool needsLatestVersionJoin = this.EnableSoftDelete &&
+                                         !options.IncludeAllVersions &&
                                          !hasVersionInWhere;
-            
+
             // Determine final table aliasing strategy upfront
             // Single entity queries with versioning don't need JOIN, so no alias needed
             bool useTableAlias = needsLatestVersionJoin && !isSingleEntityQuery;
-            
+
             // Build column list with proper aliasing
             string selectColumns;
             string fromClause;
-            
+
             if (useTableAlias)
             {
                 // Use table alias 't' for JOIN queries
@@ -1205,10 +1204,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                 selectColumns = string.Join(", ", this.GetSelectColumns().Select(this.EscapeIdentifier));
                 fromClause = tableName;
             }
-            
+
             // Build WHERE conditions
             var conditions = new List<string>();
-            
+
             // Add custom WHERE clause
             if (!string.IsNullOrEmpty(options.WhereClause))
             {
@@ -1223,16 +1222,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                     conditions.Add(options.WhereClause);
                 }
             }
-            
+
             // Add soft delete filter (IsDeleted = 0) by default when soft delete is enabled
             if (!options.IncludeDeleted && this.EnableSoftDelete)
             {
-                var isDeletedCondition = useTableAlias 
+                var isDeletedCondition = useTableAlias
                     ? $"t.{this.EscapeIdentifier("IsDeleted")} = {this.GetBooleanLiteral(false)}"
                     : $"{this.EscapeIdentifier("IsDeleted")} = {this.GetBooleanLiteral(false)}";
                 conditions.Add(isDeletedCondition);
             }
-            
+
             // Add expiry filter
             if (!options.IncludeExpired && this.EnableExpiry)
             {
@@ -1241,7 +1240,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                     : this.GetExpiryFilterCondition();
                 conditions.Add(expiryCondition);
             }
-            
+
             // Build JOIN clause for latest version queries
             string joinClause = "";
             if (needsLatestVersionJoin)
@@ -1251,8 +1250,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                     // For single entity, use a more efficient subquery in WHERE clause
                     // Add version filter to WHERE conditions instead of JOIN
                     var versionSubquery = $@"{this.EscapeIdentifier("Version")} = (
-        SELECT MAX({this.EscapeIdentifier("Version")}) 
-        FROM {tableName} 
+        SELECT MAX({this.EscapeIdentifier("Version")})
+        FROM {tableName}
         WHERE {this.EscapeIdentifier(primaryKeyColumn)} = {this.GetParameterPrefix()}{primaryKeyColumn}
     )";
                     conditions.Add(versionSubquery);
@@ -1273,10 +1272,10 @@ INNER JOIN (
     t.{this.EscapeIdentifier("Version")} = latest.MAX_VERSION";
                 }
             }
-            
+
             // Build WHERE clause after all conditions are added
             var whereClause = conditions.Count > 0 ? "WHERE " + string.Join(" AND ", conditions) : "";
-            
+
             // Build ORDER BY clause
             string orderByClause = "";
             if (!string.IsNullOrEmpty(options.OrderBy))
@@ -1294,17 +1293,17 @@ INNER JOIN (
                 // Multi-entity query with JOIN
                 orderByClause = $"ORDER BY t.{this.EscapeIdentifier(primaryKeyColumn)}";
             }
-            
+
             // Build LIMIT clause
             var limitClause = this.BuildLimitClause(options);
-            
+
             // Construct final query
-            var sql = $@"SELECT {selectColumns} 
+            var sql = $@"SELECT {selectColumns}
 FROM {fromClause}{joinClause}
 {whereClause}
 {orderByClause}
 {limitClause}".Trim();
-            
+
             // Clean up extra whitespace
             return System.Text.RegularExpressions.Regex.Replace(sql, @"\s+", " ").Trim();
         }
@@ -1727,7 +1726,7 @@ FROM {fromClause}{joinClause}
         }
 
         #endregion
-        
+
         #region Private Methods - SQL Generation
 
         /// <summary>
@@ -1747,7 +1746,7 @@ FROM {fromClause}{joinClause}
                 IncludeExpired = includeExpired,
                 WhereClause = $"{this.EscapeIdentifier(this.GetPrimaryKeyColumn())} = @{this.GetPrimaryKeyColumn()}"
             };
-            
+
             return this.GenerateSelectSql(options);
         }
 
@@ -1859,7 +1858,7 @@ FROM {fromClause}{joinClause}
         }
 
         #endregion
-        
+
         #region Private Methods
 
         /// <summary>
@@ -1871,7 +1870,7 @@ FROM {fromClause}{joinClause}
             var properties = this.EntityType.GetProperties(BindingFlags.Public | BindingFlags.Instance);
             var indexGroups = new Dictionary<string, List<IndexColumn>>();
             var foreignKeyGroups = new Dictionary<string, List<(PropertyInfo Property, ForeignKeyAttribute Attribute, string ColumnName)>>();
-            
+
             // Lists to collect primary key information during property evaluation
             var primaryKeyPropertiesWithAttributes = new List<(PropertyInfo Property, PrimaryKeyAttribute Attribute)>();
             PropertyInfo conventionBasedPrimaryKey = null;
@@ -1883,7 +1882,7 @@ FROM {fromClause}{joinClause}
             {
                 // For properties with the same name (property hiding), use the most derived one
                 var property = propertyGroup.OrderBy(p => p.DeclaringType, new TypeHierarchyComparer(this.EntityType)).First();
-                
+
                 // Check if property should be excluded - check on the most derived property
                 if (property.GetCustomAttribute<NotMappedAttribute>() != null)
                 {
@@ -1947,7 +1946,7 @@ FROM {fromClause}{joinClause}
                 if (primaryKeyPropertiesWithAttributes.Any(pk => pk.Attribute.IsComposite))
                 {
                     this.HasCompositeKey = true;
-                    
+
                     // Add all properties with [PrimaryKey] to composite key list
                     foreach (var (property, attr) in primaryKeyPropertiesWithAttributes)
                     {
@@ -2002,17 +2001,17 @@ FROM {fromClause}{joinClause}
             {
                 // When soft delete is enabled, the primary key becomes composite (Id + Version)
                 this.HasCompositeKey = true;
-                
+
                 // Add existing primary key to composite keys if not already there
                 if (!this.CompositeKeyProperties.Contains(this.PrimaryKeyProperty))
                 {
                     this.CompositeKeyProperties.Add(this.PrimaryKeyProperty);
                 }
-                
+
                 // Find and add Version property
                 var versionProperty = this.PropertyMappings
                     .FirstOrDefault(m => m.Value.PropertyName == "Version").Key;
-                    
+
                 if (versionProperty != null && !this.CompositeKeyProperties.Contains(versionProperty))
                 {
                     this.CompositeKeyProperties.Add(versionProperty);
@@ -2022,7 +2021,7 @@ FROM {fromClause}{joinClause}
                         versionMapping.PrimaryKeyOrder = 1; // Version comes after Id
                     }
                 }
-                
+
                 // Clear single primary key reference when it becomes composite
                 this.PrimaryKeyProperty = null;
             }
@@ -2184,18 +2183,18 @@ FROM {fromClause}{joinClause}
         {
             // Use the new extension method to get SqlDbType with metadata
             mapping.SqlType = clrType.ToSqlDbType(out var size, out var precision, out var scale);
-            
+
             // Apply the metadata if provided
             if (size.HasValue)
             {
                 mapping.Size = size.Value;
             }
-            
+
             if (precision.HasValue)
             {
                 mapping.Precision = precision.Value;
             }
-            
+
             if (scale.HasValue)
             {
                 mapping.Scale = scale.Value;

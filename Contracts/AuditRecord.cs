@@ -51,6 +51,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         [Column("Size")]
         public long? Size { get; set; }
 
+        [Column("UserId")]
+        public string UserId { get; set; }
+
+        [Column("OldValue", SqlDbType.NVarChar)]
+        public string OldValue { get; set; }
+
+        [Column("NewValue", SqlDbType.NVarChar)]
+        public string NewValue { get; set; }
+
         public static AuditRecord CreateAuditRecord<T, TKey>(
             TKey id,
             string operation,
@@ -74,6 +83,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
                 CallerFile = callerInfo?.CallerFilePath,
                 CallerMember = callerInfo?.CallerMemberName,
                 CallerLineNumber = callerInfo?.CallerLineNumber ?? 0,
+                UserId = callerInfo?.UserId
             };
 
             return audit;

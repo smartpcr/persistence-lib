@@ -216,5 +216,41 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
         {
             public long Version { get; set; }
         }
+
+        [Table("TestTable", SoftDeleteEnabled = false)]
+        private class ClassWithSoftDeleteDisabled
+        {
+            public long Version { get; set; }
+        }
+
+        [Table("TestTable", SoftDeleteEnabled = true)]
+        private class ValidClassWithSoftDeleteEnabled
+        {
+            public long Version { get; set; }
+        }
+
+        [Table("TestTable", SoftDeleteEnabled = true)]
+        private class ClassWithSoftDeleteEnabledButNoVersion
+        {
+            public string Name { get; set; }
+        }
+
+        [Table("TestTable", SoftDeleteEnabled = true)]
+        private class ClassWithWrongVersionType
+        {
+            public int Version { get; set; }
+        }
+
+        [Table("TestTable", SoftDeleteEnabled = true)]
+        private class ClassWithReadOnlyVersion
+        {
+            public long Version { get; }
+        }
+
+        [Table("TestTable", SoftDeleteEnabled = true)]
+        private class InheritedClassWithVersion : ValidClassWithSoftDeleteEnabled
+        {
+            public string Name { get; set; }
+        }
     }
 }

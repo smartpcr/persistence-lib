@@ -39,7 +39,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             {
                 CommandTimeout = 30
             };
-            this.mapper = new SQLiteEntityMapper<Entities.EntityMapping.SQLiteMapperTestEntity, Guid>(this.configuration);
+            this.mapper = new SQLiteEntityMapper<Entities.EntityMapping.SQLiteMapperTestEntity, Guid>();
         }
 
         [TestMethod]
@@ -94,7 +94,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var context = new CommandContext<Entities.EntityMapping.SQLiteMapperTestEntity, Guid>
             {
                 Entity = entity,
-                Key = entity.Id,
+                Id = entity.Id,
                 CommandTimeout = 30
             };
 
@@ -119,7 +119,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var key = Guid.NewGuid();
             var context = new CommandContext<Entities.EntityMapping.SQLiteMapperTestEntity, Guid>
             {
-                Key = key,
+                Id = key,
                 CommandTimeout = 30
             };
 

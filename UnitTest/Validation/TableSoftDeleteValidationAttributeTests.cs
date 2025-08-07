@@ -212,56 +212,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             }
         }
 
-        #region Test Classes
-
         private class ClassWithoutTableAttribute
         {
             public long Version { get; set; }
         }
-
-        [Table("TestTable", SoftDeleteEnabled = false)]
-        private class ClassWithSoftDeleteDisabled
-        {
-            public string Id { get; set; }
-        }
-
-        [Table("TestTable", SoftDeleteEnabled = true)]
-        private class ValidClassWithSoftDeleteEnabled : BaseEntity<string>, IVersionedEntity<string>
-        {
-            public bool IsDeleted { get; set; }
-        }
-
-        [Table("TestTable", SoftDeleteEnabled = true)]
-        private class ClassWithSoftDeleteEnabledButNoVersion
-        {
-            public string Id { get; set; }
-        }
-
-        [Table("TestTable", SoftDeleteEnabled = true)]
-        private class ClassWithWrongVersionType
-        {
-            public string Id { get; set; }
-            public int Version { get; set; }
-        }
-
-        [Table("TestTable", SoftDeleteEnabled = true)]
-        private class ClassWithReadOnlyVersion
-        {
-            public string Id { get; set; }
-            public long Version { get; }
-        }
-
-        private class BaseClassWithVersion
-        {
-            public long Version { get; set; }
-        }
-
-        [Table("TestTable", SoftDeleteEnabled = true)]
-        private class InheritedClassWithVersion : BaseClassWithVersion
-        {
-            public string Id { get; set; }
-        }
-
-        #endregion
     }
 }

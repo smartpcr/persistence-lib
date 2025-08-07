@@ -8,51 +8,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
 {
     using System;
     using System.Collections.Generic;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exceptions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Errors;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using BatchTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.BatchOperations.BatchTestEntity;
+    using SoftDeleteBatchEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.BatchOperations.SoftDeleteBatchEntity;
+    using ExpiryBatchEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.BatchOperations.ExpiryBatchEntity;
 
     [TestClass]
     public class BatchOperationsTests
     {
-        [Table("BatchTestEntity")]
-        public class BatchTestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public string Status { get; set; }
-            public int Value { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
-        [Table("SoftDeleteBatchEntity", SoftDeleteEnabled = true)]
-        public class SoftDeleteBatchEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Version { get; set; }
-            public bool IsDeleted { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
-        [Table("ExpiryBatchEntity", ExpirySpan = "00:00:01")]
-        public class ExpiryBatchEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Version { get; set; }
-            public DateTime? AbsoluteExpiration { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
         private SQLitePersistenceProvider<BatchTestEntity, Guid> provider;
         private CallerInfo callerInfo;

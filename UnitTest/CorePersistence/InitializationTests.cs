@@ -12,22 +12,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     [TestClass]
     public class InitializationTests
     {
-        public class TestEntity : IEntity<Guid>
-        {
-            public Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Version { get; set; }
-            public DateTime CreatedTime { get; set; }
-            public DateTime LastWriteTime { get; set; }
-        }
-
         private string connectionString;
-        private SQLitePersistenceProvider<TestEntity, Guid> provider;
+        private SQLitePersistenceProvider<CrudTestEntity, Guid> provider;
 
         [TestInitialize]
         public void Setup()
@@ -51,7 +43,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task InitializeAsync_CreatesRequiredTables()
         {
             // Arrange
-            this.provider = new SQLitePersistenceProvider<TestEntity, Guid>(this.connectionString);
+            this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString);
 
             // Act
             await this.provider.InitializeAsync();
@@ -83,7 +75,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 CacheSize = 10000
             };
             
-            this.provider = new SQLitePersistenceProvider<TestEntity, Guid>(this.connectionString, configuration);
+            this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString, configuration);
 
             // Act
             await this.provider.InitializeAsync();
@@ -114,7 +106,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 EnableAuditTrail = true
             };
             
-            this.provider = new SQLitePersistenceProvider<TestEntity, Guid>(this.connectionString, configuration);
+            this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString, configuration);
 
             // Act
             await this.provider.InitializeAsync();
@@ -138,7 +130,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         public async Task InitializeAsync_IdempotentOperation()
         {
             // Arrange
-            this.provider = new SQLitePersistenceProvider<TestEntity, Guid>(this.connectionString);
+            this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString);
 
             // Act - Initialize multiple times
             await this.provider.InitializeAsync();

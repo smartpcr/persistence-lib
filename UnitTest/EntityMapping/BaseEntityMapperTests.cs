@@ -13,23 +13,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Extensions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.EntityMapping;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     [TestClass]
     public class BaseEntityMapperTests
     {
-        [Table("TestEntity")]
-        public class TestEntity : BaseEntity<Guid>
-        {
-            [PrimaryKey(Order = 1)]
-            public new Guid Id { get; set; }
-            public string Name { get; set; }
-            public int Count { get; set; }
-            public DateTime CreatedDate { get; set; }
-            public decimal? Amount { get; set; }
-            [NotMapped] public string Ignored { get; set; }
-        }
-
         private TestEntityMapper mapper;
 
         [TestInitialize]
@@ -162,7 +151,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
         }
 
         // Test helper mapper class for accessing protected methods
-        private class TestEntityMapper : BaseEntityMapper<TestEntity, Guid>
+        private class TestEntityMapper : BaseEntityMapper<BaseMapperTestEntity, Guid>
         {
             public PropertyInfo[] GetProperties() => this.GetPropertyMappings().Keys.ToArray();
             
@@ -175,24 +164,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             public List<string> TestGenerateCreateIndexSql() => this.GenerateCreateIndexSql().ToList();
         }
 
-        [Table("TestEntity", SoftDeleteEnabled = true)]
-        private class TestEntityWithSoftDelete : TestEntity, IVersionedEntity<Guid>
-        {
-            public bool IsDeleted { get; set; }
-        }
-
-        private class TestEntityMapperWithSoftDelete : BaseEntityMapper<TestEntityWithSoftDelete, Guid>
+        private class TestEntityMapperWithSoftDelete : BaseEntityMapper<BaseMapperSoftDeleteEntity, Guid>
         {
             public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
         }
 
-        [Table("TestEntity", ExpirySpanString = "01:00:00")]
-        private class TestEntityWithExpiry : TestEntity, IExpirableEntity<Guid>
-        {
-            public DateTimeOffset? AbsoluteExpiration { get; set; }
-        }
-
-        private class TestEntityMapperWithExpiry : BaseEntityMapper<TestEntityWithExpiry, Guid>
+        private class TestEntityMapperWithExpiry : BaseEntityMapper<BaseMapperExpiryEntity, Guid>
         {
             public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
         }

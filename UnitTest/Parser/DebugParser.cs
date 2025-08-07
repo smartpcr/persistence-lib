@@ -39,10 +39,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             {
                 Console.WriteLine($"  {token.Type}: {token.Value}");
             }
-
+            
             var parser = new SqlParser(tokens);
-            var ast = parser.Parse();
-
+            var ast = (SelectStatement)parser.Parse();
+            
             Console.WriteLine("\nAST:");
             Console.WriteLine($"SelectList Count: {ast.SelectList.Count}");
             var expr = ast.SelectList[0].Expression;

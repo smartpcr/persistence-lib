@@ -113,7 +113,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
         public async Task JournalMode_WAL_EnablesWriteAheadLog()
         {
             // Arrange
-            var config = new SqliteConfiguration { JournalMode = "WAL" };
+            var config = new SqliteConfiguration { JournalMode = JournalMode.WAL };
             var provider = new SQLitePersistenceProvider<ConfigTestEntity, Guid>(this.connectionString, config);
 
             // Act

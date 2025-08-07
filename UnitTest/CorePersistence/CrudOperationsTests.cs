@@ -7,6 +7,7 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CorePersistence
 {
     using System;
+    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
@@ -321,7 +322,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Assert
             Assert.IsNotNull(results);
             Assert.AreEqual(1, results.Count());
-            Assert.IsTrue(results[0].IsDeleted);
+            Assert.IsTrue(results.First().IsDeleted);
         }
 
         [TestMethod]
@@ -448,10 +449,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Verify both versions exist
             var allVersions = await provider.GetByKeyAsync(
                 entity.Id,
+                this.callerInfo,
                 includeAllVersions: true,
                 includeDeleted: false,
-                includeExpired: false,
-                this.callerInfo);
+                includeExpired: false);
             
             Assert.AreEqual(2, allVersions.Count());
         }
@@ -520,10 +521,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Verify soft delete created a new version
             var allVersions = await provider.GetByKeyAsync(
                 entity.Id,
+                this.callerInfo,
                 includeAllVersions: true,
                 includeDeleted: true,
-                includeExpired: false,
-                this.callerInfo);
+                includeExpired: false);
             
             Assert.IsTrue(allVersions.Count() >= 2, "Should have at least 2 versions after soft delete");
             Assert.IsTrue(allVersions.Any(v => v.IsDeleted), "Should have a deleted version");
@@ -555,10 +556,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Even with include deleted, should not find it (hard delete)
             var allResults = await this.provider.GetByKeyAsync(
                 entity.Id,
+                this.callerInfo,
                 includeAllVersions: true,
                 includeDeleted: true,
-                includeExpired: true,
-                this.callerInfo);
+                includeExpired: true);
             
             Assert.AreEqual(0, allResults.Count(), "Hard delete should physically remove the entity");
         }

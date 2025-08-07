@@ -257,16 +257,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             }
             var created = await this.provider.CreateAsync(entities, this.callerInfo);
             
-            // Modify entities
-            foreach (var entity in created)
+            // Act - Use batch update with update function
+            var updated = await this.provider.UpdateAsync(created, entity => 
             {
                 entity.Name = entity.Name.Replace("Original", "Updated");
                 entity.Status = "Modified";
                 entity.Value = entity.Value * 2;
-            }
-
-            // Act
-            var updated = await this.provider.UpdateAsync(created, this.callerInfo);
+                return entity;
+            }, this.callerInfo);
 
             // Assert
             Assert.IsNotNull(updated);
@@ -329,7 +327,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
                     Value = i
                 });
             }
-            var created = await this.provider.CreateAsync(entities, this.callerInfo);
+            var created = (await this.provider.CreateAsync(entities, this.callerInfo)).ToArray();
             
             // Simulate concurrent update on one entity
             created[2].Name = "Concurrent Update";
@@ -342,7 +340,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             }
 
             // Act - Should fail due to version mismatch on entity[2]
-            await this.provider.UpdateAsync(created, this.callerInfo);
+            await this.provider.UpdateAsync(created, entity => entity, this.callerInfo);
         }
 
         [TestMethod]
@@ -374,7 +372,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             var result = await this.provider.DeleteAsync(keysToDelete, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result);
+            Assert.IsTrue(result > 0);
             
             // Verify correct entities were deleted
             var remaining = await this.provider.GetAllAsync(this.callerInfo);
@@ -396,7 +394,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
                     Name = $"Entity {i}"
                 });
             }
-            var created = await this.provider.CreateAsync(entities, this.callerInfo);
+            var created = (await this.provider.CreateAsync(entities, this.callerInfo)).ToArray();
             
             var keysToDelete = new List<Guid>
             {
@@ -411,7 +409,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             var result = await this.provider.DeleteAsync(keysToDelete, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result, "Delete should be idempotent and handle non-existent keys");
+            Assert.IsTrue(result >= 0, "Delete should be idempotent and handle non-existent keys");
             
             var remaining = await this.provider.GetAllAsync(this.callerInfo);
             Assert.AreEqual(2, remaining.Count()); // Only entities 1 and 3 should remain

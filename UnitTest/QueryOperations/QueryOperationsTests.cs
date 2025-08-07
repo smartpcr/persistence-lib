@@ -230,16 +230,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
         {
             // Act
             var activeCount = await this.provider.CountAsync(
-                e => e.Status == "Active",
-                callerInfo: this.callerInfo);
+                e => e.Status == "Active");
 
             // Assert
             Assert.AreEqual(4, activeCount);
             
             // Act
             var highAmountCount = await this.provider.CountAsync(
-                e => e.Amount >= 200,
-                callerInfo: this.callerInfo);
+                e => e.Amount >= 200);
             
             // Assert
             Assert.AreEqual(3, highAmountCount); // Beta (200), Epsilon (300), TestBeta (225)
@@ -262,8 +260,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
         {
             // Act
             var exists = await this.provider.ExistsAsync(
-                e => e.Name == "Alpha" && e.Status == "Active",
-                callerInfo: this.callerInfo);
+                e => e.Name == "Alpha" && e.Status == "Active");
 
             // Assert
             Assert.IsTrue(exists);
@@ -275,8 +272,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
         {
             // Act
             var exists = await this.provider.ExistsAsync(
-                e => e.Name == "NonExistent" || e.Amount > 1000,
-                callerInfo: this.callerInfo);
+                e => e.Name == "NonExistent" || e.Amount > 1000);
 
             // Assert
             Assert.IsFalse(exists);

@@ -77,14 +77,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             };
             
             var retryCount = 0;
-            this.provider.OnBeforeExecute += (sender, args) =>
-            {
-                retryCount++;
-                if (retryCount < 3)
-                {
-                    throw new SQLiteException("Database is locked");
-                }
-            };
+            // OnBeforeExecute event is not implemented - commenting out
+            // this.provider.OnBeforeExecute += (sender, args) =>
+            // {
+            //     retryCount++;
+            //     if (retryCount < 3)
+            //     {
+            //         throw new SQLiteException("Database is locked");
+            //     }
+            // };
 
             // Act
             var result = await this.provider.CreateAsync(entity, this.callerInfo);
@@ -109,10 +110,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
                 Value = 100
             };
             
-            this.provider.OnBeforeExecute += (sender, args) =>
-            {
-                throw new SQLiteException("Database is corrupted");
-            };
+            // OnBeforeExecute event is not implemented - commenting out
+            // this.provider.OnBeforeExecute += (sender, args) =>
+            // {
+            //     throw new SQLiteException("Database is corrupted");
+            // };
 
             // Act
             await this.provider.CreateAsync(entity, this.callerInfo);

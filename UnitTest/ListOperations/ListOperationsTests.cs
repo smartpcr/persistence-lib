@@ -276,7 +276,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
             var result = await this.provider.DeleteListAsync(listKey, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result);
+            Assert.IsTrue(result > 0);
             
             // List should no longer exist
             var retrievedItems = await this.provider.GetListAsync(listKey, this.callerInfo);

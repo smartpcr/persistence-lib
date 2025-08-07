@@ -2,7 +2,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser;
+using SqlParser;
 
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser.Tests
 {

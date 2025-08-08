@@ -191,7 +191,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             };
 
             var tempFile = Path.GetTempFileName();
-            File.WriteAllText(tempFile, JsonConvert.SerializeObject(entities));
+            await File.WriteAllTextAsync(tempFile, JsonConvert.SerializeObject(entities));
 
             try
             {
@@ -221,7 +221,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                             $"{Guid.NewGuid()},CSV Entity 2,200,Cat B\n";
 
             var tempFile = Path.GetTempFileName();
-            File.WriteAllText(tempFile, csvContent);
+            await File.WriteAllTextAsync(tempFile, csvContent);
 
             try
             {

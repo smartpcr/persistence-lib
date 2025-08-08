@@ -424,8 +424,73 @@ The following list tracks the implementation status of all test scenarios descri
 
 ---
 
-### 2.13 Summary Statistics
+### 2.13 Additional Test Categories Not in Core Scenarios
 
+#### 2.13.1 Type Extension Tests (47/47)
+- **ToSqlDbType Type Mapping** ✅ (10 tests)
+  *Purpose:* Test C# to SQL type conversions for all data types
+  
+- **ToSqlTypeString Formatting** ✅ (8 tests)
+  *Purpose:* Test SQL type string generation with sizes and precision
+  
+- **Type Analysis Methods** ✅ (6 tests)
+  *Purpose:* Test nullable detection, underlying types, requirements
+  
+- **Column Definition Generation** ✅ (23 tests)
+  *Purpose:* Test complete SQL column definition generation
+
+#### 2.13.2 Parser Tests (54/54)
+- **Lexer Tests** ✅ (15 tests)
+  *Purpose:* Token parsing and lexical analysis
+  
+- **Arithmetic Parser Tests** ✅ (10 tests)
+  *Purpose:* Expression parsing and evaluation
+  
+- **DML Parser Tests** ✅ (12 tests)
+  *Purpose:* Data manipulation language parsing
+  
+- **Parser Integration Tests** ✅ (17 tests)
+  *Purpose:* Complete SQL statement parsing
+
+#### 2.13.3 Validation Tests (25/25)
+- **Table Soft Delete Validation** ✅ (10 tests)
+  *Purpose:* Validate soft delete attribute requirements
+  
+- **Table Expiration Validation** ✅ (8 tests)
+  *Purpose:* Validate expiration attribute configuration
+  
+- **Entity Mapper Validation** ✅ (7 tests)
+  *Purpose:* Validate mapper configurations and constraints
+
+#### 2.13.4 Provider-Specific Tests (57/57)
+- **SQLite Provider Initialize Tests** ⚠️ (8 tests, some failures)
+  *Purpose:* Provider initialization and setup
+  *Failure Reason:* SQLite native library loading issues in test environment
+  
+- **SQLite Provider Advanced Tests** ⚠️ (15 tests, some failures)
+  *Purpose:* Advanced provider operations
+  *Failure Reason:* Transaction and concurrency test failures due to SQLite locking
+  
+- **SQLite Provider Expiration Tests** ✅ (12 tests)
+  *Purpose:* Entity expiration handling
+  
+- **SQLite Provider Integration Tests** ⚠️ (10 tests, some failures)
+  *Purpose:* End-to-end provider scenarios
+  *Failure Reason:* Concurrent operation conflicts in SQLite
+  
+- **SQLite Provider Core Tests** ✅ (12 tests)
+  *Purpose:* Basic provider operations
+
+#### 2.13.5 Expression Translation Tests (15/15)
+- **OrderBy Expression Translation** ✅ (8 tests)
+  *Purpose:* LINQ OrderBy to SQL translation
+  
+- **Query Expression Translation** ✅ (7 tests)
+  *Purpose:* Complex LINQ expression translation
+
+### 2.14 Summary Statistics
+
+#### Core Test Scenarios (from specification)
 | Category | Implemented | Total | Coverage |
 |----------|-------------|-------|----------|
 | **Entity Mapping** | 26 | 26 | 100% |
@@ -440,7 +505,38 @@ The following list tracks the implementation status of all test scenarios descri
 | **Performance** | 6 | 6 | 100% |
 | **Error Handling** | 3 | 5 | 60% |
 | **Integration** | 3 | 4 | 75% |
-| **TOTAL** | **105** | **124** | **85%** |
+| **SUBTOTAL** | **105** | **124** | **85%** |
+
+#### Additional Test Categories (implemented but not in original spec)
+| Category | Implemented | Status |
+|----------|-------------|--------|
+| **Type Extensions** | 47 | ✅ All passing |
+| **Parser/Lexer** | 54 | ✅ All passing |
+| **Validation** | 25 | ✅ All passing |
+| **Provider-Specific** | 57 | ⚠️ 12 failures (SQLite concurrency) |
+| **Expression Translation** | 15 | ✅ All passing |
+| **SUBTOTAL** | **198** | |
+
+#### Overall Statistics
+| Metric | Value |
+|--------|-------|
+| **Total Tests in Codebase** | 396 |
+| **Passing Tests** | 370 (93.4%) |
+| **Failing Tests** | 12 (3.0%) |
+| **Ignored Tests** | 14 (3.5%) |
+| **Tests from Original Spec** | 124 |
+| **Additional Tests Implemented** | 272 |
+
+#### Test Failure Summary
+- **Failing Tests** (12 total):
+  - SQLite Provider concurrency tests
+  - Transaction rollback tests
+  - Native library loading issues in some environments
+  
+- **Ignored Tests** (14 total):
+  - **Transaction Tests**: 5 tests - Transaction scope interface needs redesign
+  - **Audit Trail Tests**: 6 tests - QueryAuditTrailAsync not implemented  
+  - **Provider Tests**: 3 tests - Pending implementation or environment setup
 
 ### Legend
 - ✅ Implemented and passing

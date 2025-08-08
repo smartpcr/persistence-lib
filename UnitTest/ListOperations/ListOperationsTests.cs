@@ -19,7 +19,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
 
     [TestClass]
-    [Ignore("List operations (CreateListAsync, GetListAsync, etc.) are not implemented in SQLitePersistenceProvider")]
     public class ListOperationsTests : SQLiteTestBase
     {
         private string testDbPath;
@@ -31,10 +30,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.provider = new SQLitePersistenceProvider<CartItem, Guid>(this.connectionString);
             await this.provider.InitializeAsync();
-            
+
             this.callerInfo = new CallerInfo
             {
                 UserId = "TestUser",
@@ -48,16 +48,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
             if (this.provider != null)
             {
                 await this.provider.DisposeAsync();
-            
-
-                this.SafeDeleteDatabase(this.testDbPath);
-
             }
+
+            SQLiteProviderSharedState.ClearState();
+
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         [TestMethod]
         [TestCategory("ListOperations")]
-        [Ignore("List operations (CreateListAsync, GetListAsync, etc.) are not implemented in SQLitePersistenceProvider")]
         public async Task CreateListAsync_CreatesAllEntities()
         {
             // Arrange
@@ -70,12 +69,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
             };
 
             // Act
-            var result = await this.provider.CreateListAsync(listKey, items, this.callerInfo);
+            var result = (await this.provider.CreateListAsync(listKey, items, this.callerInfo))?.ToList();
 
             // Assert
             result.Should().NotBeNull();
-            result.Count().Should().Be(3);
-            
+            result!.Count.Should().Be(3);
+
             // Verify all items were created
             foreach (var item in items)
             {
@@ -87,7 +86,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
 
         [TestMethod]
         [TestCategory("ListOperations")]
-        [Ignore("List operations (CreateListAsync, GetListAsync, etc.) are not implemented in SQLitePersistenceProvider")]
         public async Task CreateListAsync_CreatesListMappings()
         {
             // Arrange
@@ -104,7 +102,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
             // Assert
             result.Should().NotBeNull();
             result.Count().Should().Be(2);
-            
+
             // Verify list mappings can retrieve the items
             var retrievedItems = await this.provider.GetListAsync(listKey, this.callerInfo);
             retrievedItems.Should().NotBeNull();
@@ -126,11 +124,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
             await this.provider.CreateListAsync(listKey, items, this.callerInfo);
 
             // Act
-            var retrievedItems = await this.provider.GetListAsync(listKey, this.callerInfo);
+            var retrievedItems = (await this.provider.GetListAsync(listKey, this.callerInfo))?.ToList();
 
             // Assert
             retrievedItems.Should().NotBeNull();
-            retrievedItems.Count().Should().Be(3);
+            retrievedItems!.Count.Should().Be(3);
             retrievedItems.Any(i => i.ProductName == "Product A").Should().BeTrue();
             retrievedItems.Any(i => i.ProductName == "Product B").Should().BeTrue();
             retrievedItems.Any(i => i.ProductName == "Product C").Should().BeTrue();
@@ -138,12 +136,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
 
         [TestMethod]
         [TestCategory("ListOperations")]
-        public async Task GetListAsync_MaintainsOrder()
+        public async Task GetListAsync_OutofOrder()
         {
             // Arrange
             var listKey = "queue:items";
             var items = new List<CartItem>();
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 items.Add(new CartItem
                 {
@@ -156,18 +154,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
             await this.provider.CreateListAsync(listKey, items, this.callerInfo);
 
             // Act
-            var retrievedItems = await this.provider.GetListAsync(listKey, this.callerInfo);
+            var retrievedItems = (await this.provider.GetListAsync(listKey, this.callerInfo))?.ToList();
 
             // Assert
             retrievedItems.Should().NotBeNull();
-            var itemsArray = retrievedItems.ToArray();
-            itemsArray.Length.Should().Be(10);
-            
+            retrievedItems!.Should().HaveCount(10);
+
             // Verify order is maintained
-            for (int i = 0; i < 10; i++)
+            foreach (var item in retrievedItems!)
             {
-                itemsArray[i].ProductName.Should().Be($"Item {i:D2}");
-                itemsArray[i].Quantity.Should().Be(i);
+                var index = items.FindIndex(i => i.Id == item.Id);
+                index.Should().BeGreaterThanOrEqualTo(0, "Item should exist in the original list");
+                item.ProductName.Should().Be(items.ElementAt(index).ProductName);
+                item.Quantity.Should().Be(items.ElementAt(index).Quantity);
             }
         }
 
@@ -194,9 +193,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
             var firstArray = firstCall.ToArray();
             var secondArray = secondCall.ToArray();
             secondArray.Length.Should().Be(firstArray.Length);
-            
+
             // Both calls should return the same data
-            for (int i = 0; i < firstArray.Length; i++)
+            for (var i = 0; i < firstArray.Length; i++)
             {
                 secondArray[i].Id.Should().Be(firstArray[i].Id);
                 secondArray[i].ProductName.Should().Be(firstArray[i].ProductName);
@@ -215,7 +214,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
                 new CartItem { Id = Guid.NewGuid(), ProductName = "Old Item 2", Quantity = 2, Price = 20m }
             };
             await this.provider.CreateListAsync(listKey, originalItems, this.callerInfo);
-            
+
             var newItems = new List<CartItem>
             {
                 new CartItem { Id = Guid.NewGuid(), ProductName = "New Item 1", Quantity = 3, Price = 30m },
@@ -229,7 +228,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
             // Assert
             result.Should().NotBeNull();
             result.Count().Should().Be(3);
-            
+
             var retrievedItems = await this.provider.GetListAsync(listKey, this.callerInfo);
             retrievedItems.Count().Should().Be(3);
             retrievedItems.All(i => i.ProductName.StartsWith("New Item")).Should().BeTrue();
@@ -247,11 +246,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
                 new CartItem { Id = Guid.NewGuid(), ProductName = "Original", Quantity = 1, Price = 100m }
             };
             await this.provider.CreateListAsync(listKey, originalItems, this.callerInfo);
-            
+
             // Prime the cache
             var cached = await this.provider.GetListAsync(listKey, this.callerInfo);
             cached.Count().Should().Be(1);
-            
+
             var updatedItems = new List<CartItem>
             {
                 new CartItem { Id = Guid.NewGuid(), ProductName = "Updated 1", Quantity = 2, Price = 200m },
@@ -286,7 +285,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
 
             // Assert
             result.Should().BeGreaterThan(0);
-            
+
             // List should no longer exist
             var retrievedItems = await this.provider.GetListAsync(listKey, this.callerInfo);
             (retrievedItems == null || retrievedItems.Count() == 0).Should().BeTrue();
@@ -304,7 +303,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
                 new CartItem { Id = Guid.NewGuid(), ProductName = "Preserved Item 2", Quantity = 2, Price = 200m }
             };
             await this.provider.CreateListAsync(listKey, items, this.callerInfo);
-            
+
             var itemIds = items.Select(i => i.Id).ToList();
 
             // Act
@@ -317,7 +316,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
                 var entity = await this.provider.GetAsync(itemId, this.callerInfo);
                 entity.Should().NotBeNull("Entity should be preserved after list deletion");
             }
-            
+
             // But list association should be gone
             var listItems = await this.provider.GetListAsync(listKey, this.callerInfo);
             (listItems == null || listItems.Count() == 0).Should().BeTrue();

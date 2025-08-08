@@ -11,7 +11,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
 
-    [Table("CartItem")]
+    [Table("CartItem", SyncWithList = true, SoftDeleteEnabled = false)]
     public class CartItem : BaseEntity<Guid>
     {
         [Column("ProductName", SqlDbType.NVarChar, Size = 100)]

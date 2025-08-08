@@ -53,19 +53,34 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Apply PRAGMA settings from configuration
             await this.ApplyPragmaSettingsAsync(connection, cancellationToken);
 
-            // Create main entity table
-            await this.CreateTableAsync(connection, this.Mapper, cancellationToken);
-
             // Create Version table if entity supports versioning
-            if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
+            if (this.Mapper.EnableSoftDelete)
             {
-                await this.CreateTableAsync(connection, this.versionMapper, cancellationToken);
+                lock (SQLiteProviderSharedState.VersionTableLock)
+                {
+                    if (!SQLiteProviderSharedState.VersionTableCreated)
+                    {
+                        var createVersionTableSql = this.versionMapper.GenerateCreateTableSql(includeIfNotExists: true);
+                        using var createVersionCmd = this.CreateCommand(createVersionTableSql, connection);
+                        createVersionCmd.ExecuteNonQuery(); // Use synchronous inside lock
+                        SQLiteProviderSharedState.VersionTableCreated = true;
+                    }
+                }
             }
 
             // Create EntryListMapping table if entity syncs with list
             if (this.Mapper.SyncWithList)
             {
-                await this.CreateTableAsync(connection, this.entryListMappingMapper, cancellationToken);
+                lock (SQLiteProviderSharedState.EntryListMappingLock)
+                {
+                    if (!SQLiteProviderSharedState.EntryListMappingCreated)
+                    {
+                        var createEntryListMappingTableSql = this.entryListMappingMapper.GenerateCreateTableSql();
+                        using var createListMappingCmd = this.CreateCommand(createEntryListMappingTableSql, connection);
+                        createListMappingCmd.ExecuteNonQuery(); // Use synchronous inside lock
+                        SQLiteProviderSharedState.EntryListMappingCreated = true;
+                    }
+                }
             }
 
             // Create audit table if audit trail is enabled (only create once)
@@ -82,6 +97,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     }
                 }
             }
+
+            // Create main entity table
+            await this.CreateTableAsync(connection, this.Mapper, cancellationToken);
 
             // Create indexes
             await this.CreateIndexesAsync(connection, cancellationToken);
@@ -127,7 +145,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             foreach (var pragma in connectionPragmas)
             {
-                using var command = this.CreateCommand($"PRAGMA {pragma.Key} = {pragma.Value}", connection);
+                await using var command = this.CreateCommand($"PRAGMA {pragma.Key} = {pragma.Value}", connection);
                 await command.ExecuteNonQueryAsync(cancellationToken);
             }
         }
@@ -146,7 +164,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
             catch
             {
-                connection?.Dispose();
+                connection.Dispose();
                 throw;
             }
         }
@@ -176,20 +194,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             where TEntity : class, IEntity<TEntityKey>
             where TEntityKey : IEquatable<TEntityKey>
         {
-            if (mapper.SyncWithList)
-            {
-                var createEntityListMappingSql = this.entryListMappingMapper.GenerateCreateTableSql();
-                await using var createListMappingCmd = this.CreateCommand(createEntityListMappingSql, connection);
-                await createListMappingCmd.ExecuteNonQueryAsync(cancellationToken);
-            }
-
-            if (mapper.EnableSoftDelete)
-            {
-                var createVersionTableSql = this.versionMapper.GenerateCreateTableSql(includeIfNotExists: true);
-                await using var createVersionCmd = this.CreateCommand(createVersionTableSql, connection);
-                await createVersionCmd.ExecuteNonQueryAsync(cancellationToken);
-            }
-
             var createTableSql = mapper.GenerateCreateTableSql(includeIfNotExists: true);
             await using var command = this.CreateCommand(createTableSql, connection);
             await command.ExecuteNonQueryAsync(cancellationToken);

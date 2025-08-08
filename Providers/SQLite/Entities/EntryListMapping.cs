@@ -30,9 +30,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         [NotMapped]
         public new string Id { get; set; }
 
-        [NotMapped]
-        public new long Version { get; set; }
-
         /// <summary>
         /// Gets or sets the list cache key (composite primary key part 1).
         /// </summary>

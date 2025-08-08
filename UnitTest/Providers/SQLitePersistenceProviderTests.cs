@@ -183,7 +183,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
         [TestMethod]
         [TestCategory("UnitTest")]
-        
+
         public async Task CreateAsync_DuplicateEntity_ThrowsException()
         {
             // Arrange
@@ -195,7 +195,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Act
             await this.provider.CreateAsync(entity, new CallerInfo());
-            await this.provider.CreateAsync(entity, new CallerInfo()); // Should throw
+
+            Func<Task> act = async () => await this.provider.CreateAsync(entity, new CallerInfo());
+            await act.Should().ThrowAsync<EntityAlreadyExistsException>("Entity with the same ID already exists.");
         }
 
         [TestMethod]
@@ -260,7 +262,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
         [TestMethod]
         [TestCategory("UnitTest")]
-        
+
         public async Task UpdateAsync_ConcurrentUpdate_ThrowsConcurrencyException()
         {
             // Arrange
@@ -276,7 +278,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Act
             created.Name = "Updated Name";
-            await this.provider.UpdateAsync(created, new CallerInfo()); // Should throw
+            Func<Task> act = async () => await this.provider.UpdateAsync(created, new CallerInfo());
+            await act.Should().ThrowAsync<ConcurrencyConflictException>();
         }
 
         [TestMethod]
@@ -349,7 +352,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             updated.Version.Should().Be(2);
-            
+
             // Verify both versions exist in database
             var current = await this.softDeleteProvider.GetAsync("soft-1", new CallerInfo());
             current.Should().NotBeNull();
@@ -433,7 +436,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             updated.Version.Should().Be(2);
-            
+
             // Verify only one record exists
             var all = await this.noSoftDeleteProvider.GetAllAsync(new CallerInfo());
             all.Count().Should().Be(1);

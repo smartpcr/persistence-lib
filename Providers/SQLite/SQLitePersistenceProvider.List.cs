@@ -8,10 +8,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 {
     using System;
     using System.Collections.Generic;
-    using System.Data.SQLite;
     using System.Diagnostics;
     using System.Linq;
-    using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
@@ -60,18 +58,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             {
                 var results = new List<T>();
 
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
-                using var transaction = connection.BeginTransaction();
+                await using var transaction = connection.BeginTransaction();
                 try
                 {
                     // Step 1: Check if listCacheKey already exists in EntryListMapping
                     var checkListExistsSql = @"
-                        SELECT COUNT(*) 
-                        FROM EntryListMapping 
+                        SELECT COUNT(*)
+                        FROM EntryListMapping
                         WHERE ListCacheKey = @listCacheKey";
 
-                    using (var checkListCmd = this.CreateCommand(checkListExistsSql, connection, transaction))
+                    await using (var checkListCmd = this.CreateCommand(checkListExistsSql, connection, transaction))
                     {
                         checkListCmd.Parameters.AddWithValue("@listCacheKey", listCacheKey);
                         var count = Convert.ToInt64(await checkListCmd.ExecuteScalarAsync(cancellationToken));
@@ -85,7 +83,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     long version = 1;
                     if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
                     {
-                        using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
+                        await using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
                         versionCmd.Connection = connection;
                         versionCmd.Transaction = transaction;
                         version = Convert.ToInt64(await versionCmd.ExecuteScalarAsync(cancellationToken));
@@ -113,10 +111,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         }
 
                         T existingEntity = null;
-                        using (var checkCmd = this.CreateCommand(checkEntitySql, connection, transaction))
+                        await using (var checkCmd = this.CreateCommand(checkEntitySql, connection, transaction))
                         {
                             checkCmd.Parameters.AddWithValue("@key", keyString);
-                            using var reader = await checkCmd.ExecuteReaderAsync(cancellationToken);
+                            await using var reader = await checkCmd.ExecuteReaderAsync(cancellationToken);
                             if (await reader.ReadAsync(cancellationToken))
                             {
                                 existingEntity = this.Mapper.MapFromReader(reader);
@@ -161,7 +159,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                 INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
                                 VALUES ({string.Join(", ", parameters)});";
 
-                        using var insertCmd = this.CreateCommand(insertEntitySql, connection, transaction);
+                        await using var insertCmd = this.CreateCommand(insertEntitySql, connection, transaction);
                         this.Mapper.AddParameters(insertCmd, entity);
                         await insertCmd.ExecuteNonQueryAsync(cancellationToken);
 
@@ -249,20 +247,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             {
                 var results = new List<T>();
 
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Get all entity keys and versions from the list mapping
                 var mappings = new List<(string EntryCacheKey, long Version)>();
                 var listSql = @"
                     SELECT EntryCacheKey, Version
-                    FROM EntryListMapping 
+                    FROM EntryListMapping
                     WHERE ListCacheKey = @listCacheKey
                     ORDER BY EntryCacheKey";
 
-                using (var listCmd = this.CreateCommand(listSql, connection))
+                await using (var listCmd = this.CreateCommand(listSql, connection))
                 {
                     listCmd.Parameters.AddWithValue("@listCacheKey", listCacheKey);
-                    using var listReader = await listCmd.ExecuteReaderAsync(cancellationToken);
+                    await using var listReader = await listCmd.ExecuteReaderAsync(cancellationToken);
                     while (await listReader.ReadAsync(cancellationToken))
                     {
                         mappings.Add((listReader.GetString(0), listReader.GetInt64(1)));
@@ -292,10 +290,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     }
 
                     T entity = null;
-                    using (var command = this.CreateCommand(sql, connection))
+                    await using (var command = this.CreateCommand(sql, connection))
                     {
                         command.Parameters.AddWithValue("@key", entryCacheKey);
-                        using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
                         if (await reader.ReadAsync(cancellationToken))
                         {
                             entity = this.Mapper.MapFromReader(reader);
@@ -323,16 +321,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     if (entity.Version > mappingVersion)
                     {
                         // Update mapping with newer version
-                        using var transaction = connection.BeginTransaction();
+                        await using var transaction = connection.BeginTransaction();
                         try
                         {
                             var updateSql = @"
-                                UPDATE EntryListMapping 
+                                UPDATE EntryListMapping
                                 SET Version = @version, LastWriteTime = @lastWriteTime
-                                WHERE ListCacheKey = @listCacheKey 
+                                WHERE ListCacheKey = @listCacheKey
                                 AND EntryCacheKey = @entryCacheKey";
 
-                            using var updateCmd = this.CreateCommand(updateSql, connection, transaction);
+                            await using var updateCmd = this.CreateCommand(updateSql, connection, transaction);
                             updateCmd.Parameters.AddWithValue("@version", entity.Version);
                             updateCmd.Parameters.AddWithValue("@lastWriteTime", DateTime.UtcNow);
                             updateCmd.Parameters.AddWithValue("@listCacheKey", listCacheKey);
@@ -412,9 +410,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             {
                 var results = new List<T>();
 
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
-                using var transaction = connection.BeginTransaction();
+                await using var transaction = connection.BeginTransaction();
                 try
                 {
                     // Step 1: Get all existing mappings from EntryListMapping
@@ -424,10 +422,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         FROM EntryListMapping
                         WHERE ListCacheKey = @listCacheKey";
 
-                    using (var getMappingsCmd = this.CreateCommand(getMappingsSql, connection, transaction))
+                    await using (var getMappingsCmd = this.CreateCommand(getMappingsSql, connection, transaction))
                     {
                         getMappingsCmd.Parameters.AddWithValue("@listCacheKey", listCacheKey);
-                        using var reader = await getMappingsCmd.ExecuteReaderAsync(cancellationToken);
+                        await using var reader = await getMappingsCmd.ExecuteReaderAsync(cancellationToken);
                         while (await reader.ReadAsync(cancellationToken))
                         {
                             existingMappings[reader.GetString(0)] = reader.GetInt64(1);
@@ -438,14 +436,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     long batchVersion = 1;
                     if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
                     {
-                        using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
+                        await using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
                         versionCmd.Connection = connection;
                         versionCmd.Transaction = transaction;
                         batchVersion = Convert.ToInt64(await versionCmd.ExecuteScalarAsync(cancellationToken));
                     }
 
                     // Step 3: Delete existing list mappings (we'll recreate them)
-                    using var deleteListCmd = this.entryListMappingMapper.CreateDeleteByListKeyCommand(listCacheKey);
+                    await using var deleteListCmd = this.entryListMappingMapper.CreateDeleteByListKeyCommand(listCacheKey);
                     deleteListCmd.Connection = connection;
                     deleteListCmd.Transaction = transaction;
                     await deleteListCmd.ExecuteNonQueryAsync(cancellationToken);
@@ -471,10 +469,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         }
 
                         T existingEntity = null;
-                        using (var existingCmd = this.CreateCommand(existingSql, connection, transaction))
+                        await using (var existingCmd = this.CreateCommand(existingSql, connection, transaction))
                         {
                             existingCmd.Parameters.AddWithValue("@key", keyString);
-                            using var reader = await existingCmd.ExecuteReaderAsync(cancellationToken);
+                            await using var reader = await existingCmd.ExecuteReaderAsync(cancellationToken);
                             if (await reader.ReadAsync(cancellationToken))
                             {
                                 existingEntity = this.Mapper.MapFromReader(reader);
@@ -503,7 +501,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                 INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
                                 VALUES ({string.Join(", ", parameters)});";
 
-                            using var insertCmd = this.CreateCommand(insertSql, connection, transaction);
+                            await using var insertCmd = this.CreateCommand(insertSql, connection, transaction);
                             this.Mapper.AddParameters(insertCmd, entity);
                             await insertCmd.ExecuteNonQueryAsync(cancellationToken);
 
@@ -532,7 +530,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                         INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
                                         VALUES ({string.Join(", ", parameters)});";
 
-                                    using var insertCmd = this.CreateCommand(insertSql, connection, transaction);
+                                    await using var insertCmd = this.CreateCommand(insertSql, connection, transaction);
                                     this.Mapper.AddParameters(insertCmd, entity);
                                     await insertCmd.ExecuteNonQueryAsync(cancellationToken);
 
@@ -553,7 +551,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                         SET {string.Join(", ", updateColumns)}
                                         WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;";
 
-                                    using var updateCmd = this.CreateCommand(updateSql, connection, transaction);
+                                    await using var updateCmd = this.CreateCommand(updateSql, connection, transaction);
                                     this.Mapper.AddParameters(updateCmd, entity);
                                     updateCmd.Parameters.AddWithValue("@key", keyString);
                                     await updateCmd.ExecuteNonQueryAsync(cancellationToken);
@@ -651,18 +649,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
-                using var transaction = connection.BeginTransaction();
+                await using var transaction = connection.BeginTransaction();
                 try
                 {
                     // Only delete the list mappings - DO NOT delete entities
                     var deleteListSql = @"
-                        DELETE FROM EntryListMapping 
+                        DELETE FROM EntryListMapping
                         WHERE ListCacheKey = @listCacheKey;
                         SELECT changes();";
 
-                    using var deleteListCmd = this.CreateCommand(deleteListSql, connection, transaction);
+                    await using var deleteListCmd = this.CreateCommand(deleteListSql, connection, transaction);
                     deleteListCmd.Parameters.AddWithValue("@listCacheKey", listCacheKey);
 
                     var result = await deleteListCmd.ExecuteScalarAsync(cancellationToken);

@@ -7,9 +7,9 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Configuration
 {
     using System;
-    using System.ComponentModel.DataAnnotations.Schema;
     using System.Data.SQLite;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
@@ -18,7 +18,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
     using ConfigTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Configuration.ConfigTestEntity;
     using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
-    using Newtonsoft.Json;
 
     [TestClass]
     public class ConfigurationTests : SQLiteTestBase
@@ -89,7 +88,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             {
                 JournalMode = JournalMode.WAL,
                 SynchronousMode = SynchronousMode.Full,
-                CacheSize = 5000,
+                CacheSize = -5000,
                 PageSize = 8192
                 // Note: TempStore is not implemented in SqliteConfiguration yet
             };
@@ -100,18 +99,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             await provider.InitializeAsync();
 
             // Assert - Verify PRAGMA settings
-            using var connection = new SQLiteConnection(this.connectionString);
-            await connection.OpenAsync();
+            await using var connection = await provider.CreateAndOpenConnectionAsync(CancellationToken.None);
 
-            using var journalCmd = new SQLiteCommand("PRAGMA journal_mode", connection);
+            await using var journalCmd = new SQLiteCommand("PRAGMA journal_mode", connection);
             var journalMode = await journalCmd.ExecuteScalarAsync();
             journalMode?.ToString()?.ToLower().Should().Be("wal");
 
-            using var syncCmd = new SQLiteCommand("PRAGMA synchronous", connection);
+            await using var syncCmd = new SQLiteCommand("PRAGMA synchronous", connection);
             var syncMode = await syncCmd.ExecuteScalarAsync();
             Convert.ToInt32(syncMode).Should().Be(2); // FULL = 2
 
-            using var cacheCmd = new SQLiteCommand("PRAGMA cache_size", connection);
+            await using var cacheCmd = new SQLiteCommand("PRAGMA cache_size", connection);
             var cacheSize = await cacheCmd.ExecuteScalarAsync();
             Convert.ToInt32(cacheSize).Should().Be(-5000); // Negative means KB
 
@@ -188,7 +186,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
 
             var smallDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_small_{Guid.NewGuid()}.db");
             var largeDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_large_{Guid.NewGuid()}.db");
-            
+
             var smallCacheProvider = new SQLitePersistenceProvider<ConfigTestEntity, Guid>(
                 $"Data Source={smallDbPath};Version=3;", smallCacheConfig);
             var largeCacheProvider = new SQLitePersistenceProvider<ConfigTestEntity, Guid>(
@@ -199,7 +197,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
 
             // Act - Create many entities
             var entities = new ConfigTestEntity[1000];
-            for (int i = 0; i < 1000; i++)
+            for (var i = 0; i < 1000; i++)
             {
                 entities[i] = new ConfigTestEntity { Id = Guid.NewGuid(), Name = $"Entity {i}" };
             }
@@ -224,10 +222,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             // Note: This might not always be true in memory database
             smallCacheTime.Should().BeGreaterThan(0);
             largeCacheTime.Should().BeGreaterThan(0);
+            // largeCacheTime.Should().BeLessThan(smallCacheTime, "Large cache should perform better than small cache");
 
             await smallCacheProvider.DisposeAsync();
             await largeCacheProvider.DisposeAsync();
-            
+
             this.SafeDeleteDatabase(smallDbPath);
             this.SafeDeleteDatabase(largeDbPath);
         }

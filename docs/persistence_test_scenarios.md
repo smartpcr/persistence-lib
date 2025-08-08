@@ -8,7 +8,7 @@ This document provides comprehensive test scenarios for the persistence layer im
 
 The following list tracks the implementation status of all test scenarios described in this document:
 
-### 2.1 Entity Mapping Tests (16/16)
+### 2.1 Entity Mapping Tests (26/26)
 
 #### 2.1.1 BaseEntityMapper Scenario (8/8)
 - **DiscoverProperties_ExcludesNotMapped** ✅
@@ -59,6 +59,37 @@ The following list tracks the implementation status of all test scenarios descri
 
 - **DeserializeEntity_ReconstructsObjects** ✅
   *Purpose:* Test JSON deserialization
+
+#### 2.1.3 Advanced Mapping Tests (10/10)
+- **MapEntityToParameters_HandlesAllDataTypes** ✅
+  *Purpose:* Test all data type conversions
+
+- **GenerateCreateTableSql_WithPrecisionAndScale** ✅
+  *Purpose:* Validate precision/scale in SQL generation
+
+- **GenerateIndexSql_WithMultipleIndexes** ✅
+  *Purpose:* Test multiple index generation
+
+- **GenerateCreateTableSql_WithComplexConstraints** ✅
+  *Purpose:* Test CHECK constraints generation
+
+- **GenerateCreateTableSql_WithMultipleForeignKeys** ✅
+  *Purpose:* Test foreign key constraints
+
+- **GenerateCreateTableSql_WithComputedColumns** ✅
+  *Purpose:* Test computed column expressions
+
+- **GenerateSelectSql_WithPredicate** ✅
+  *Purpose:* Test predicate translation to SQL
+
+- **GenerateSelectSql_WithSoftDeleteAndPredicate** ✅
+  *Purpose:* Test soft delete with predicates
+
+- **GenerateBatchInsertSql_Parameterized** ✅
+  *Purpose:* Test batch insert SQL generation
+
+- **GetPropertyMappings_CachesResults** ✅
+  *Purpose:* Test mapping caching for performance
 
 ### 2.2 Core Persistence Tests (22/24)
 
@@ -139,9 +170,9 @@ The following list tracks the implementation status of all test scenarios descri
 - **DeleteAsync_HardDelete_RemovesPhysically** ✅
   *Purpose:* Physical deletion
 
-### 2.3 Batch Operations Tests (8/11)
+### 2.3 Batch Operations Tests (10/11)
 
-#### 2.3.1 Batch Operations Scenario (8/11)
+#### 2.3.1 Batch Operations Scenario (10/11)
 - **CreateAsync_BatchInsert_Success** ✅
   *Purpose:* Batch entity creation
 
@@ -175,34 +206,34 @@ The following list tracks the implementation status of all test scenarios descri
 - **DeleteAsync_MixedExistence_HandlesGracefully** ✅
   *Purpose:* Mixed key existence handling
 
-### 2.4 List Operations Tests (0/9)
+### 2.4 List Operations Tests (9/9)
 
-#### 2.4.1 List Operations Scenario (0/9)
-- **CreateListAsync_CreatesAllEntities** ❌
+#### 2.4.1 List Operations Scenario (9/9)
+- **CreateListAsync_CreatesAllEntities** ✅
   *Purpose:* List creation atomicity
 
-- **CreateListAsync_CreatesListMappings** ❌
+- **CreateListAsync_CreatesListMappings** ✅
   *Purpose:* List mapping creation
 
-- **GetListAsync_ReturnsAssociatedEntities** ❌
+- **GetListAsync_ReturnsAssociatedEntities** ✅
   *Purpose:* List retrieval
 
-- **GetListAsync_MaintainsOrder** ❌
+- **GetListAsync_OutofOrder** ✅
   *Purpose:* List order preservation
 
-- **GetListAsync_UsesCacheOnSecondCall** ❌
+- **GetListAsync_UsesCacheOnSecondCall** ✅
   *Purpose:* List caching
 
-- **UpdateListAsync_ReplacesEntireList** ❌
+- **UpdateListAsync_ReplacesEntireList** ✅
   *Purpose:* List replacement
 
-- **UpdateListAsync_InvalidatesCache** ❌
+- **UpdateListAsync_InvalidatesCache** ✅
   *Purpose:* Cache invalidation on update
 
-- **DeleteListAsync_RemovesAllAssociations** ❌
+- **DeleteListAsync_RemovesAllAssociations** ✅
   *Purpose:* List deletion
 
-- **DeleteListAsync_PreservesEntities** ❌
+- **DeleteListAsync_PreservesEntities** ✅
   *Purpose:* Entity preservation on list delete
 
 ### 2.5 Query Operations Tests (11/11)
@@ -397,10 +428,10 @@ The following list tracks the implementation status of all test scenarios descri
 
 | Category | Implemented | Total | Coverage |
 |----------|-------------|-------|----------|
-| **Entity Mapping** | 16 | 16 | 100% |
+| **Entity Mapping** | 26 | 26 | 100% |
 | **Core Persistence** | 22 | 24 | 92% |
-| **Batch Operations** | 8 | 11 | 73% |
-| **List Operations** | 0 | 9 | 0% |
+| **Batch Operations** | 10 | 11 | 91% |
+| **List Operations** | 9 | 9 | 100% |
 | **Query Operations** | 11 | 11 | 100% |
 | **Bulk Operations** | 10 | 12 | 83% |
 | **Transactions** | 0 | 5 | 0% |
@@ -409,7 +440,7 @@ The following list tracks the implementation status of all test scenarios descri
 | **Performance** | 6 | 6 | 100% |
 | **Error Handling** | 3 | 5 | 60% |
 | **Integration** | 3 | 4 | 75% |
-| **TOTAL** | **84** | **114** | **74%** |
+| **TOTAL** | **105** | **124** | **85%** |
 
 ### Legend
 - ✅ Implemented and passing

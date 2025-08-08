@@ -23,8 +23,21 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     /// </summary>
     internal static class SQLiteProviderSharedState
     {
+        internal static readonly object VersionTableLock = new object();
+        internal static bool VersionTableCreated;
+
         internal static readonly object AuditTableLock = new object();
         internal static bool AuditTableCreated;
+
+        internal static readonly object EntryListMappingLock = new object();
+        internal static bool EntryListMappingCreated;
+
+        public static void ClearState()
+        {
+            VersionTableCreated = false;
+            AuditTableCreated = false;
+            EntryListMappingCreated = false;
+        }
     }
 
     /// <summary>

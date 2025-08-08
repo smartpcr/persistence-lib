@@ -71,6 +71,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public bool IsAscending { get; set; } = true;
     }
 
+    // DML nodes
+    public class InsertStatement : SqlNode
+    {
+        public string TableName { get; set; }
+        public List<string> Columns { get; set; } = new List<string>();
+        public List<Expression> Values { get; set; } = new List<Expression>();
+    }
+
     // Expression nodes
     public abstract class Expression : SqlNode { }
 

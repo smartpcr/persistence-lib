@@ -85,5 +85,21 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             Assert.AreEqual(ConstraintType.PrimaryKey, pk.Type);
             CollectionAssert.AreEqual(new[] { "Id", "Version" }, pk.Columns);
         }
+
+        [TestMethod]
+        public void TestInsertStatement()
+        {
+            var sql = "INSERT INTO TestEntity (Name, Count, CreatedDate, Amount, ComplexData, CacheKey, Version, CreatedTime, LastWriteTime) " +
+                      "VALUES (@Name, @Count, @CreatedDate, @Amount, @ComplexData, @CacheKey, @Version, @CreatedTime, @LastWriteTime)";
+
+            var node = this.ParseStatement(sql);
+            Assert.IsInstanceOfType(node, typeof(InsertStatement));
+            var stmt = (InsertStatement)node;
+            Assert.AreEqual("TestEntity", stmt.TableName);
+            CollectionAssert.AreEqual(
+                new[] { "Name", "Count", "CreatedDate", "Amount", "ComplexData", "CacheKey", "Version", "CreatedTime", "LastWriteTime" },
+                stmt.Columns);
+            Assert.AreEqual(9, stmt.Values.Count);
+        }
     }
 }

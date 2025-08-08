@@ -31,6 +31,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 return this.ParseSelectStatement();
             }
 
+            if (this.Check(SqlTokenType.INSERT))
+            {
+                return this.ParseInsertStatement();
+            }
+
             if (this.Check(SqlTokenType.CREATE))
             {
                 return this.ParseCreateStatement();
@@ -109,6 +114,46 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
 
             return select;
+        }
+
+        private InsertStatement ParseInsertStatement()
+        {
+            var stmt = new InsertStatement();
+
+            this.Consume(SqlTokenType.INSERT, "Expected INSERT");
+            this.Match(SqlTokenType.INTO); // Optional INTO keyword
+
+            stmt.TableName = this.Consume(SqlTokenType.IDENTIFIER, "Expected table name").Value;
+
+            if (this.Match(SqlTokenType.LEFT_PAREN))
+            {
+                do
+                {
+                    stmt.Columns.Add(this.Consume(SqlTokenType.IDENTIFIER, "Expected column name").Value);
+                }
+                while (this.Match(SqlTokenType.COMMA));
+
+                this.Consume(SqlTokenType.RIGHT_PAREN, "Expected ) after column list");
+            }
+
+            this.Consume(SqlTokenType.VALUES, "Expected VALUES");
+            this.Consume(SqlTokenType.LEFT_PAREN, "Expected ( before VALUES");
+
+            var first = true;
+            while (!this.Check(SqlTokenType.RIGHT_PAREN))
+            {
+                if (!first)
+                {
+                    this.Consume(SqlTokenType.COMMA, "Expected comma between values");
+                }
+
+                first = false;
+                stmt.Values.Add(this.ParseExpression());
+            }
+
+            this.Consume(SqlTokenType.RIGHT_PAREN, "Expected ) after VALUES");
+
+            return stmt;
         }
 
         private SqlNode ParseCreateStatement()

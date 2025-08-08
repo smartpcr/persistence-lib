@@ -33,11 +33,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var mapper = new BaseEntityMapper<ValidSoftDeleteEntity, string>();
 
             // Assert
-            Assert.IsTrue(mapper.EnableSoftDelete);
+            mapper.EnableSoftDelete.Should().BeTrue();
             var pkColumns = mapper.GetPrimaryKeyColumns();
-            Assert.AreEqual(2, pkColumns.Count);
-            Assert.IsTrue(pkColumns.Contains("CacheKey"));
-            Assert.IsTrue(pkColumns.Contains("Version"));
+            pkColumns.Count.Should().Be(2);
+            pkColumns.Should().Contain("CacheKey");
+            pkColumns.Should().Contain("Version");
         }
 
         #endregion
@@ -50,12 +50,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
         {
             var mapper = new BaseEntityMapper<ValidExpiryEntity, string>();
 
-            Assert.IsTrue(mapper.EnableExpiry);
-            Assert.AreEqual(TimeSpan.FromDays(30), mapper.ExpirySpan);
-            
+            mapper.EnableExpiry.Should().BeTrue();
+            mapper.ExpirySpan.Should().Be(TimeSpan.FromDays(30));
+
             var mappings = mapper.GetPropertyMappings();
-            Assert.IsTrue(mappings.Any(m => m.Value.PropertyName == "CreationTime"));
-            Assert.IsTrue(mappings.Any(m => m.Value.PropertyName == "AbsoluteExpiration"));
+            mappings.Any(m => m.Value.PropertyName == "CreationTime").Should().BeTrue();
+            mappings.Any(m => m.Value.PropertyName == "AbsoluteExpiration").Should().BeTrue();
         }
 
         [TestMethod]
@@ -65,9 +65,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var mapper = new BaseEntityMapper<ValidArchiveEntity, string>();
 
             // Assert
-            Assert.IsTrue(mapper.EnableArchive);
+            mapper.EnableArchive.Should().BeTrue();
             var mappings = mapper.GetPropertyMappings();
-            Assert.IsTrue(mappings.Any(m => m.Value.PropertyName == "IsArchived"));
+            mappings.Any(m => m.Value.PropertyName == "IsArchived").Should().BeTrue();
         }
 
         #endregion
@@ -86,9 +86,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
 
             // Assert
             // Should escape reserved keywords with quotes or brackets
-            Assert.IsTrue(sql.Contains("\"Select\"") || sql.Contains("[Select]"));
-            Assert.IsTrue(sql.Contains("\"From\"") || sql.Contains("[From]"));
-            Assert.IsTrue(sql.Contains("\"Where\"") || sql.Contains("[Where]"));
+            (sql.Contains("\"Select\"") || sql.Contains("[Select]")).Should().BeTrue();
+            (sql.Contains("\"From\"") || sql.Contains("[From]")).Should().BeTrue();
+            (sql.Contains("\"Where\"") || sql.Contains("[Where]")).Should().BeTrue();
         }
 
         [TestMethod]
@@ -102,8 +102,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateInsertSql();
 
             // Assert
-            Assert.IsTrue(sql.Contains("\"Select\"") || sql.Contains("[Select]"));
-            Assert.IsTrue(sql.Contains("@Select"));
+            (sql.Contains("\"Select\"") || sql.Contains("[Select]")).Should().BeTrue();
+            sql.Should().Contain("@Select");
         }
 
         #endregion
@@ -118,7 +118,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var mapper = new BaseEntityMapper<ValidSoftDeleteEntity, string>();
 
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => mapper.MapEntityToParameters(null));
+            Action act = () => mapper.MapEntityToParameters(null);
+            act.Should().Throw<ArgumentNullException>();
         }
 
         [TestMethod]
@@ -132,7 +133,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var parameters = mapper.MapIdToParameters(null);
 
             // Assert
-            Assert.AreEqual(DBNull.Value, parameters["@CacheKey"]);
+            parameters["@CacheKey"].Should().Be(DBNull.Value);
         }
 
         #endregion
@@ -169,11 +170,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var parameters = mapper.MapEntityToParameters(entity);
 
             // Assert
-            Assert.AreEqual(new string('X', 255), parameters["@CacheKey"]);
-            Assert.AreEqual(long.MaxValue, parameters["@BigNumber"]);
-            Assert.AreEqual(decimal.MaxValue, parameters["@MaxDecimal"]);
-            Assert.AreEqual(DateTime.MinValue, parameters["@MinDateTime"]);
-            Assert.AreEqual(DateTime.MaxValue, parameters["@MaxDateTime"]);
+            parameters["@CacheKey"].Should().Be(new string('X', 255));
+            parameters["@BigNumber"].Should().Be(long.MaxValue);
+            parameters["@MaxDecimal"].Should().Be(decimal.MaxValue);
+            parameters["@MinDateTime"].Should().Be(DateTime.MinValue);
+            parameters["@MaxDateTime"].Should().Be(DateTime.MaxValue);
         }
 
 
@@ -192,7 +193,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var columnName = mapper.GetColumnName("Name");
 
             // Assert
-            Assert.AreEqual("Name", columnName);
+            columnName.Should().Be("Name");
         }
 
         [TestMethod]
@@ -206,7 +207,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var columnName = mapper.GetColumnName("UnmappedProperty");
 
             // Assert
-            Assert.IsNull(columnName);
+            columnName.Should().BeNull();
         }
 
 
@@ -232,9 +233,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
 
             // Assert
             // Values should be parameterized, not escaped
-            Assert.AreEqual("1'; DROP TABLE Users; --", parameters["@CacheKey"]);
-            Assert.AreEqual("Robert'); DROP TABLE Students;--", parameters["@Name"]);
-            Assert.AreEqual("\" OR \"1\"=\"1", parameters["@Description"]);
+            parameters["@CacheKey"].Should().Be("1'; DROP TABLE Users; --");
+            parameters["@Name"].Should().Be("Robert'); DROP TABLE Students;--");
+            parameters["@Description"].Should().Be("\" OR \"1\"=\"1");
         }
 
 

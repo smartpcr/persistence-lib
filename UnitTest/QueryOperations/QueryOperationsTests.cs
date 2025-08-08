@@ -7,17 +7,20 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.QueryOperations
 {
     using System;
+    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using QueryTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.QueryOperations.QueryTestEntity;
 
     [TestClass]
-    public class QueryOperationsTests
+    public class QueryOperationsTests : SQLiteTestBase
     {
+        private string testDbPath;
         private string connectionString;
         private SQLitePersistenceProvider<QueryTestEntity, Guid> provider;
         private CallerInfo callerInfo;
@@ -25,16 +28,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.provider = new SQLitePersistenceProvider<QueryTestEntity, Guid>(this.connectionString);
             await this.provider.InitializeAsync();
-            
+
             this.callerInfo = new CallerInfo
             {
                 UserId = "TestUser",
                 CorrelationId = Guid.NewGuid().ToString()
             };
-            
+
             // Seed test data
             await this.SeedTestData();
         }
@@ -46,6 +50,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             {
                 await this.provider.DisposeAsync();
             }
+            
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         private async Task SeedTestData()
@@ -60,7 +66,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 new QueryTestEntity { Id = Guid.NewGuid(), Name = "TestAlpha", Status = "Active", Amount = 175, Category = "A", DateCreated = DateTime.UtcNow.AddDays(-1) },
                 new QueryTestEntity { Id = Guid.NewGuid(), Name = "TestBeta", Status = "Inactive", Amount = 225, Category = "C", DateCreated = DateTime.UtcNow }
             };
-            
+
             foreach (var entity in entities)
             {
                 await this.provider.CreateAsync(entity, this.callerInfo);
@@ -112,24 +118,24 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             // Assert
             startsWithResults.Count().Should().Be(2);
             startsWithResults.Should().OnlyContain(e => e.Name.StartsWith("Test"));
-            
+
             // Act - Contains
             var containsResults = await this.provider.QueryAsync(
                 e => e.Name.Contains("et"),
                 null,
                 this.callerInfo);
-            
+
             // Assert
             containsResults.Count().Should().Be(2); // Beta and TestBeta
-            
+
             // Act - EndsWith
             var endsWithResults = await this.provider.QueryAsync(
                 e => e.Name.EndsWith("a"),
                 null,
                 this.callerInfo);
-            
+
             // Assert
-            endsWithResults.Count().Should().BeGreaterOrEqualTo(2); // Alpha, Beta, Gamma, Delta, TestAlpha, TestBeta
+            endsWithResults.Count().Should().BeGreaterThanOrEqualTo(2); // Alpha, Beta, Gamma, Delta, TestAlpha, TestBeta
         }
 
         [TestMethod]
@@ -147,13 +153,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             ascResults.Count().Should().Be(7);
             ascResults.First().Amount.Should().Be(50);
             ascResults.Last().Amount.Should().Be(300);
-            
+
             // Act - Order by Name descending
             var descResults = await this.provider.QueryAsync(
                 null,
                 q => q.OrderByDescending(e => e.Name),
                 this.callerInfo);
-            
+
             // Assert
             descResults.First().Name.CompareTo(descResults.Last().Name).Should().BeGreaterThan(0);
         }
@@ -173,13 +179,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             // Assert
             pagedResults.Should().NotBeNull();
             pagedResults.Count().Should().Be(3);
-            
+
             // Verify we skipped the first 2 when ordered by name
             var allOrdered = await this.provider.QueryAsync(
                 null,
                 q => q.OrderBy(e => e.Name),
                 this.callerInfo);
-            
+
             var allOrderedArray = allOrdered.ToArray();
             var pagedResultsArray = pagedResults.ToArray();
             pagedResultsArray[0].Id.Should().Be(allOrderedArray[2].Id);
@@ -203,8 +209,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             pagedResult.PageNumber.Should().Be(1);
             pagedResult.PageSize.Should().Be(2);
             pagedResult.TotalCount.Should().Be(3); // Alpha, Gamma, TestAlpha
-            (pagedResult.PageNumber < pagedResult.TotalPages).Should().BeTrue(); // HasNextPage
-            (pagedResult.PageNumber > 1).Should().BeFalse(); // HasPreviousPage
+            pagedResult.PageNumber.Should().BeLessThan(pagedResult.TotalPages); // HasNextPage
+            pagedResult.PageNumber.Should().BeGreaterOrEqualTo(1);
         }
 
         [TestMethod]
@@ -221,8 +227,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             pagedResult.Should().NotBeNull();
             pagedResult.TotalPages.Should().Be(3); // 7 items / 3 per page = 3 pages
             pagedResult.PageNumber.Should().Be(2);
-            (pagedResult.PageNumber > 1).Should().BeTrue(); // HasPreviousPage
-            (pagedResult.PageNumber < pagedResult.TotalPages).Should().BeTrue(); // HasNextPage
+            pagedResult.PageNumber.Should().BeGreaterThan(1); // HasPreviousPage
+            pagedResult.PageNumber.Should().BeLessThan(pagedResult.TotalPages); // HasNextPage
         }
 
         [TestMethod]
@@ -235,11 +241,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
 
             // Assert
             activeCount.Should().Be(4);
-            
+
             // Act
             var highAmountCount = await this.provider.CountAsync(
                 e => e.Amount >= 200);
-            
+
             // Assert
             highAmountCount.Should().Be(3); // Beta (200), Epsilon (300), TestBeta (225)
         }

@@ -15,6 +15,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     public class AuditTestEntity : BaseEntity<Guid>
     {
         [PrimaryKey]
+        [Column("Id", SqlDbType.UniqueIdentifier, NotNull = true)]
         public new Guid Id { get; set; }
 
         [Column("Name", SqlDbType.NVarChar, Size = 100)]

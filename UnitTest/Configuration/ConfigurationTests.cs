@@ -14,20 +14,24 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using ConfigTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Configuration.ConfigTestEntity;
+    using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Newtonsoft.Json;
 
     [TestClass]
-    public class ConfigurationTests
+    public class ConfigurationTests : SQLiteTestBase
     {
+        private string testDbPath;
         private string connectionString;
         private CallerInfo callerInfo;
 
         [TestInitialize]
         public void Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.callerInfo = new CallerInfo
             {
                 UserId = "TestUser",
@@ -35,9 +39,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             };
         }
 
+        [TestCleanup]
+        public void Cleanup()
+        {
+            this.SafeDeleteDatabase(this.testDbPath);
+        }
+
         [TestMethod]
         [TestCategory("Configuration")]
-        public async Task FromJsonFile_LoadsConfiguration()
+        public void FromJsonFile_LoadsConfiguration()
         {
             // Arrange
             var configJson = @"{
@@ -48,7 +58,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
                 ""batchSize"": 100,
                 ""enableAuditTrail"": true
             }";
-            
+
             var tempFile = Path.GetTempFileName();
             File.WriteAllText(tempFile, configJson);
 
@@ -58,10 +68,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
                 var config = SqliteConfiguration.FromJsonFile(tempFile);
 
                 // Assert
-                Assert.IsNotNull(config);
+                config.Should().NotBeNull();
                 // Note: These properties may not be bound correctly due to enum/property mismatches
-                Assert.AreEqual(10000, config.CacheSize);
-                Assert.AreEqual(60, config.CommandTimeout);
+                config.CacheSize.Should().Be(10000);
+                config.CommandTimeout.Should().Be(60);
                 // Note: BatchSize and EnableAuditTrail are not implemented in SqliteConfiguration yet
             }
             finally
@@ -83,7 +93,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
                 PageSize = 8192
                 // Note: TempStore is not implemented in SqliteConfiguration yet
             };
-            
+
             var provider = new SQLitePersistenceProvider<ConfigTestEntity, Guid>(this.connectionString, config);
 
             // Act
@@ -92,19 +102,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             // Assert - Verify PRAGMA settings
             using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync();
-            
+
             using var journalCmd = new SQLiteCommand("PRAGMA journal_mode", connection);
             var journalMode = await journalCmd.ExecuteScalarAsync();
-            Assert.AreEqual("wal", journalMode?.ToString()?.ToLower());
-            
+            journalMode?.ToString()?.ToLower().Should().Be("wal");
+
             using var syncCmd = new SQLiteCommand("PRAGMA synchronous", connection);
             var syncMode = await syncCmd.ExecuteScalarAsync();
-            Assert.AreEqual(2, Convert.ToInt32(syncMode)); // FULL = 2
-            
+            Convert.ToInt32(syncMode).Should().Be(2); // FULL = 2
+
             using var cacheCmd = new SQLiteCommand("PRAGMA cache_size", connection);
             var cacheSize = await cacheCmd.ExecuteScalarAsync();
-            Assert.AreEqual(-5000, Convert.ToInt32(cacheSize)); // Negative means KB
-            
+            Convert.ToInt32(cacheSize).Should().Be(-5000); // Negative means KB
+
             await provider.DisposeAsync();
         }
 
@@ -118,7 +128,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
 
             // Act
             await provider.InitializeAsync();
-            
+
             // Create some entities to ensure WAL is active
             for (int i = 0; i < 10; i++)
             {
@@ -130,11 +140,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             // Assert
             using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync();
-            
+
             using var cmd = new SQLiteCommand("PRAGMA journal_mode", connection);
             var mode = await cmd.ExecuteScalarAsync();
-            Assert.AreEqual("wal", mode?.ToString()?.ToLower());
-            
+            mode?.ToString()?.ToLower().Should().Be("wal");
+
             await provider.DisposeAsync();
         }
 
@@ -149,22 +159,22 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
 
             // Act
             var entity = new ConfigTestEntity { Id = Guid.NewGuid(), Name = "Timeout Test" };
-            
+
             // This should complete within timeout
             var result = await provider.CreateAsync(entity, this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(result);
-            
+            result.Should().NotBeNull();
+
             // Verify timeout is applied to commands
             using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT * FROM ConfigTestEntity";
             command.CommandTimeout = config.CommandTimeout;
-            
-            Assert.AreEqual(5, command.CommandTimeout);
-            
+
+            command.CommandTimeout.Should().Be(5);
+
             await provider.DisposeAsync();
         }
 
@@ -175,12 +185,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             // Arrange
             var smallCacheConfig = new SqliteConfiguration { CacheSize = 100 };
             var largeCacheConfig = new SqliteConfiguration { CacheSize = 10000 };
+
+            var smallDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_small_{Guid.NewGuid()}.db");
+            var largeDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_large_{Guid.NewGuid()}.db");
             
             var smallCacheProvider = new SQLitePersistenceProvider<ConfigTestEntity, Guid>(
-                "Data Source=:memory:", smallCacheConfig);
+                $"Data Source={smallDbPath};Version=3;", smallCacheConfig);
             var largeCacheProvider = new SQLitePersistenceProvider<ConfigTestEntity, Guid>(
-                "Data Source=:memory:", largeCacheConfig);
-            
+                $"Data Source={largeDbPath};Version=3;", largeCacheConfig);
+
             await smallCacheProvider.InitializeAsync();
             await largeCacheProvider.InitializeAsync();
 
@@ -190,7 +203,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             {
                 entities[i] = new ConfigTestEntity { Id = Guid.NewGuid(), Name = $"Entity {i}" };
             }
-            
+
             // Measure time for small cache
             var smallCacheStart = DateTime.UtcNow;
             foreach (var entity in entities)
@@ -198,7 +211,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
                 await smallCacheProvider.CreateAsync(entity, this.callerInfo);
             }
             var smallCacheTime = (DateTime.UtcNow - smallCacheStart).TotalMilliseconds;
-            
+
             // Measure time for large cache
             var largeCacheStart = DateTime.UtcNow;
             foreach (var entity in entities)
@@ -209,11 +222,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
 
             // Assert - Large cache should generally perform better
             // Note: This might not always be true in memory database
-            Assert.IsTrue(smallCacheTime > 0);
-            Assert.IsTrue(largeCacheTime > 0);
-            
+            smallCacheTime.Should().BeGreaterThan(0);
+            largeCacheTime.Should().BeGreaterThan(0);
+
             await smallCacheProvider.DisposeAsync();
             await largeCacheProvider.DisposeAsync();
+            
+            this.SafeDeleteDatabase(smallDbPath);
+            this.SafeDeleteDatabase(largeDbPath);
         }
     }
 }

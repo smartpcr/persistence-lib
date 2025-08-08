@@ -85,8 +85,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
     /// - Implement retry logic for transient failures
     /// - Validate data integrity after bulk operations
     /// </summary>
-    /// <typeparam name="T">The entity type that implements IEntity<TKey></typeparam>
-    /// <typeparam name="TKey">The primary key type that implements IEquatable<TKey></typeparam>
+    /// <typeparam name="T">The entity type that implements IEntity&lt;TKey&gt;</typeparam>
+    /// <typeparam name="TKey">The primary key type that implements IEquatable&lt;TKey&gt;</typeparam>
     public interface IBulkOperation<T, TKey>
         where T : class, IEntity<TKey>
         where TKey : IEquatable<TKey>
@@ -194,7 +194,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         /// 1. Validates purge options (retention period, max age, conditions)
         /// 2. Builds purge query combining:
         ///    - User predicate (if provided)
-        ///    - Age filter (LastWriteTime < UtcNow - RetentionPeriod)
+        ///    - Age filter (LastWriteTime &lt; UtcNow - RetentionPeriod)
         ///    - Soft-delete filter (only purge already deleted if specified)
         /// 3. If PreviewMode=true, only counts and returns without deleting
         /// 4. Creates backup before purge if BackupBeforePurge=true

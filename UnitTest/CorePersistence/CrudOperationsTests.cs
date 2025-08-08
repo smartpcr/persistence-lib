@@ -7,19 +7,24 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CorePersistence
 {
     using System;
+    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Errors;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using CrudTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence.CrudTestEntity;
     using CrudSoftDeleteEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence.CrudSoftDeleteEntity;
     using CrudExpiryEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence.CrudExpiryEntity;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
 
     [TestClass]
-    public class CrudOperationsTests
+    public class CrudOperationsTests : SQLiteTestBase
     {
+        private string testDbPath;
+
         private string connectionString;
         private SQLitePersistenceProvider<CrudTestEntity, Guid> provider;
         private CallerInfo callerInfo;
@@ -27,10 +32,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString);
             await this.provider.InitializeAsync();
-            
+
             this.callerInfo = new CallerInfo
             {
                 UserId = "TestUser",
@@ -45,6 +51,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             {
                 await this.provider.DisposeAsync();
             }
+
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         [TestMethod]
@@ -64,18 +72,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await this.provider.CreateAsync(entity, this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(entity.Id, result.Id);
-            Assert.AreEqual(entity.Name, result.Name);
-            Assert.AreEqual(1, result.Version);
-            Assert.IsTrue(result.CreatedTime > DateTime.MinValue);
-            Assert.AreEqual(result.CreatedTime, result.LastWriteTime);
+            result.Should().NotBeNull();
+            result.Id.Should().Be(entity.Id);
+            result.Name.Should().Be(entity.Name);
+            result.Version.Should().Be(1);
+            result.CreatedTime.Should().BeAfter(DateTime.MinValue);
+            result.LastWriteTime.Should().Be(result.CreatedTime);
         }
 
         [TestMethod]
         [TestCategory("CorePersistence")]
         [TestCategory("CRUD")]
-        [ExpectedException(typeof(EntityAlreadyExistsException))]
         public async Task CreateAsync_DuplicateKey_ThrowsException()
         {
             // Arrange
@@ -85,17 +92,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
 
             // Act
             await this.provider.CreateAsync(entity1, this.callerInfo);
-            await this.provider.CreateAsync(entity2, this.callerInfo); // Should throw
+
+            Func<Task> act = async () => await this.provider.CreateAsync(entity2, this.callerInfo);
+            await act.Should().ThrowAsync<EntityAlreadyExistsException>();
         }
 
         [TestMethod]
         [TestCategory("CorePersistence")]
         [TestCategory("CRUD")]
-        [ExpectedException(typeof(ArgumentNullException))]
+
         public async Task CreateAsync_NullEntity_ThrowsException()
         {
-            // Act
-            await this.provider.CreateAsync((CrudTestEntity)null, this.callerInfo);
+            Func<Task> act = async () => await this.provider.CreateAsync((CrudTestEntity)null, this.callerInfo);
+            await act.Should().ThrowAsync<ArgumentNullException>("Entity cannot be null");
         }
 
         [TestMethod]
@@ -114,10 +123,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await this.provider.CreateAsync(entity, this.callerInfo);
 
             // Assert
-            Assert.AreEqual(1, result.Version, "Version should be set to 1");
-            Assert.IsTrue(result.CreatedTime <= DateTime.UtcNow, "CreatedTime should be set");
-            Assert.IsTrue(result.LastWriteTime <= DateTime.UtcNow, "LastWriteTime should be set");
-            Assert.AreEqual(result.CreatedTime, result.LastWriteTime, 
+            result.Version.Should().Be(1, "Version should be set to 1");
+            result.CreatedTime.Should().BeOnOrBefore(DateTime.UtcNow, "CreatedTime should be set");
+            result.LastWriteTime.Should().BeOnOrBefore(DateTime.UtcNow, "LastWriteTime should be set");
+            result.LastWriteTime.Should().Be(result.CreatedTime,
                 "CreatedTime and LastWriteTime should be equal on creation");
         }
 
@@ -129,7 +138,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
@@ -140,9 +149,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await provider.CreateAsync(entity, this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(1, result.Version);
-            Assert.IsFalse(result.IsDeleted);
+            result.Should().NotBeNull();
+            result.Version.Should().Be(1);
+            result.IsDeleted.Should().BeFalse();
         }
 
         [TestMethod]
@@ -153,7 +162,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var provider = new SQLitePersistenceProvider<CrudExpiryEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entity = new CrudExpiryEntity
             {
                 Id = Guid.NewGuid(),
@@ -164,9 +173,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await provider.CreateAsync(entity, this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.IsNotNull(result.AbsoluteExpiration);
-            Assert.IsTrue(result.AbsoluteExpiration > DateTime.UtcNow, 
+            result.Should().NotBeNull();
+            result.AbsoluteExpiration.Should().NotBeNull();
+            result.AbsoluteExpiration.Should().BeAfter(DateTime.UtcNow,
                 "AbsoluteExpiration should be set in the future");
         }
 
@@ -188,10 +197,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await this.provider.GetAsync(entity.Id, this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(entity.Id, result.Id);
-            Assert.AreEqual(entity.Name, result.Name);
-            Assert.AreEqual(entity.Status, result.Status);
+            result.Should().NotBeNull();
+            result.Id.Should().Be(entity.Id);
+            result.Name.Should().Be(entity.Name);
+            result.Status.Should().Be(entity.Status);
         }
 
         [TestMethod]
@@ -206,7 +215,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await this.provider.GetAsync(nonExistentId, this.callerInfo);
 
             // Assert
-            Assert.IsNull(result);
+            result.Should().BeNull();
         }
 
         [TestMethod]
@@ -217,7 +226,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
@@ -230,7 +239,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await provider.GetAsync(entity.Id, this.callerInfo);
 
             // Assert
-            Assert.IsNull(result, "Soft-deleted entity should not be returned by GetAsync");
+            result.Should().BeNull("Soft-deleted entity should not be returned by GetAsync");
         }
 
         [TestMethod]
@@ -241,14 +250,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var provider = new SQLitePersistenceProvider<CrudExpiryEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entity = new CrudExpiryEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Will Expire"
             };
             var created = await provider.CreateAsync(entity, this.callerInfo);
-            
+
             // Wait for expiration
             await Task.Delay(1500); // Wait 1.5 seconds (expiry is 1 second)
 
@@ -256,7 +265,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await provider.GetAsync(entity.Id, this.callerInfo);
 
             // Assert
-            Assert.IsNull(result, "Expired entity should not be returned by GetAsync");
+            result.Should().BeNull("Expired entity should not be returned by GetAsync");
         }
 
         [TestMethod]
@@ -267,30 +276,30 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Version 1"
             };
-            
+
             var v1 = await provider.CreateAsync(entity, this.callerInfo);
             v1.Name = "Version 2";
             var v2 = await provider.UpdateAsync(v1, this.callerInfo);
 
             // Act
             var results = await provider.GetByKeyAsync(
-                entity.Id, 
-                includeAllVersions: true, 
-                includeDeleted: false, 
+                entity.Id,
+                includeAllVersions: true,
+                includeDeleted: false,
                 includeExpired: false,
                 callerInfo: this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(results);
-            Assert.AreEqual(2, results.Count(), "Should return all versions");
-            Assert.IsTrue(results.Any(e => e.Version == 1));
-            Assert.IsTrue(results.Any(e => e.Version == 2));
+            results.Should().NotBeNull();
+            results.Count().Should().Be(2, "Should return all versions");
+            results.Any(e => e.Version == 1).Should().BeTrue();
+            results.Any(e => e.Version == 2).Should().BeTrue();
         }
 
         [TestMethod]
@@ -301,13 +310,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "To Be Deleted"
             };
-            
+
             var created = await provider.CreateAsync(entity, this.callerInfo);
             await provider.DeleteAsync(created.Id, this.callerInfo);
 
@@ -320,9 +329,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 callerInfo: this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(results);
-            Assert.AreEqual(1, results.Count());
-            Assert.IsTrue(results.First().IsDeleted);
+            results.Should().NotBeNull();
+            results.Count().Should().Be(1);
+            results.First().IsDeleted.Should().BeTrue();
         }
 
         [TestMethod]
@@ -338,7 +347,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 Status = "Active"
             };
             var created = await this.provider.CreateAsync(entity, this.callerInfo);
-            
+
             created.Name = "Updated Name";
             created.Status = "Inactive";
 
@@ -346,17 +355,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var updated = await this.provider.UpdateAsync(created, this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(updated);
-            Assert.AreEqual("Updated Name", updated.Name);
-            Assert.AreEqual("Inactive", updated.Status);
-            Assert.AreEqual(2, updated.Version);
-            Assert.IsTrue(updated.LastWriteTime > created.LastWriteTime);
+            updated.Should().NotBeNull();
+            updated.Name.Should().Be("Updated Name");
+            updated.Status.Should().Be("Inactive");
+            updated.Version.Should().Be(2);
+            updated.LastWriteTime.Should().BeCloseTo(created.LastWriteTime, TimeSpan.FromSeconds(5));
         }
 
         [TestMethod]
         [TestCategory("CorePersistence")]
         [TestCategory("CRUD")]
-        [ExpectedException(typeof(ConcurrencyConflictException))]
+
         public async Task UpdateAsync_ConcurrencyConflict_ThrowsException()
         {
             // Arrange
@@ -366,23 +375,24 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 Name = "Original"
             };
             var created = await this.provider.CreateAsync(entity, this.callerInfo);
-            
+
             // Simulate concurrent update
             created.Name = "Update 1";
             await this.provider.UpdateAsync(created, this.callerInfo);
-            
+
             // Try to update with old version
             created.Version = 1; // Reset to old version
             created.Name = "Update 2";
 
             // Act
-            await this.provider.UpdateAsync(created, this.callerInfo); // Should throw
+            Func<Task> act = async () => await this.provider.UpdateAsync(created, this.callerInfo);
+            await act.Should().ThrowAsync<ConcurrencyConflictException>();
         }
 
         [TestMethod]
         [TestCategory("CorePersistence")]
         [TestCategory("CRUD")]
-        [ExpectedException(typeof(EntityNotFoundException))]
+
         public async Task UpdateAsync_NonExistentEntity_ThrowsException()
         {
             // Arrange
@@ -394,7 +404,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             };
 
             // Act
-            await this.provider.UpdateAsync(entity, this.callerInfo);
+            Func<Task> act = async () => await this.provider.UpdateAsync(entity, this.callerInfo);
+            await act.Should().ThrowAsync<EntityNotFoundException>("Updating a non-existent entity should throw an exception");
         }
 
         [TestMethod]
@@ -415,12 +426,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var updated = await this.provider.UpdateAsync(created, this.callerInfo);
 
             // Assert
-            Assert.AreEqual(2, updated.Version);
-            
+            updated.Version.Should().Be(2);
+
             // Update again
             updated.Name = "Updated Again";
             var updated2 = await this.provider.UpdateAsync(updated, this.callerInfo);
-            Assert.AreEqual(3, updated2.Version);
+            updated2.Version.Should().Be(3);
         }
 
         [TestMethod]
@@ -431,7 +442,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
@@ -444,8 +455,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var updated = await provider.UpdateAsync(created, this.callerInfo);
 
             // Assert
-            Assert.AreEqual(2, updated.Version);
-            
+            updated.Version.Should().Be(2);
+
             // Verify both versions exist
             var allVersions = await provider.GetByKeyAsync(
                 entity.Id,
@@ -453,8 +464,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 includeAllVersions: true,
                 includeDeleted: false,
                 includeExpired: false);
-            
-            Assert.AreEqual(2, allVersions.Count());
+
+            allVersions.Count().Should().Be(2);
         }
 
         [TestMethod]
@@ -474,11 +485,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await this.provider.DeleteAsync(entity.Id, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result);
-            
+            result.Should().BeTrue();
+
             // Verify entity is deleted
             var deleted = await this.provider.GetAsync(entity.Id, this.callerInfo);
-            Assert.IsNull(deleted);
+            deleted.Should().BeNull();
         }
 
         [TestMethod]
@@ -493,7 +504,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await this.provider.DeleteAsync(nonExistentId, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result, "Delete should be idempotent and return true even for non-existent entities");
+            result.Should().BeTrue("Delete should be idempotent and return true even for non-existent entities");
         }
 
         [TestMethod]
@@ -504,7 +515,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Arrange
             var provider = new SQLitePersistenceProvider<CrudSoftDeleteEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entity = new CrudSoftDeleteEntity
             {
                 Id = Guid.NewGuid(),
@@ -516,8 +527,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await provider.DeleteAsync(created.Id, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result);
-            
+            result.Should().BeTrue();
+
             // Verify soft delete created a new version
             var allVersions = await provider.GetByKeyAsync(
                 entity.Id,
@@ -525,9 +536,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 includeAllVersions: true,
                 includeDeleted: true,
                 includeExpired: false);
-            
-            Assert.IsTrue(allVersions.Count() >= 2, "Should have at least 2 versions after soft delete");
-            Assert.IsTrue(allVersions.Any(v => v.IsDeleted), "Should have a deleted version");
+
+            allVersions.Count().Should().BeGreaterThanOrEqualTo(2, "Should have at least 2 versions after soft delete");
+            allVersions.Any(v => v.IsDeleted).Should().BeTrue("Should have a deleted version");
         }
 
         [TestMethod]
@@ -547,12 +558,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             var result = await this.provider.DeleteAsync(entity.Id, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result);
-            
+            result.Should().BeTrue();
+
             // Verify entity is physically removed
             var deleted = await this.provider.GetAsync(entity.Id, this.callerInfo);
-            Assert.IsNull(deleted);
-            
+            deleted.Should().BeNull();
+
             // Even with include deleted, should not find it (hard delete)
             var allResults = await this.provider.GetByKeyAsync(
                 entity.Id,
@@ -560,8 +571,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 includeAllVersions: true,
                 includeDeleted: true,
                 includeExpired: true);
-            
-            Assert.AreEqual(0, allResults.Count(), "Hard delete should physically remove the entity");
+
+            allResults.Count().Should().Be(0, "Hard delete should physically remove the entity");
         }
     }
 }

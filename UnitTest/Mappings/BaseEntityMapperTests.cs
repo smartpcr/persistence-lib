@@ -292,7 +292,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var valuesStartIndex = sql.IndexOf("VALUES (", StringComparison.Ordinal) + "VALUES (".Length;
             var valuesEndIndex = sql.LastIndexOf(')');
 
-            columnsStartIndex.Should().BeGreaterOrEqualTo(0, "SQL should contain opening parenthesis for columns");
+            columnsStartIndex.Should().BeGreaterThanOrEqualTo(0, "SQL should contain opening parenthesis for columns");
             columnsEndIndex.Should().BeGreaterThan(columnsStartIndex, "SQL should contain ') VALUES'");
             valuesStartIndex.Should().BeGreaterThan(columnsEndIndex, "SQL should contain 'VALUES ('");
             valuesEndIndex.Should().BeGreaterThan(valuesStartIndex, "SQL should contain closing parenthesis for values");

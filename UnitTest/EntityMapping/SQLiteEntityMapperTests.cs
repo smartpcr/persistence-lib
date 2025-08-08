@@ -189,7 +189,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
 
         [TestMethod]
         [TestCategory("EntityMapping")]
-        public async Task MapFromReader_MapsAllColumnTypes()
+        public void MapFromReader_MapsAllColumnTypes()
         {
             // Arrange
             var mockReader = new Mock<IDataReader>();
@@ -241,7 +241,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
 
         [TestMethod]
         [TestCategory("EntityMapping")]
-        public async Task MapFromReader_HandlesDBNull()
+        public void MapFromReader_HandlesDBNull()
         {
             // Arrange
             var mockReader = new Mock<IDataReader>();

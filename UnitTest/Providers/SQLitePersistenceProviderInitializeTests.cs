@@ -216,12 +216,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var connectionString = $"Data Source={this.tempDbPath}";
             var nonExistentConfig = "non-existent-config.json";
 
-            // Act & Assert - Using FromJsonFileRequired would throw
-            Assert.ThrowsException<FileNotFoundException>(() => 
-            {
-                var config = SqliteConfiguration.FromJsonFileRequired(nonExistentConfig);
-                new SQLitePersistenceProvider<TestEntity, string>(connectionString, config);
-            });
+            // Act & Assert
+            Action act = () => SqliteConfiguration.FromJsonFileRequired(nonExistentConfig);
+            act.Should().Throw<FileNotFoundException>();
         }
 
         [TestMethod]

@@ -8,19 +8,24 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
 {
     using System;
     using System.Data.SQLite;
+    using System.IO;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Errors;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
+    using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using ErrorTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ErrorHandling.ErrorTestEntity;
     using ParentEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ErrorHandling.ParentEntity;
     using ChildEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ErrorHandling.ChildEntity;
 
     [TestClass]
-    public class ErrorHandlingTests
+    public class ErrorHandlingTests : SQLiteTestBase
     {
+        private string testDbPath;
+
         private string connectionString;
         private SQLitePersistenceProvider<ErrorTestEntity, Guid> provider;
         private CallerInfo callerInfo;
@@ -28,7 +33,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             var config = new SqliteConfiguration
             {
                 // Note: Retry functionality not yet implemented in SqliteConfiguration
@@ -37,15 +43,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             };
             this.provider = new SQLitePersistenceProvider<ErrorTestEntity, Guid>(this.connectionString, config);
             await this.provider.InitializeAsync();
-            
+
             // Add unique constraint
-            using var connection = new SQLiteConnection(this.connectionString);
+            await using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync();
-            using var cmd = new SQLiteCommand(
-                "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_field ON ErrorTestEntity(UniqueField)", 
+            await using var cmd = new SQLiteCommand(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_field ON ErrorTestEntity(UniqueField)",
                 connection);
             await cmd.ExecuteNonQueryAsync();
-            
+
             this.callerInfo = new CallerInfo
             {
                 UserId = "TestUser",
@@ -60,6 +66,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             {
                 await this.provider.DisposeAsync();
             }
+
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         [TestMethod]
@@ -75,7 +83,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
                 UniqueField = "unique1",
                 Value = 100
             };
-            
+
             var retryCount = 0;
             // OnBeforeExecute event is not implemented - commenting out
             // this.provider.OnBeforeExecute += (sender, args) =>
@@ -91,14 +99,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             var result = await this.provider.CreateAsync(entity, this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual(3, retryCount, "Should retry twice before succeeding");
+            result.Should().NotBeNull();
+            retryCount.Should().Be(3, "Should retry twice before succeeding");
         }
 
         [TestMethod]
         [TestCategory("ErrorHandling")]
         [Ignore("OnBeforeExecute event not implemented in SQLitePersistenceProvider")]
-        [ExpectedException(typeof(EntityWriteException))]
+
         public async Task ConnectionLoss_PersistentFailure_ThrowsException()
         {
             // Arrange
@@ -109,7 +117,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
                 UniqueField = "unique2",
                 Value = 100
             };
-            
+
             // OnBeforeExecute event is not implemented - commenting out
             // this.provider.OnBeforeExecute += (sender, args) =>
             // {
@@ -130,26 +138,28 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             var childProvider = new SQLitePersistenceProvider<ChildEntity, Guid>(this.connectionString);
             await parentProvider.InitializeAsync();
             await childProvider.InitializeAsync();
-            
+
             // Enable foreign keys
-            using var connection = new SQLiteConnection(this.connectionString);
+            await using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync();
-            using var cmd = new SQLiteCommand("PRAGMA foreign_keys = ON", connection);
+            await using var cmd = new SQLiteCommand("PRAGMA foreign_keys = ON", connection);
             await cmd.ExecuteNonQueryAsync();
-            
+
             // Add foreign key constraint
-            using var fkCmd = new SQLiteCommand(@"
-                CREATE TABLE IF NOT EXISTS ChildEntityFK (
-                    Id VARCHAR(36) PRIMARY KEY,
-                    ParentId VARCHAR(36) NOT NULL,
-                    Name NVARCHAR(MAX),
-                    Version INTEGER,
-                    CreatedTime DATETIME,
-                    LastWriteTime DATETIME,
-                    FOREIGN KEY (ParentId) REFERENCES ParentEntity(Id)
-                )", connection);
+            await using var fkCmd = new SQLiteCommand(
+                @"
+CREATE TABLE IF NOT EXISTS ChildEntityFK (
+    Id VARCHAR(36) PRIMARY KEY,
+    ParentId VARCHAR(36) NOT NULL,
+    Name NVARCHAR(MAX),
+    Version INTEGER,
+    CreatedTime DATETIME,
+    LastWriteTime DATETIME,
+    FOREIGN KEY (ParentId) REFERENCES ParentEntity(Id)
+)",
+                connection);
             await fkCmd.ExecuteNonQueryAsync();
-            
+
             var child = new ChildEntity
             {
                 Id = Guid.NewGuid(),
@@ -165,10 +175,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             }
             catch (EntityWriteException ex)
             {
-                Assert.IsTrue(ex.Message.Contains("constraint") || ex.Message.Contains("foreign"),
+                ex.Message.Should().ContainAny(new[] { "constraint", "foreign" },
                     "Exception should mention constraint violation");
             }
-            
+
             await parentProvider.DisposeAsync();
             await childProvider.DisposeAsync();
         }
@@ -185,7 +195,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
                 UniqueField = "duplicate",
                 Value = 100
             };
-            
+
             var entity2 = new ErrorTestEntity
             {
                 Id = Guid.NewGuid(),
@@ -193,7 +203,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
                 UniqueField = "duplicate", // Same value
                 Value = 200
             };
-            
+
             await this.provider.CreateAsync(entity1, this.callerInfo);
 
             // Act & Assert
@@ -208,7 +218,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             }
             catch (EntityWriteException ex)
             {
-                Assert.IsTrue(ex.Message.Contains("unique") || ex.Message.Contains("constraint"),
+                (ex.Message.Contains("unique") || ex.Message.Contains("constraint")).Should().BeTrue(
                     "Exception should mention unique constraint violation");
             }
         }
@@ -230,26 +240,26 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             {
                 // Act
                 await this.provider.CreateAsync(entity, this.callerInfo);
-                
+
                 // Try to corrupt data type
-                using var connection = new SQLiteConnection(this.connectionString);
+                await using var connection = new SQLiteConnection(this.connectionString);
                 await connection.OpenAsync();
-                using var cmd = new SQLiteCommand(
-                    "UPDATE ErrorTestEntity SET Value = 'NotANumber' WHERE Id = @Id", 
+                await using var cmd = new SQLiteCommand(
+                    "UPDATE ErrorTestEntity SET Value = 'NotANumber' WHERE Id = @Id",
                     connection);
                 cmd.Parameters.AddWithValue("@Id", entity.Id.ToString());
                 await cmd.ExecuteNonQueryAsync();
-                
+
                 // Try to read corrupted data
                 var result = await this.provider.GetAsync(entity.Id, this.callerInfo);
-                
+
                 // If we get here, SQLite might have coerced the value
-                Assert.IsNotNull(result);
+                result.Should().NotBeNull();
             }
             catch (EntityWriteException ex)
             {
                 // Assert
-                Assert.IsTrue(ex.Message.Contains("type") || ex.Message.Contains("convert") || ex.Message.Contains("cast"),
+                (ex.Message.Contains("type") || ex.Message.Contains("convert") || ex.Message.Contains("cast")).Should().BeTrue(
                     "Exception should mention type conversion issue");
             }
             catch (FormatException)

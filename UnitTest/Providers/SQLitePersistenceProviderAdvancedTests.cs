@@ -140,7 +140,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             var results = await this.provider.GetAllAsync(new CallerInfo());
-            Assert.AreEqual(3, results.Count());
+            results.Count().Should().Be(3);
         }
 
 
@@ -165,7 +165,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert - No entities should exist due to rollback
             var results = await this.provider.GetAllAsync(new CallerInfo());
-            Assert.AreEqual(2, results.Count());
+            results.Count().Should().Be(2);
         }
 
 
@@ -233,9 +233,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             var results = await this.provider.GetAllAsync(new CallerInfo());
-            Assert.AreEqual(3, results.Count()); // tx-1, tx-3 (updated), tx-4
-            Assert.IsFalse(results.Any(e => e.Id == "tx-2"));
-            Assert.IsTrue(results.Any(e => e.Id == "tx-3" && e.Name == "Updated"));
+            results.Count().Should().Be(3); // tx-1, tx-3 (updated), tx-4
+            results.Any(e => e.Id == "tx-2").Should().BeFalse();
+            results.Any(e => e.Id == "tx-3" && e.Name == "Updated").Should().BeTrue();
         }
 
         /// <summary>
@@ -250,16 +250,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             
             // Act
             using var transaction1 = connection.BeginTransaction();
-            Assert.IsNotNull(transaction1);
+            transaction1.Should().NotBeNull();
             
             // System.Data.SQLite allows calling BeginTransaction again
             // This creates a new transaction object, but the behavior is undefined
             // since SQLite doesn't support true nested transactions
             using var transaction2 = connection.BeginTransaction();
-            Assert.IsNotNull(transaction2);
+            transaction2.Should().NotBeNull();
             
             // Verify they are different objects
-            Assert.AreNotSame(transaction1, transaction2);
+            transaction2.Should().NotBeSameAs(transaction1);
             
             // Create a test table and insert data using transaction2
             using (var command = connection.CreateCommand())
@@ -292,7 +292,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             {
                 command.CommandText = "SELECT COUNT(*) FROM TestNestedTx";
                 var count = Convert.ToInt32(command.ExecuteScalar());
-                Assert.AreEqual(1, count, "Data should be committed");
+                count.Should().Be(1, "Data should be committed");
                 
                 // Clean up
                 command.CommandText = "DROP TABLE TestNestedTx";
@@ -338,7 +338,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             // Assert
             foreach (var result in results)
             {
-                Assert.AreEqual(100, result.Count());
+                result.Count().Should().Be(100);
             }
         }
 
@@ -376,7 +376,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // First update should succeed
             var result1 = await this.provider.UpdateAsync(update1, new CallerInfo());
-            Assert.IsNotNull(result1);
+            result1.Should().NotBeNull();
 
             // Second update should fail due to version mismatch
             await Assert.ThrowsExceptionAsync<ConcurrencyConflictException>(async () =>
@@ -428,9 +428,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             await Task.WhenAll(tasks);
 
             // Assert
-            Assert.AreEqual(1, successes);
-            Assert.AreEqual(1, exceptions.Count);
-            Assert.IsInstanceOfType(exceptions[0], typeof(EntityAlreadyExistsException));
+            successes.Should().Be(1);
+            exceptions.Count.Should().Be(1);
+            exceptions[0].Should().BeOfType<EntityAlreadyExistsException>();
         }
 
         #endregion
@@ -459,14 +459,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var nameStartsWithG = await this.provider.QueryAsync(e => e.Name.StartsWith("G"), null, new CallerInfo());
 
             // Assert
-            Assert.AreEqual(2, categoryA.Count());
-            Assert.IsTrue(categoryA.All(e => e.Category == "A"));
+            categoryA.Count().Should().Be(2);
+            categoryA.All(e => e.Category == "A").Should().BeTrue();
 
-            Assert.AreEqual(3, valueGreaterThan25.Count());
-            Assert.IsTrue(valueGreaterThan25.All(e => e.Value > 25));
+            valueGreaterThan25.Count().Should().Be(3);
+            valueGreaterThan25.All(e => e.Value > 25).Should().BeTrue();
 
-            Assert.AreEqual(1, nameStartsWithG.Count());
-            Assert.AreEqual("Gamma", nameStartsWithG.First().Name);
+            nameStartsWithG.Count().Should().Be(1);
+            nameStartsWithG.First().Name.Should().Be("Gamma");
         }
 
         [TestMethod]
@@ -496,15 +496,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
                 callerInfo: new CallerInfo());
 
             // Assert
-            Assert.AreEqual("Alice", orderedByName.First().Name);
-            Assert.AreEqual("Bob", orderedByName.ElementAt(1).Name);
-            Assert.AreEqual("Charlie", orderedByName.ElementAt(2).Name);
-            Assert.AreEqual("David", orderedByName.ElementAt(3).Name);
+            orderedByName.First().Name.Should().Be("Alice");
+            orderedByName.ElementAt(1).Name.Should().Be("Bob");
+            orderedByName.ElementAt(2).Name.Should().Be("Charlie");
+            orderedByName.ElementAt(3).Name.Should().Be("David");
 
-            Assert.AreEqual(30, orderedByValueDesc.First().Value);
-            Assert.AreEqual(25, orderedByValueDesc.ElementAt(1).Value);
-            Assert.AreEqual(20, orderedByValueDesc.ElementAt(2).Value);
-            Assert.AreEqual(10, orderedByValueDesc.ElementAt(3).Value);
+            orderedByValueDesc.First().Value.Should().Be(30);
+            orderedByValueDesc.ElementAt(1).Value.Should().Be(25);
+            orderedByValueDesc.ElementAt(2).Value.Should().Be(20);
+            orderedByValueDesc.ElementAt(3).Value.Should().Be(10);
         }
 
         [TestMethod]
@@ -547,17 +547,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
                 take: 10);
 
             // Assert
-            Assert.AreEqual(10, page1.Count());
-            Assert.AreEqual("page-001", page1.First().Id);
-            Assert.AreEqual("page-010", page1.Last().Id);
+            page1.Count().Should().Be(10);
+            page1.First().Id.Should().Be("page-001");
+            page1.Last().Id.Should().Be("page-010");
 
-            Assert.AreEqual(10, page3.Count());
-            Assert.AreEqual("page-021", page3.First().Id);
-            Assert.AreEqual("page-030", page3.Last().Id);
+            page3.Count().Should().Be(10);
+            page3.First().Id.Should().Be("page-021");
+            page3.Last().Id.Should().Be("page-030");
 
-            Assert.AreEqual(5, lastPage.Count()); // Only 5 items left
-            Assert.AreEqual("page-046", lastPage.First().Id);
-            Assert.AreEqual("page-050", lastPage.Last().Id);
+            lastPage.Count().Should().Be(5); // Only 5 items left
+            lastPage.First().Id.Should().Be("page-046");
+            lastPage.Last().Id.Should().Be("page-050");
         }
 
         #endregion
@@ -590,10 +590,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             stopwatch.Stop();
 
             // Assert
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 5000, $"Bulk insert took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms");
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(5000, $"Bulk insert took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms");
             
             var count = await this.provider.CountAsync();
-            Assert.AreEqual(1000, count);
+            count.Should().Be(1000);
         }
 
         [TestMethod]
@@ -621,8 +621,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             stopwatch.Stop();
 
             // Assert
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 100, $"Indexed query took {stopwatch.ElapsedMilliseconds}ms, expected < 100ms");
-            Assert.AreEqual(2000, results.Count()); // Should have 100 entities with Category42
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(100, $"Indexed query took {stopwatch.ElapsedMilliseconds}ms, expected < 100ms");
+            results.Count().Should().Be(2000); // Should have 100 entities with Category42
         }
 
         [TestMethod]
@@ -647,10 +647,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             stopwatch.Stop();
 
             // Assert
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual(largeEntity.Tags.Length, retrieved.Tags.Length);
-            Assert.AreEqual(largeEntity.Data.Length, retrieved.Data.Length);
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 2000, $"Large entity operations took {stopwatch.ElapsedMilliseconds}ms, expected < 2000ms");
+            retrieved.Should().NotBeNull();
+            retrieved.Tags.Length.Should().Be(largeEntity.Tags.Length);
+            retrieved.Data.Length.Should().Be(largeEntity.Data.Length);
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(2000, $"Large entity operations took {stopwatch.ElapsedMilliseconds}ms, expected < 2000ms");
         }
 
         #endregion
@@ -689,7 +689,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             var remainingChildren = await childProvider.GetAllAsync(new CallerInfo());
-            Assert.AreEqual(0, remainingChildren.Count()); // All children should be deleted
+            remainingChildren.Count().Should().Be(0); // All children should be deleted
         }
 
         #endregion
@@ -726,7 +726,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var created = await this.provider.CreateAsync(entity, new CallerInfo());
 
             // Assert
-            Assert.IsNotNull(created);
+            created.Should().NotBeNull();
             // The provider should handle transient lock errors internally
         }
 

@@ -9,6 +9,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
     using System;
     using System.Data;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Extensions;
+    using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     [TestClass]
@@ -35,7 +36,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(string).ToSqlDbType();
 
             // Assert
-            Assert.AreEqual(SqlDbType.NVarChar, result);
+            result.Should().Be(SqlDbType.NVarChar);
         }
 
         [TestMethod]
@@ -43,10 +44,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void ToSqlDbType_IntegerTypes_ReturnsCorrectSqlTypes()
         {
             // Act & Assert
-            Assert.AreEqual(SqlDbType.Int, typeof(int).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.BigInt, typeof(long).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.SmallInt, typeof(short).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.TinyInt, typeof(byte).ToSqlDbType());
+            typeof(int).ToSqlDbType().Should().Be(SqlDbType.Int);
+            typeof(long).ToSqlDbType().Should().Be(SqlDbType.BigInt);
+            typeof(short).ToSqlDbType().Should().Be(SqlDbType.SmallInt);
+            typeof(byte).ToSqlDbType().Should().Be(SqlDbType.TinyInt);
         }
 
         [TestMethod]
@@ -57,7 +58,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(bool).ToSqlDbType();
 
             // Assert
-            Assert.AreEqual(SqlDbType.Bit, result);
+            result.Should().Be(SqlDbType.Bit);
         }
 
         [TestMethod]
@@ -65,9 +66,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void ToSqlDbType_DecimalTypes_ReturnsCorrectSqlTypes()
         {
             // Act & Assert
-            Assert.AreEqual(SqlDbType.Decimal, typeof(decimal).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.Float, typeof(double).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.Real, typeof(float).ToSqlDbType());
+            typeof(decimal).ToSqlDbType().Should().Be(SqlDbType.Decimal);
+            typeof(double).ToSqlDbType().Should().Be(SqlDbType.Float);
+            typeof(float).ToSqlDbType().Should().Be(SqlDbType.Real);
         }
 
         [TestMethod]
@@ -75,9 +76,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void ToSqlDbType_DateTimeTypes_ReturnsCorrectSqlTypes()
         {
             // Act & Assert
-            Assert.AreEqual(SqlDbType.DateTime2, typeof(DateTime).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.DateTimeOffset, typeof(DateTimeOffset).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.Time, typeof(TimeSpan).ToSqlDbType());
+            typeof(DateTime).ToSqlDbType().Should().Be(SqlDbType.DateTime2);
+            typeof(DateTimeOffset).ToSqlDbType().Should().Be(SqlDbType.DateTimeOffset);
+            typeof(TimeSpan).ToSqlDbType().Should().Be(SqlDbType.Time);
         }
 
         [TestMethod]
@@ -88,7 +89,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(byte[]).ToSqlDbType();
 
             // Assert
-            Assert.AreEqual(SqlDbType.VarBinary, result);
+            result.Should().Be(SqlDbType.VarBinary);
         }
 
         [TestMethod]
@@ -99,7 +100,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(Guid).ToSqlDbType();
 
             // Assert
-            Assert.AreEqual(SqlDbType.UniqueIdentifier, result);
+            result.Should().Be(SqlDbType.UniqueIdentifier);
         }
 
         [TestMethod]
@@ -110,7 +111,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(TestEnum).ToSqlDbType();
 
             // Assert
-            Assert.AreEqual(SqlDbType.Int, result);
+            result.Should().Be(SqlDbType.Int);
         }
 
         [TestMethod]
@@ -118,11 +119,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void ToSqlDbType_NullableTypes_ReturnsCorrectSqlTypes()
         {
             // Act & Assert
-            Assert.AreEqual(SqlDbType.Int, typeof(int?).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.DateTime2, typeof(DateTime?).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.Decimal, typeof(decimal?).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.Bit, typeof(bool?).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.UniqueIdentifier, typeof(Guid?).ToSqlDbType());
+            typeof(int?).ToSqlDbType().Should().Be(SqlDbType.Int);
+            typeof(DateTime?).ToSqlDbType().Should().Be(SqlDbType.DateTime2);
+            typeof(decimal?).ToSqlDbType().Should().Be(SqlDbType.Decimal);
+            typeof(bool?).ToSqlDbType().Should().Be(SqlDbType.Bit);
+            typeof(Guid?).ToSqlDbType().Should().Be(SqlDbType.UniqueIdentifier);
         }
 
         [TestMethod]
@@ -130,8 +131,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void ToSqlDbType_CharTypes_ReturnsCorrectSqlTypes()
         {
             // Act & Assert
-            Assert.AreEqual(SqlDbType.NChar, typeof(char).ToSqlDbType());
-            Assert.AreEqual(SqlDbType.NVarChar, typeof(char[]).ToSqlDbType());
+            typeof(char).ToSqlDbType().Should().Be(SqlDbType.NChar);
+            typeof(char[]).ToSqlDbType().Should().Be(SqlDbType.NVarChar);
         }
 
         [TestMethod]
@@ -142,7 +143,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(ComplexType).ToSqlDbType();
 
             // Assert
-            Assert.AreEqual(SqlDbType.NVarChar, result);
+            result.Should().Be(SqlDbType.NVarChar);
         }
 
         [TestMethod]
@@ -153,10 +154,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var sqlType = typeof(string).ToSqlDbType(out var size, out var precision, out var scale);
 
             // Assert
-            Assert.AreEqual(SqlDbType.NVarChar, sqlType);
-            Assert.AreEqual(255, size);
-            Assert.IsNull(precision);
-            Assert.IsNull(scale);
+            sqlType.Should().Be(SqlDbType.NVarChar);
+            size.Should().Be(255);
+            precision.Should().BeNull();
+            scale.Should().BeNull();
         }
 
         [TestMethod]
@@ -167,10 +168,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var sqlType = typeof(decimal).ToSqlDbType(out var size, out var precision, out var scale);
 
             // Assert
-            Assert.AreEqual(SqlDbType.Decimal, sqlType);
-            Assert.IsNull(size);
-            Assert.AreEqual(18, precision);
-            Assert.AreEqual(2, scale);
+            sqlType.Should().Be(SqlDbType.Decimal);
+            size.Should().BeNull();
+            precision.Should().Be(18);
+            scale.Should().Be(2);
         }
 
         [TestMethod]
@@ -181,10 +182,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var sqlType = typeof(byte[]).ToSqlDbType(out var size, out var precision, out var scale);
 
             // Assert
-            Assert.AreEqual(SqlDbType.VarBinary, sqlType);
-            Assert.AreEqual(-1, size); // MAX
-            Assert.IsNull(precision);
-            Assert.IsNull(scale);
+            sqlType.Should().Be(SqlDbType.VarBinary);
+            size.Should().Be(-1); // MAX
+            precision.Should().BeNull();
+            scale.Should().BeNull();
         }
 
         [TestMethod]
@@ -192,11 +193,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void ToSqlTypeString_BasicTypes_ReturnsCorrectSqlStrings()
         {
             // Act & Assert
-            Assert.AreEqual("INT", typeof(int).ToSqlTypeString());
-            Assert.AreEqual("BIGINT", typeof(long).ToSqlTypeString());
-            Assert.AreEqual("BIT", typeof(bool).ToSqlTypeString());
-            Assert.AreEqual("UNIQUEIDENTIFIER", typeof(Guid).ToSqlTypeString());
-            Assert.AreEqual("DATETIME2", typeof(DateTime).ToSqlTypeString());
+            typeof(int).ToSqlTypeString().Should().Be("INT");
+            typeof(long).ToSqlTypeString().Should().Be("BIGINT");
+            typeof(bool).ToSqlTypeString().Should().Be("BIT");
+            typeof(Guid).ToSqlTypeString().Should().Be("UNIQUEIDENTIFIER");
+            typeof(DateTime).ToSqlTypeString().Should().Be("DATETIME2");
         }
 
         [TestMethod]
@@ -207,7 +208,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(string).ToSqlTypeString();
 
             // Assert
-            Assert.AreEqual("NVARCHAR(255)", result);
+            result.Should().Be("NVARCHAR(255)");
         }
 
         [TestMethod]
@@ -218,7 +219,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(decimal).ToSqlTypeString();
 
             // Assert
-            Assert.AreEqual("DECIMAL(18,2)", result);
+            result.Should().Be("DECIMAL(18,2)");
         }
 
         [TestMethod]
@@ -229,7 +230,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(byte[]).ToSqlTypeString();
 
             // Assert
-            Assert.AreEqual("VARBINARY(MAX)", result);
+            result.Should().Be("VARBINARY(MAX)");
         }
 
         [TestMethod]
@@ -240,7 +241,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(ComplexType).ToSqlTypeString();
 
             // Assert
-            Assert.AreEqual("NVARCHAR(MAX)", result);
+            result.Should().Be("NVARCHAR(MAX)");
         }
 
         [TestMethod]
@@ -248,10 +249,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void IsNullable_NullableTypes_ReturnsTrue()
         {
             // Act & Assert
-            Assert.IsTrue(typeof(int?).IsNullable());
-            Assert.IsTrue(typeof(DateTime?).IsNullable());
-            Assert.IsTrue(typeof(Guid?).IsNullable());
-            Assert.IsTrue(typeof(string).IsNullable()); // Reference types are nullable
+            typeof(int?).IsNullable().Should().BeTrue();
+            typeof(DateTime?).IsNullable().Should().BeTrue();
+            typeof(Guid?).IsNullable().Should().BeTrue();
+            typeof(string).IsNullable().Should().BeTrue(); // Reference types are nullable
         }
 
         [TestMethod]
@@ -259,10 +260,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void IsNullable_NonNullableValueTypes_ReturnsFalse()
         {
             // Act & Assert
-            Assert.IsFalse(typeof(int).IsNullable());
-            Assert.IsFalse(typeof(DateTime).IsNullable());
-            Assert.IsFalse(typeof(Guid).IsNullable());
-            Assert.IsFalse(typeof(bool).IsNullable());
+            typeof(int).IsNullable().Should().BeFalse();
+            typeof(DateTime).IsNullable().Should().BeFalse();
+            typeof(Guid).IsNullable().Should().BeFalse();
+            typeof(bool).IsNullable().Should().BeFalse();
         }
 
         [TestMethod]
@@ -273,7 +274,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(int?).GetUnderlyingTypeOrSelf();
 
             // Assert
-            Assert.AreEqual(typeof(int), result);
+            result.Should().Be(typeof(int));
         }
 
         [TestMethod]
@@ -284,7 +285,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(string).GetUnderlyingTypeOrSelf();
 
             // Assert
-            Assert.AreEqual(typeof(string), result);
+            result.Should().Be(typeof(string));
         }
 
         [TestMethod]
@@ -292,12 +293,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void RequiresSize_SizeRequiringTypes_ReturnsTrue()
         {
             // Act & Assert
-            Assert.IsTrue(SqlDbType.NVarChar.RequiresSize());
-            Assert.IsTrue(SqlDbType.VarChar.RequiresSize());
-            Assert.IsTrue(SqlDbType.VarBinary.RequiresSize());
-            Assert.IsTrue(SqlDbType.Char.RequiresSize());
-            Assert.IsTrue(SqlDbType.NChar.RequiresSize());
-            Assert.IsTrue(SqlDbType.Binary.RequiresSize());
+            SqlDbType.NVarChar.RequiresSize().Should().BeTrue();
+            SqlDbType.VarChar.RequiresSize().Should().BeTrue();
+            SqlDbType.VarBinary.RequiresSize().Should().BeTrue();
+            SqlDbType.Char.RequiresSize().Should().BeTrue();
+            SqlDbType.NChar.RequiresSize().Should().BeTrue();
+            SqlDbType.Binary.RequiresSize().Should().BeTrue();
         }
 
         [TestMethod]
@@ -305,10 +306,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void RequiresSize_NonSizeRequiringTypes_ReturnsFalse()
         {
             // Act & Assert
-            Assert.IsFalse(SqlDbType.Int.RequiresSize());
-            Assert.IsFalse(SqlDbType.DateTime2.RequiresSize());
-            Assert.IsFalse(SqlDbType.Bit.RequiresSize());
-            Assert.IsFalse(SqlDbType.UniqueIdentifier.RequiresSize());
+            SqlDbType.Int.RequiresSize().Should().BeFalse();
+            SqlDbType.DateTime2.RequiresSize().Should().BeFalse();
+            SqlDbType.Bit.RequiresSize().Should().BeFalse();
+            SqlDbType.UniqueIdentifier.RequiresSize().Should().BeFalse();
         }
 
         [TestMethod]
@@ -316,9 +317,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void RequiresPrecisionScale_PrecisionScaleTypes_ReturnsTrue()
         {
             // Act & Assert
-            Assert.IsTrue(SqlDbType.Decimal.RequiresPrecisionScale());
-            Assert.IsTrue(SqlDbType.Money.RequiresPrecisionScale());
-            Assert.IsTrue(SqlDbType.SmallMoney.RequiresPrecisionScale());
+            SqlDbType.Decimal.RequiresPrecisionScale().Should().BeTrue();
+            SqlDbType.Money.RequiresPrecisionScale().Should().BeTrue();
+            SqlDbType.SmallMoney.RequiresPrecisionScale().Should().BeTrue();
         }
 
         [TestMethod]
@@ -326,20 +327,22 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
         public void RequiresPrecisionScale_NonPrecisionScaleTypes_ReturnsFalse()
         {
             // Act & Assert
-            Assert.IsFalse(SqlDbType.Int.RequiresPrecisionScale());
-            Assert.IsFalse(SqlDbType.Float.RequiresPrecisionScale());
-            Assert.IsFalse(SqlDbType.Real.RequiresPrecisionScale());
-            Assert.IsFalse(SqlDbType.NVarChar.RequiresPrecisionScale());
+            SqlDbType.Int.RequiresPrecisionScale().Should().BeFalse();
+            SqlDbType.Float.RequiresPrecisionScale().Should().BeFalse();
+            SqlDbType.Real.RequiresPrecisionScale().Should().BeFalse();
+            SqlDbType.NVarChar.RequiresPrecisionScale().Should().BeFalse();
         }
 
         [TestMethod]
         [TestCategory("Extensions")]
-        [ExpectedException(typeof(ArgumentNullException))]
         public void ToSqlDbType_NullType_ThrowsArgumentNullException()
         {
             // Act
             Type nullType = null;
-            nullType.ToSqlDbType();
+            var action = () => nullType.ToSqlDbType();
+
+            // Assert
+            action.Should().Throw<ArgumentNullException>();
         }
 
         [TestMethod]
@@ -350,7 +353,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(string).ToSqlColumnDefinition("Name");
 
             // Assert
-            Assert.AreEqual("[Name] NVARCHAR(255) NULL", result);
+            result.Should().Be("[Name] NVARCHAR(255) NULL");
         }
 
         [TestMethod]
@@ -361,7 +364,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(int).ToSqlColumnDefinition("Id", isNullable: false);
 
             // Assert
-            Assert.AreEqual("[Id] INT NOT NULL", result);
+            result.Should().Be("[Id] INT NOT NULL");
         }
 
         [TestMethod]
@@ -372,7 +375,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(Guid).ToSqlColumnDefinition("Id", isPrimaryKey: true);
 
             // Assert
-            Assert.AreEqual("[Id] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY", result);
+            result.Should().Be("[Id] UNIQUEIDENTIFIER NOT NULL PRIMARY KEY");
         }
 
         [TestMethod]
@@ -383,7 +386,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(int).ToSqlColumnDefinition("Id", isIdentity: true, isPrimaryKey: true);
 
             // Assert
-            Assert.AreEqual("[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY", result);
+            result.Should().Be("[Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY");
         }
 
         [TestMethod]
@@ -394,7 +397,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(bool).ToSqlColumnDefinition("IsActive", defaultValue: true);
 
             // Assert
-            Assert.AreEqual("[IsActive] BIT NOT NULL DEFAULT 1", result);
+            result.Should().Be("[IsActive] BIT NOT NULL DEFAULT 1");
         }
 
         [TestMethod]
@@ -405,7 +408,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(string).ToSqlColumnDefinition("Status", defaultValue: "Active");
 
             // Assert
-            Assert.AreEqual("[Status] NVARCHAR(255) NULL DEFAULT N'Active'", result);
+            result.Should().Be("[Status] NVARCHAR(255) NULL DEFAULT N'Active'");
         }
 
         [TestMethod]
@@ -417,7 +420,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(DateTime).ToSqlColumnDefinition("CreatedDate", defaultValue: testDate);
 
             // Assert
-            Assert.AreEqual("[CreatedDate] DATETIME2 NOT NULL DEFAULT '2024-01-15 10:30:45.123'", result);
+            result.Should().Be("[CreatedDate] DATETIME2 NOT NULL DEFAULT '2024-01-15 10:30:45.123'");
         }
 
         [TestMethod]
@@ -428,7 +431,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(DateTime).ToSqlColumnDefinition("CreatedTime", defaultValue: "GETDATE()");
 
             // Assert
-            Assert.AreEqual("[CreatedTime] DATETIME2 NOT NULL DEFAULT GETDATE()", result);
+            result.Should().Be("[CreatedTime] DATETIME2 NOT NULL DEFAULT GETDATE()");
         }
 
         [TestMethod]
@@ -439,7 +442,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(int).ToSqlColumnDefinition("Age", checkConstraint: "Age >= 0 AND Age <= 150");
 
             // Assert
-            Assert.AreEqual("[Age] INT NOT NULL CHECK (Age >= 0 AND Age <= 150)", result);
+            result.Should().Be("[Age] INT NOT NULL CHECK (Age >= 0 AND Age <= 150)");
         }
 
         [TestMethod]
@@ -450,7 +453,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(decimal).ToSqlColumnDefinition("Price", isNullable: false);
 
             // Assert
-            Assert.AreEqual("[Price] DECIMAL(18,2) NOT NULL", result);
+            result.Should().Be("[Price] DECIMAL(18,2) NOT NULL");
         }
 
         [TestMethod]
@@ -461,7 +464,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(int?).ToSqlColumnDefinition("OptionalValue");
 
             // Assert
-            Assert.AreEqual("[OptionalValue] INT NULL", result);
+            result.Should().Be("[OptionalValue] INT NULL");
         }
 
         [TestMethod]
@@ -476,7 +479,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
                 checkConstraint: "Email LIKE '%@%'");
 
             // Assert
-            Assert.AreEqual("[Email] NVARCHAR(255) NOT NULL DEFAULT N'' CHECK (Email LIKE '%@%')", result);
+            result.Should().Be("[Email] NVARCHAR(255) NOT NULL DEFAULT N'' CHECK (Email LIKE '%@%')");
         }
 
         [TestMethod]
@@ -487,7 +490,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(Guid).ToSqlColumnDefinition("Id", defaultValue: "NEWID()");
 
             // Assert
-            Assert.AreEqual("[Id] UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID()", result);
+            result.Should().Be("[Id] UNIQUEIDENTIFIER NOT NULL DEFAULT NEWID()");
         }
 
         [TestMethod]
@@ -498,7 +501,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(byte[]).ToSqlColumnDefinition("Data");
 
             // Assert
-            Assert.AreEqual("[Data] VARBINARY(MAX) NULL", result);
+            result.Should().Be("[Data] VARBINARY(MAX) NULL");
         }
 
         [TestMethod]
@@ -509,25 +512,29 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(TestEnum).ToSqlColumnDefinition("Status", defaultValue: TestEnum.Value1);
 
             // Assert
-            Assert.AreEqual("[Status] INT NOT NULL DEFAULT 1", result);
+            result.Should().Be("[Status] INT NOT NULL DEFAULT 1");
         }
 
         [TestMethod]
         [TestCategory("Extensions")]
-        [ExpectedException(typeof(ArgumentException))]
         public void ToSqlColumnDefinition_EmptyColumnName_ThrowsArgumentException()
         {
             // Act
-            typeof(int).ToSqlColumnDefinition("");
+            var action = () => typeof(int).ToSqlColumnDefinition("");
+
+            // Assert
+            action.Should().Throw<ArgumentException>();
         }
 
         [TestMethod]
         [TestCategory("Extensions")]
-        [ExpectedException(typeof(ArgumentException))]
         public void ToSqlColumnDefinition_NullColumnName_ThrowsArgumentException()
         {
             // Act
-            typeof(int).ToSqlColumnDefinition(null);
+            var action = () => typeof(int).ToSqlColumnDefinition(null);
+
+            // Assert
+            action.Should().Throw<ArgumentException>();
         }
 
         [TestMethod]
@@ -538,7 +545,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(string).ToSqlColumnDefinition("Description", defaultValue: "It's a test");
 
             // Assert
-            Assert.AreEqual("[Description] NVARCHAR(255) NULL DEFAULT N'It''s a test'", result);
+            result.Should().Be("[Description] NVARCHAR(255) NULL DEFAULT N'It''s a test'");
         }
 
         [TestMethod]
@@ -549,7 +556,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             var result = typeof(DateTimeOffset).ToSqlColumnDefinition("EventTime");
 
             // Assert
-            Assert.AreEqual("[EventTime] DATETIMEOFFSET NOT NULL", result);
+            result.Should().Be("[EventTime] DATETIMEOFFSET NOT NULL");
         }
     }
 }

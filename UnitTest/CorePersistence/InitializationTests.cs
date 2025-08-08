@@ -9,24 +9,29 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
     using System;
     using System.Data.SQLite;
     using System.IO;
+    using System.Threading;
     using System.Threading.Tasks;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.CorePersistence;
+    using FluentAssertions;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.AuditTrail;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     [TestClass]
-    public class InitializationTests
+    public class InitializationTests : SQLiteTestBase
     {
+        private string testDbPath;
         private string connectionString;
         private SQLitePersistenceProvider<CrudTestEntity, Guid> provider;
+        private SQLitePersistenceProvider<AuditTestEntity, Guid> auditProvider;
 
         [TestInitialize]
         public void Setup()
         {
-            // Use in-memory database for tests
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
         }
 
         [TestCleanup]
@@ -36,6 +41,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             {
                 await this.provider.DisposeAsync();
             }
+
+            if (this.auditProvider != null)
+            {
+                await this.auditProvider.DisposeAsync();
+            }
+
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         [TestMethod]
@@ -52,15 +64,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Assert
             using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync();
-            
+
             // Check if main table exists
             using var command = new SQLiteCommand(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='TestEntity'", 
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='TestEntity'",
                 connection);
             var tableName = await command.ExecuteScalarAsync();
-            
-            Assert.IsNotNull(tableName, "TestEntity table should be created");
-            Assert.AreEqual("TestEntity", tableName.ToString());
+
+            tableName.Should().NotBeNull("TestEntity table should be created");
+            tableName!.ToString().Should().Be("TestEntity");
         }
 
         [TestMethod]
@@ -75,25 +87,24 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 SynchronousMode = SynchronousMode.Normal,
                 CacheSize = 10000
             };
-            
+
             this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString, configuration);
 
             // Act
             await this.provider.InitializeAsync();
 
             // Assert
-            using var connection = new SQLiteConnection(this.connectionString);
-            await connection.OpenAsync();
-            
+            await using var connection = await this.provider.CreateAndOpenConnectionAsync(CancellationToken.None);
+
             // Check journal mode
-            using var journalCommand = new SQLiteCommand("PRAGMA journal_mode", connection);
+            await using var journalCommand = new SQLiteCommand("PRAGMA journal_mode", connection);
             var journalMode = await journalCommand.ExecuteScalarAsync();
-            Assert.AreEqual("wal", journalMode?.ToString()?.ToLower());
-            
+            journalMode?.ToString()?.ToLower().Should().Be("wal");
+
             // Check synchronous mode
-            using var syncCommand = new SQLiteCommand("PRAGMA synchronous", connection);
+            await using var syncCommand = new SQLiteCommand("PRAGMA synchronous", connection);
             var syncMode = await syncCommand.ExecuteScalarAsync();
-            Assert.AreEqual(1, Convert.ToInt32(syncMode)); // NORMAL = 1
+            Convert.ToInt32(syncMode).Should().Be(1); // NORMAL = 1
         }
 
         [TestMethod]
@@ -107,23 +118,22 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
                 // Note: EnableAuditTrail is not yet implemented in SqliteConfiguration
                 BusyTimeout = 5000
             };
-            
-            this.provider = new SQLitePersistenceProvider<CrudTestEntity, Guid>(this.connectionString, configuration);
+
+            this.auditProvider = new SQLitePersistenceProvider<AuditTestEntity, Guid>(this.connectionString, configuration);
 
             // Act
-            await this.provider.InitializeAsync();
+            await this.auditProvider.InitializeAsync();
 
             // Assert
-            using var connection = new SQLiteConnection(this.connectionString);
-            await connection.OpenAsync();
-            
-            using var command = new SQLiteCommand(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='AuditRecord'", 
+            await using var connection = await this.auditProvider.CreateAndOpenConnectionAsync(CancellationToken.None);
+
+            await using var command = new SQLiteCommand(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='Audit'",
                 connection);
             var tableName = await command.ExecuteScalarAsync();
-            
-            Assert.IsNotNull(tableName, "AuditRecord table should be created when audit trail is enabled");
-            Assert.AreEqual("AuditRecord", tableName.ToString());
+
+            tableName.Should().NotBeNull("Audit table should be created when audit trail is enabled");
+            tableName!.ToString().Should().Be("Audit");
         }
 
         [TestMethod]
@@ -142,13 +152,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             // Assert - Should not throw and table should exist only once
             using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync();
-            
+
             using var command = new SQLiteCommand(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='TestEntity'", 
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='TestEntity'",
                 connection);
             var tableCount = Convert.ToInt32(await command.ExecuteScalarAsync());
-            
-            Assert.AreEqual(1, tableCount, "Table should be created only once despite multiple initializations");
+
+            tableCount.Should().Be(1, "Table should be created only once despite multiple initializations");
         }
     }
 }

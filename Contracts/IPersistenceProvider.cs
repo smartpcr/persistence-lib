@@ -39,11 +39,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
     /// - Consistent: Version tracking ensures consistency across operations
     /// 
     /// Type Constraints:
-    /// - T must be a reference type implementing IEntity<TKey>
+    /// - T must be a reference type implementing IEntity&lt;TKey&gt;
     /// - TKey must implement IEquatable for efficient key comparisons
     /// </summary>
-    /// <typeparam name="T">The entity type that implements IEntity<TKey></typeparam>
-    /// <typeparam name="TKey">The primary key type that implements IEquatable<TKey></typeparam>
+    /// <typeparam name="T">The entity type that implements IEntity&lt;TKey&gt;</typeparam>
+    /// <typeparam name="TKey">The primary key type that implements IEquatable&lt;TKey&gt;</typeparam>
     public interface IPersistenceProvider<T, TKey> :
         ICrudOperation<T, TKey>,
         IBatchOperation<T, TKey>,

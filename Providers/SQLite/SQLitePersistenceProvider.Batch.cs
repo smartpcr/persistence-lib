@@ -50,7 +50,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Determine batch processing
                 var effectiveBatchSize = batchSize ?? entityList.Count;
@@ -61,14 +61,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                 foreach (var batch in batches)
                 {
-                    using var transaction = connection.BeginTransaction();
+                    await using var transaction = connection.BeginTransaction();
                     try
                     {
                         // Get next version for all entities in the batch (same version for all)
                         long newVersion = 1;
                         if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
                         {
-                            using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
+                            await using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                             versionCommand.Connection = connection;
                             versionCommand.Transaction = transaction;
                             newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
@@ -95,10 +95,10 @@ ORDER BY Version DESC
 LIMIT 1";
                                 }
 
-                                using var checkCommand = this.CreateCommand(checkExistsSql, connection, transaction);
+                                await using var checkCommand = this.CreateCommand(checkExistsSql, connection, transaction);
                                 checkCommand.Parameters.AddWithValue("@key", keyString);
 
-                                using var checkReader = await checkCommand.ExecuteReaderAsync(cancellationToken);
+                                await using var checkReader = await checkCommand.ExecuteReaderAsync(cancellationToken);
                                 if (await checkReader.ReadAsync(cancellationToken))
                                 {
                                     // Entity already exists
@@ -140,7 +140,7 @@ LIMIT 1";
 INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});";
 
-                                using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
+                                await using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
                                 this.Mapper.AddParameters(insertCommand, entity);
                                 await insertCommand.ExecuteNonQueryAsync(cancellationToken);
 
@@ -151,11 +151,11 @@ FROM {this.Mapper.TableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
   AND Version = @version;";
 
-                                using var selectCommand = this.CreateCommand(selectSql, connection, transaction);
+                                await using var selectCommand = this.CreateCommand(selectSql, connection, transaction);
                                 selectCommand.Parameters.AddWithValue("@key", keyString);
                                 selectCommand.Parameters.AddWithValue("@version", entity.Version);
 
-                                using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
+                                await using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
                                 if (await reader.ReadAsync(cancellationToken))
                                 {
                                     var result = this.Mapper.MapFromReader(reader);
@@ -257,7 +257,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
 
                 using var command = this.Mapper.CreateCommand(DbOperationType.Select, context);
                 command.Connection = connection;
-                
+
                 using var reader = command.ExecuteReader();
 
                 while (reader.Read())

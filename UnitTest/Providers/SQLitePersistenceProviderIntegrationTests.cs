@@ -181,10 +181,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             var finalRun = await runProvider.GetAsync(createdRun.Id, new CallerInfo());
-            Assert.IsNotNull(finalRun);
-            Assert.AreEqual("Completed", finalRun.Status);
-            Assert.AreEqual(100, finalRun.Progress);
-            Assert.IsNotNull(finalRun.EndTime);
+            finalRun.Should().NotBeNull();
+            finalRun.Status.Should().Be("Completed");
+            finalRun.Progress.Should().Be(100);
+            finalRun.EndTime.Should().NotBeNull();
             finalRun.Version.Should().Be(12);
         }
 
@@ -279,11 +279,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
                 m => m.MetadataKey == "Year" && m.MetadataValue == "2024", null, new CallerInfo());
 
             // Assert
-            Assert.AreEqual(1, q2Metadata.Count());
-            Assert.AreEqual("update-2024.2", q2Metadata.First().EntityId);
+            q2Metadata.Count().Should().Be(1);
+            q2Metadata.First().EntityId.Should().Be("update-2024.2");
 
-            Assert.AreEqual(3, year2024Metadata.Count());
-            Assert.IsTrue(year2024Metadata.All(m => m.MetadataValue == "2024"));
+            year2024Metadata.Count().Should().Be(3);
+            year2024Metadata.All(m => m.MetadataValue == "2024").Should().BeTrue();
         }
 
         [TestMethod]
@@ -392,12 +392,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
                 });
 
             // Assert
-            Assert.AreEqual(2, purgeResult.EntitiesPurged);
+            purgeResult.EntitiesPurged.Should().Be(2);
 
             // Verify active run is still active
             var activeRun = await runProvider.GetAsync("run-active", new CallerInfo());
-            Assert.IsNotNull(activeRun);
-            Assert.IsFalse(activeRun.IsArchived);
+            activeRun.Should().NotBeNull();
+            activeRun.IsArchived.Should().BeFalse();
         }
 
         #endregion
@@ -430,10 +430,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var retrieved = await provider.GetAsync("edge-empty", new CallerInfo());
 
             // Assert
-            Assert.IsNotNull(retrieved);
-            Assert.AreEqual("", retrieved.Name);
-            Assert.IsNull(retrieved.Description);
-            Assert.AreEqual("", retrieved.Prerequisites);
+            retrieved.Should().NotBeNull();
+            retrieved.Name.Should().Be("");
+            retrieved.Description.Should().BeNull();
+            retrieved.Prerequisites.Should().Be("");
         }
 
         [TestMethod]
@@ -471,8 +471,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
                 var created = await provider.CreateAsync(entity, new CallerInfo());
                 var retrieved = await provider.GetAsync(id, new CallerInfo());
 
-                Assert.IsNotNull(retrieved);
-                Assert.AreEqual(id, retrieved.Id);
+                retrieved.Should().NotBeNull();
+                retrieved.Id.Should().Be(id);
             }
         }
 
@@ -506,11 +506,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var results = await Task.WhenAll(tasks);
 
             // Assert
-            Assert.AreEqual(100, results.Length);
-            Assert.IsTrue(results.All(r => r != null));
+            results.Length.Should().Be(100);
+            results.All(r => r != null).Should().BeTrue();
 
             var count = await provider.CountAsync();
-            Assert.AreEqual(100, count);
+            count.Should().Be(100);
         }
 
         #endregion
@@ -579,9 +579,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             }
 
             // Assert
-            Assert.AreEqual(2, migrated.Count);
-            Assert.IsTrue(migrated.All(m => m.AbsoluteExpiration.HasValue));
-            Assert.IsTrue(migrated.All(m => m.AbsoluteExpiration > DateTimeOffset.UtcNow));
+            migrated.Count.Should().Be(2);
+            migrated.All(m => m.AbsoluteExpiration.HasValue).Should().BeTrue();
+            migrated.All(m => m.AbsoluteExpiration > DateTimeOffset.UtcNow).Should().BeTrue();
         }
 
         #endregion

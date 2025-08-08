@@ -8,20 +8,24 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
 {
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Errors;
+    using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using BatchTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.BatchOperations.BatchTestEntity;
     using SoftDeleteBatchEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.BatchOperations.SoftDeleteBatchEntity;
     using ExpiryBatchEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.BatchOperations.ExpiryBatchEntity;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
 
     [TestClass]
-    public class BatchOperationsTests
+    public class BatchOperationsTests : SQLiteTestBase
     {
+        private string testDbPath;
+
         private string connectionString;
         private SQLitePersistenceProvider<BatchTestEntity, Guid> provider;
         private CallerInfo callerInfo;
@@ -29,10 +33,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.provider = new SQLitePersistenceProvider<BatchTestEntity, Guid>(this.connectionString);
             await this.provider.InitializeAsync();
-            
+
             this.callerInfo = new CallerInfo
             {
                 UserId = "TestUser",
@@ -47,6 +52,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             {
                 await this.provider.DisposeAsync();
             }
+
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         [TestMethod]
@@ -55,7 +62,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
         {
             // Arrange
             var entities = new List<BatchTestEntity>();
-            for (int i = 0; i < 100; i++)
+            for (var i = 0; i < 100; i++)
             {
                 entities.Add(new BatchTestEntity
                 {
@@ -67,22 +74,21 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             }
 
             // Act
-            var results = await this.provider.CreateAsync(entities, this.callerInfo);
+            var results = (await this.provider.CreateAsync(entities, this.callerInfo))?.ToList();
 
             // Assert
-            Assert.IsNotNull(results);
-            Assert.AreEqual(100, results.Count());
-            Assert.IsTrue(results.All(r => r.Version == 1));
-            Assert.IsTrue(results.All(r => r.CreatedTime > DateTime.MinValue));
-            
+            results.Should().NotBeNull();
+            results!.Count.Should().Be(100);
+            results.All(r => r.Version == 1).Should().BeTrue();
+            results.All(r => r.CreatedTime > DateTime.MinValue).Should().BeTrue();
+
             // Verify all entities were created
             var allEntities = await this.provider.GetAllAsync(this.callerInfo);
-            Assert.AreEqual(100, allEntities.Count());
+            allEntities.Count().Should().Be(100);
         }
 
         [TestMethod]
         [TestCategory("BatchOperations")]
-        [ExpectedException(typeof(AggregateException))]
         public async Task CreateAsync_BatchWithFailure_RollsBack()
         {
             // Arrange
@@ -96,31 +102,23 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             };
 
             // Act
-            try
-            {
-                await this.provider.CreateAsync(entities, this.callerInfo);
-            }
-            catch (AggregateException)
-            {
-                // Verify rollback - no entities should exist
-                var allEntities = await this.provider.GetAllAsync(this.callerInfo);
-                Assert.AreEqual(0, allEntities.Count(), "Transaction should have rolled back");
-                throw;
-            }
+            Func<Task> act = async () => await this.provider.CreateAsync(entities, this.callerInfo);
+            await act.Should().ThrowAsync<AggregateException>("Failed to create 2 entities in batch*");
+
+            var allEntities = await this.provider.GetAllAsync(this.callerInfo);
+            allEntities.Count().Should().Be(0, "Transaction should have rolled back");
         }
 
         [TestMethod]
         [TestCategory("BatchOperations")]
-        [Ignore("BatchSize property not yet implemented in SqliteConfiguration")]
         public async Task CreateAsync_CustomBatchSize_ProcessesInBatches()
         {
             // Arrange
-            var config = new SqliteConfiguration { /* BatchSize = 10 */ };
-            var customProvider = new SQLitePersistenceProvider<BatchTestEntity, Guid>(this.connectionString, config);
+            var customProvider = new SQLitePersistenceProvider<BatchTestEntity, Guid>(this.connectionString);
             await customProvider.InitializeAsync();
-            
+
             var entities = new List<BatchTestEntity>();
-            for (int i = 0; i < 25; i++)
+            for (var i = 0; i < 25; i++)
             {
                 entities.Add(new BatchTestEntity
                 {
@@ -131,14 +129,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             }
 
             // Act
-            var results = await customProvider.CreateAsync(entities, this.callerInfo);
+            var results = await customProvider.CreateAsync(entities, this.callerInfo, batchSize: 10);
 
             // Assert
-            Assert.AreEqual(25, results.Count());
+            results.Count().Should().Be(25);
             // With batch size 10, this should process in 3 batches (10, 10, 5)
             var allEntities = await customProvider.GetAllAsync(this.callerInfo);
-            Assert.AreEqual(25, allEntities.Count());
-            
+            allEntities.Count().Should().Be(25);
+
             await customProvider.DisposeAsync();
         }
 
@@ -164,10 +162,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             var results = await this.provider.GetAllAsync(this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(results);
-            Assert.AreEqual(50, results.Count());
-            Assert.AreEqual(25, results.Count(e => e.Status == "Active"));
-            Assert.AreEqual(25, results.Count(e => e.Status == "Inactive"));
+            results.Should().NotBeNull();
+            results.Count().Should().Be(50);
+            results.Count(e => e.Status == "Active").Should().Be(25);
+            results.Count(e => e.Status == "Inactive").Should().Be(25);
         }
 
         [TestMethod]
@@ -177,7 +175,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             // Arrange
             var provider = new SQLitePersistenceProvider<SoftDeleteBatchEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entities = new List<SoftDeleteBatchEntity>();
             for (int i = 0; i < 10; i++)
             {
@@ -189,7 +187,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             }
             var created = await provider.CreateAsync(entities, this.callerInfo);
             var createdArray = created.ToArray();
-            
+
             // Delete some entities
             await provider.DeleteAsync(createdArray[0].Id, this.callerInfo);
             await provider.DeleteAsync(createdArray[2].Id, this.callerInfo);
@@ -199,11 +197,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             var results = await provider.GetAllAsync(this.callerInfo);
 
             // Assert
-            Assert.AreEqual(7, results.Count(), "Should filter out soft-deleted entities");
-            Assert.IsFalse(results.Any(e => e.Id == createdArray[0].Id));
-            Assert.IsFalse(results.Any(e => e.Id == createdArray[2].Id));
-            Assert.IsFalse(results.Any(e => e.Id == createdArray[4].Id));
-            
+            results.Count().Should().Be(7, "Should filter out soft-deleted entities");
+            results.Any(e => e.Id == createdArray[0].Id).Should().BeFalse();
+            results.Any(e => e.Id == createdArray[2].Id).Should().BeFalse();
+            results.Any(e => e.Id == createdArray[4].Id).Should().BeFalse();
+
             await provider.DisposeAsync();
         }
 
@@ -214,7 +212,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             // Arrange
             var provider = new SQLitePersistenceProvider<ExpiryBatchEntity, Guid>(this.connectionString);
             await provider.InitializeAsync();
-            
+
             var entities = new List<ExpiryBatchEntity>();
             for (int i = 0; i < 5; i++)
             {
@@ -225,7 +223,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
                 });
             }
             await provider.CreateAsync(entities, this.callerInfo);
-            
+
             // Wait for expiration
             await Task.Delay(1500);
 
@@ -233,19 +231,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             var results = await provider.GetAllAsync(this.callerInfo);
 
             // Assert
-            Assert.AreEqual(0, results.Count(), "All entities should be expired and filtered out");
-            
+            results.Count().Should().Be(0, "All entities should be expired and filtered out");
+
             await provider.DisposeAsync();
         }
 
         [TestMethod]
         [TestCategory("BatchOperations")]
-        [Ignore("Batch update with IEnumerable<T> not supported - use individual UpdateAsync calls")]
         public async Task UpdateAsync_BatchUpdate_Success()
         {
             // Arrange
             var entities = new List<BatchTestEntity>();
-            for (int i = 0; i < 20; i++)
+            for (var i = 0; i < 20; i++)
             {
                 entities.Add(new BatchTestEntity
                 {
@@ -256,22 +253,22 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
                 });
             }
             var created = await this.provider.CreateAsync(entities, this.callerInfo);
-            
+
             // Act - Use batch update with update function
-            var updated = await this.provider.UpdateAsync(created, entity => 
+            var updated = (await this.provider.UpdateAsync(created, entity =>
             {
                 entity.Name = entity.Name.Replace("Original", "Updated");
                 entity.Status = "Modified";
                 entity.Value = entity.Value * 2;
                 return entity;
-            }, this.callerInfo);
+            }, this.callerInfo))?.ToList();
 
             // Assert
-            Assert.IsNotNull(updated);
-            Assert.AreEqual(20, updated.Count());
-            Assert.IsTrue(updated.All(e => e.Name.StartsWith("Updated")));
-            Assert.IsTrue(updated.All(e => e.Status == "Modified"));
-            Assert.IsTrue(updated.All(e => e.Version == 2));
+            updated.Should().NotBeNull();
+            updated!.Count.Should().Be(20);
+            updated.All(e => e.Name.StartsWith("Updated")).Should().BeTrue();
+            updated.All(e => e.Status == "Modified").Should().BeTrue();
+            updated.All(e => e.Version == 2).Should().BeTrue();
         }
 
         [TestMethod]
@@ -280,7 +277,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
         {
             // Arrange
             var entities = new List<BatchTestEntity>();
-            for (int i = 0; i < 10; i++)
+            for (var i = 0; i < 10; i++)
             {
                 entities.Add(new BatchTestEntity
                 {
@@ -304,16 +301,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
                 this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(updated);
-            Assert.AreEqual(10, updated.Count());
-            Assert.IsTrue(updated.All(e => e.Status == "Processed"));
-            Assert.IsTrue(updated.All(e => e.Value % 10 == 0));
-            Assert.IsTrue(updated.All(e => e.Version == 2));
+            updated.Should().NotBeNull();
+            updated.Count().Should().Be(10);
+            updated.All(e => e.Status == "Processed").Should().BeTrue();
+            updated.All(e => e.Value % 10 == 0).Should().BeTrue();
+            updated.All(e => e.Version == 2).Should().BeTrue();
         }
 
         [TestMethod]
         [TestCategory("BatchOperations")]
-        [ExpectedException(typeof(AggregateException))]
+
         public async Task UpdateAsync_BatchConcurrencyConflict_Fails()
         {
             // Arrange
@@ -328,11 +325,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
                 });
             }
             var created = (await this.provider.CreateAsync(entities, this.callerInfo)).ToArray();
-            
+
             // Simulate concurrent update on one entity
             created[2].Name = "Concurrent Update";
             await this.provider.UpdateAsync(created[2], this.callerInfo);
-            
+
             // Try to update all with old versions
             foreach (var entity in created)
             {
@@ -350,7 +347,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             // Arrange
             var entities = new List<BatchTestEntity>();
             var keysToDelete = new List<Guid>();
-            
+
             for (int i = 0; i < 30; i++)
             {
                 var entity = new BatchTestEntity
@@ -360,7 +357,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
                     Value = i
                 };
                 entities.Add(entity);
-                
+
                 if (i % 3 == 0) // Delete every third entity
                 {
                     keysToDelete.Add(entity.Id);
@@ -372,12 +369,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             var result = await this.provider.DeleteAsync(keysToDelete, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result > 0);
-            
+            result.Should().BeGreaterThan(0);
+
             // Verify correct entities were deleted
             var remaining = await this.provider.GetAllAsync(this.callerInfo);
-            Assert.AreEqual(20, remaining.Count()); // 30 - 10 deleted
-            Assert.IsFalse(remaining.Any(e => keysToDelete.Contains(e.Id)));
+            remaining.Count().Should().Be(20); // 30 - 10 deleted
+            remaining.Any(e => keysToDelete.Contains(e.Id)).Should().BeFalse();
         }
 
         [TestMethod]
@@ -395,7 +392,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
                 });
             }
             var created = (await this.provider.CreateAsync(entities, this.callerInfo)).ToArray();
-            
+
             var keysToDelete = new List<Guid>
             {
                 created[0].Id,                // Exists
@@ -409,12 +406,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Batch
             var result = await this.provider.DeleteAsync(keysToDelete, this.callerInfo);
 
             // Assert
-            Assert.IsTrue(result >= 0, "Delete should be idempotent and handle non-existent keys");
-            
+            result.Should().BeGreaterThanOrEqualTo(0, "Delete should be idempotent and handle non-existent keys");
+
             var remaining = await this.provider.GetAllAsync(this.callerInfo);
-            Assert.AreEqual(2, remaining.Count()); // Only entities 1 and 3 should remain
-            Assert.IsTrue(remaining.Any(e => e.Id == created[1].Id));
-            Assert.IsTrue(remaining.Any(e => e.Id == created[3].Id));
+            remaining.Count().Should().Be(2); // Only entities 1 and 3 should remain
+            remaining.Any(e => e.Id == created[1].Id).Should().BeTrue();
+            remaining.Any(e => e.Id == created[3].Id).Should().BeTrue();
         }
     }
 }

@@ -44,8 +44,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
     /// - Use batch operations for multiple entities to reduce round trips
     /// - Indexes on primary key and version columns for fast lookups
     /// </summary>
-    /// <typeparam name="T">The entity type that implements IEntity<TKey></typeparam>
-    /// <typeparam name="TKey">The primary key type that implements IEquatable<TKey></typeparam>
+    /// <typeparam name="T">The entity type that implements IEntity&lt;TKey&gt;</typeparam>
+    /// <typeparam name="TKey">The primary key type that implements IEquatable&lt;TKey&gt;</typeparam>
     public interface ICrudOperation<T, TKey>
         where T : class, IEntity<TKey>
         where TKey : IEquatable<TKey>
@@ -77,7 +77,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         /// 1. Opens connection with applied PRAGMA settings
         /// 2. Executes parameterized SELECT with primary key filter
         /// 3. If soft-delete enabled, orders by Version DESC to get latest version
-        /// 4. If expiry enabled, filters out expired entities (AbsoluteExpiration < UtcNow)
+        /// 4. If expiry enabled, filters out expired entities (AbsoluteExpiration &lt; UtcNow)
         /// 5. Checks IsDeleted flag for soft-deleted entities, returns null if deleted
         /// 6. Maps result from SQLiteDataReader using entity mapper
         /// 7. Writes audit record if audit trail is enabled (READ action)
@@ -96,7 +96,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         /// 2. If includeAllVersions=true, returns all versions of the entity
         /// 3. If includeAllVersions=false, only returns latest version (ORDER BY Version DESC LIMIT 1)
         /// 4. If includeDeleted=false, filters out entities where IsDeleted=true
-        /// 5. If includeExpired=false, filters out entities where AbsoluteExpiration < UtcNow
+        /// 5. If includeExpired=false, filters out entities where AbsoluteExpiration &lt; UtcNow
         /// 6. Maps all matching records from result set
         /// 7. Writes audit record for first result if audit trail is enabled
         /// 8. Returns empty collection if no matching entities found

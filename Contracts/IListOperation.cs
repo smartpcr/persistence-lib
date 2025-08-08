@@ -61,8 +61,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
     /// - Efficient JOIN queries for list retrieval
     /// - Index optimization for list operations
     /// </summary>
-    /// <typeparam name="T">The entity type that implements IEntity<TKey></typeparam>
-    /// <typeparam name="TKey">The primary key type that implements IEquatable<TKey></typeparam>
+    /// <typeparam name="T">The entity type that implements IEntity&lt;TKey&gt;</typeparam>
+    /// <typeparam name="TKey">The primary key type that implements IEquatable&lt;TKey&gt;</typeparam>
     public interface IListOperation<T, TKey>
         where T : class, IEntity<TKey>
         where TKey : IEquatable<TKey>

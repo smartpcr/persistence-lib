@@ -11,6 +11,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
     using System.Linq;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities;
+    using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     /// <summary>
@@ -48,18 +49,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var parameters = mapper.MapEntityToParameters(entity);
 
             // Assert
-            Assert.AreEqual(entity.Id, parameters["@CacheKey"]);
-            Assert.AreEqual("Test String", parameters["@StringField"]);
-            Assert.AreEqual(42, parameters["@IntField"]);
-            Assert.AreEqual(123L, parameters["@Version"]);
-            Assert.AreEqual(123.45m, parameters["@DecimalField"]);
-            Assert.AreEqual(entity.DateTimeField, parameters["@DateTimeField"]);
-            Assert.AreEqual(entity.DateTimeOffsetField, parameters["@DateTimeOffsetField"]);
-            Assert.AreEqual(true, parameters["@BoolField"]);
-            Assert.AreEqual(entity.GuidField, parameters["@GuidField"]);
-            CollectionAssert.AreEqual(new byte[] { 1, 2, 3, 4, 5 }, (byte[])parameters["@ByteArrayField"]);
-            Assert.AreEqual(DBNull.Value, parameters["@NullableIntField"]);
-            Assert.AreEqual(TestEnum.Value2, parameters["@EnumField"]);
+            parameters["@CacheKey"].Should().Be(entity.Id);
+            parameters["@StringField"].Should().Be("Test String");
+            parameters["@IntField"].Should().Be(42);
+            parameters["@Version"].Should().Be(123L);
+            parameters["@DecimalField"].Should().Be(123.45m);
+            parameters["@DateTimeField"].Should().Be(entity.DateTimeField);
+            parameters["@DateTimeOffsetField"].Should().Be(entity.DateTimeOffsetField);
+            parameters["@BoolField"].Should().Be(true);
+            parameters["@GuidField"].Should().Be(entity.GuidField);
+            ((byte[])parameters["@ByteArrayField"]).Should().BeEquivalentTo(new byte[] { 1, 2, 3, 4, 5 });
+            parameters["@NullableIntField"].Should().Be(DBNull.Value);
+            parameters["@EnumField"].Should().Be(TestEnum.Value2);
         }
 
         [TestMethod]
@@ -73,8 +74,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateCreateTableSql();
 
             // Assert
-            Assert.IsTrue(sql.Contains("DecimalField REAL"));
-            Assert.IsTrue(sql.Contains("StringField TEXT"));
+            sql.Should().Contain("DecimalField REAL");
+            sql.Should().Contain("StringField TEXT");
         }
 
         #endregion
@@ -92,11 +93,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var indexSqls = mapper.GenerateCreateIndexSql();
 
             // Assert
-            Assert.IsTrue(indexSqls.Any(sql => sql.Contains("IX_Field1") && sql.Contains("(Field1)")));
-            Assert.IsTrue(indexSqls.Any(sql => sql.Contains("IX_Field2") && sql.Contains("(Field2)")));
-            Assert.IsTrue(indexSqls.Any(sql => sql.Contains("IX_Field3") && sql.Contains("UNIQUE")));
-            Assert.IsTrue(indexSqls.Any(sql => sql.Contains("IX_Composite_1_2") && sql.Contains("(Field1, Field2)")));
-            Assert.IsTrue(indexSqls.Any(sql => sql.Contains("IX_Composite_2_3") && sql.Contains("(Field2, Field3)")));
+            indexSqls.Any(sql => sql.Contains("IX_Field1") && sql.Contains("(Field1)")).Should().BeTrue();
+            indexSqls.Any(sql => sql.Contains("IX_Field2") && sql.Contains("(Field2)")).Should().BeTrue();
+            indexSqls.Any(sql => sql.Contains("IX_Field3") && sql.Contains("UNIQUE")).Should().BeTrue();
+            indexSqls.Any(sql => sql.Contains("IX_Composite_1_2") && sql.Contains("(Field1, Field2)")).Should().BeTrue();
+            indexSqls.Any(sql => sql.Contains("IX_Composite_2_3") && sql.Contains("(Field2, Field3)")).Should().BeTrue();
         }
 
         [TestMethod]
@@ -111,7 +112,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
 
             // Assert
             var includedIndexSql = indexSqls.FirstOrDefault(sql => sql.Contains("IX_Included"));
-            Assert.IsNotNull(includedIndexSql);
+            includedIndexSql.Should().NotBeNull();
             // Note: SQLite doesn't support INCLUDE clause, so this might be commented or handled differently
         }
 
@@ -130,11 +131,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateCreateTableSql();
 
             // Assert
-            Assert.IsTrue(sql.Contains("CONSTRAINT CK_Email_Valid CHECK (Email LIKE '%@%')"));
-            Assert.IsTrue(sql.Contains("CONSTRAINT CK_Phone_Format CHECK (Phone REGEXP '^[0-9-]+$')"));
-            Assert.IsTrue(sql.Contains("CONSTRAINT CK_Status_Valid CHECK (Status IN ('Active', 'Inactive', 'Suspended'))"));
-            Assert.IsTrue(sql.Contains("CONSTRAINT CK_Score_Range CHECK (Score BETWEEN 0 AND 100)"));
-            Assert.IsTrue(sql.Contains("CreatedDate TEXT DEFAULT 'CURRENT_TIMESTAMP'"));
+            sql.Should().Contain("CONSTRAINT CK_Email_Valid CHECK (Email LIKE '%@%')");
+            sql.Should().Contain("CONSTRAINT CK_Phone_Format CHECK (Phone REGEXP '^[0-9-]+$')");
+            sql.Should().Contain("CONSTRAINT CK_Status_Valid CHECK (Status IN ('Active', 'Inactive', 'Suspended'))");
+            sql.Should().Contain("CONSTRAINT CK_Score_Range CHECK (Score BETWEEN 0 AND 100)");
+            sql.Should().Contain("CreatedDate TEXT DEFAULT 'CURRENT_TIMESTAMP')");
         }
 
         #endregion
@@ -152,9 +153,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateCreateTableSql();
 
             // Assert
-            Assert.IsTrue(sql.Contains("CONSTRAINT FK_Parent1 FOREIGN KEY (ParentId1) REFERENCES Parent1(Id) ON DELETE CASCADE"));
-            Assert.IsTrue(sql.Contains("CONSTRAINT FK_Parent2 FOREIGN KEY (ParentId2) REFERENCES Parent2(Id) ON DELETE SET NULL"));
-            Assert.IsTrue(sql.Contains("CONSTRAINT FK_Parent3 FOREIGN KEY (ParentId3) REFERENCES Parent3(Id) ON DELETE RESTRICT"));
+            sql.Should().Contain("CONSTRAINT FK_Parent1 FOREIGN KEY (ParentId1) REFERENCES Parent1(Id) ON DELETE CASCADE");
+            sql.Should().Contain("CONSTRAINT FK_Parent2 FOREIGN KEY (ParentId2) REFERENCES Parent2(Id) ON DELETE SET NULL");
+            sql.Should().Contain("CONSTRAINT FK_Parent3 FOREIGN KEY (ParentId3) REFERENCES Parent3(Id) ON DELETE RESTRICT");
         }
 
         [TestMethod]
@@ -168,7 +169,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateCreateTableSql();
 
             // Assert
-            Assert.IsTrue(sql.Contains("CONSTRAINT FK_Parent FOREIGN KEY (ParentId) REFERENCES HierarchicalEntity(Id)"));
+            sql.Should().Contain("CONSTRAINT FK_Parent FOREIGN KEY (ParentId) REFERENCES HierarchicalEntity(Id)");
         }
 
         #endregion
@@ -186,9 +187,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateCreateTableSql();
 
             // Assert
-            Assert.IsTrue(sql.Contains("TotalPrice REAL AS (Quantity * UnitPrice)"));
-            Assert.IsTrue(sql.Contains("FullName TEXT AS (FirstName || ' ' || LastName)"));
-            Assert.IsTrue(sql.Contains("CreatedYear INTEGER AS (strftime('%Y', CreatedTime))"));
+            sql.Should().Contain("TotalPrice REAL AS (Quantity * UnitPrice)");
+            sql.Should().Contain("FullName TEXT AS (FirstName || ' ' || LastName)");
+            sql.Should().Contain("CreatedYear INTEGER AS (strftime('%Y', CreatedTime))");
         }
 
         #endregion
@@ -206,13 +207,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateSelectAllSql();
 
             // Assert
-            Assert.IsTrue(sql.Contains("SELECT"));
-            Assert.IsTrue(sql.Contains("StringField"));
-            Assert.IsTrue(sql.Contains("IntField"));
-            Assert.IsTrue(sql.Contains("DecimalField"));
-            Assert.IsTrue(sql.Contains("DateTimeField"));
-            Assert.IsTrue(sql.Contains("FROM ComplexEntity"));
-            Assert.IsTrue(sql.Contains("IsDeleted = 0"));
+            sql.Should().Contain("SELECT");
+            sql.Should().Contain("StringField");
+            sql.Should().Contain("IntField");
+            sql.Should().Contain("DecimalField");
+            sql.Should().Contain("DateTimeField");
+            sql.Should().Contain("FROM ComplexEntity");
+            sql.Should().Contain("IsDeleted = 0");
         }
 
         [TestMethod]
@@ -227,8 +228,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var parameters = mapper.MapIdToParameters(Guid.NewGuid());
 
             // Assert
-            Assert.IsTrue(sql.Contains("WHERE CacheKey = @CacheKey"));
-            Assert.IsInstanceOfType(parameters["@CacheKey"], typeof(Guid));
+            sql.Should().Contain("WHERE CacheKey = @CacheKey");
+            parameters["@CacheKey"].Should().BeOfType<Guid>();
         }
 
         #endregion
@@ -252,10 +253,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateBatchInsertSql(entities.Count);
 
             // Assert
-            Assert.IsTrue(sql.Contains("INSERT INTO TestEntity"));
-            Assert.IsTrue(sql.Contains("VALUES"));
+            sql.Should().Contain("INSERT INTO TestEntity");
+            sql.Should().Contain("VALUES");
             // Should contain parameter placeholders for batch insert
-            Assert.IsTrue(sql.Contains("@CacheKey0") || sql.Contains("@CacheKey"));
+            (sql.Contains("@CacheKey0") || sql.Contains("@CacheKey")).Should().BeTrue();
         }
 
         #endregion
@@ -279,7 +280,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var parameters = mapper.MapEntityToParameters(entity);
 
             // Assert
-            Assert.AreEqual("Test's \"Special\" Characters: \n\r\t", parameters["@Name"]);
+            parameters["@Name"].Should().Be("Test's \"Special\" Characters: \n\r\t");
         }
 
         [TestMethod]
@@ -294,7 +295,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateCreateTableSql();
 
             // Assert
-            Assert.IsTrue(sql.Contains("ThisIsAVeryLongTableNameThatExceedsNormalLimitsButShouldStillWorkCorrectly"));
+            sql.Should().Contain("ThisIsAVeryLongTableNameThatExceedsNormalLimitsButShouldStillWorkCorrectly");
         }
 
         #endregion
@@ -313,7 +314,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var mappings2 = mapper.GetPropertyMappings();
 
             // Assert
-            Assert.AreSame(mappings1, mappings2); // Should return same instance if cached
+            mappings2.Should().BeSameAs(mappings1); // Should return same instance if cached
         }
 
         #endregion

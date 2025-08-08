@@ -16,7 +16,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     {
         [PrimaryKey]
         [Column("Id", SqlDbType.UniqueIdentifier, NotNull = true)]
-        public new Guid Id { get; set; }
+        public new Guid Id
+        {
+            get => base.Id;
+            set => base.Id = value;
+        }
 
         [Column("Name", SqlDbType.NVarChar, Size = 100)]
         public string Name { get; set; }

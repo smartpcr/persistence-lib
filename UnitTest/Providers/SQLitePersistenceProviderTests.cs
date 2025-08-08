@@ -172,18 +172,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var result = await this.provider.CreateAsync(entity, new CallerInfo());
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual("test-1", result.Id);
-            Assert.AreEqual("Test Entity", result.Name);
-            Assert.AreEqual(42, result.Value);
-            Assert.AreEqual(1, result.Version);
-            Assert.IsTrue(result.CreatedTime <= DateTimeOffset.UtcNow);
-            Assert.AreEqual(result.CreatedTime, result.LastWriteTime);
+            result.Should().NotBeNull();
+            result.Id.Should().Be("test-1");
+            result.Name.Should().Be("Test Entity");
+            result.Value.Should().Be(42);
+            result.Version.Should().Be(1);
+            result.CreatedTime.Should().BeCloseTo(DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5));
+            result.LastWriteTime.Should().Be(result.CreatedTime);
         }
 
         [TestMethod]
         [TestCategory("UnitTest")]
-        [ExpectedException(typeof(EntityAlreadyExistsException))]
+        
         public async Task CreateAsync_DuplicateEntity_ThrowsException()
         {
             // Arrange
@@ -215,10 +215,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var result = await this.provider.GetAsync("test-1", new CallerInfo());
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreEqual("test-1", result.Id);
-            Assert.AreEqual("Test Entity", result.Name);
-            Assert.AreEqual(42, result.Value);
+            result.Should().NotBeNull();
+            result.Id.Should().Be("test-1");
+            result.Name.Should().Be("Test Entity");
+            result.Value.Should().Be(42);
         }
 
         [TestMethod]
@@ -229,7 +229,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var result = await this.provider.GetAsync("non-existent", new CallerInfo());
 
             // Assert
-            Assert.IsNull(result);
+            result.Should().BeNull();
         }
 
         [TestMethod]
@@ -251,16 +251,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var updated = await this.provider.UpdateAsync(created, new CallerInfo());
 
             // Assert
-            Assert.IsNotNull(updated);
-            Assert.AreEqual("Updated Name", updated.Name);
-            Assert.AreEqual(100, updated.Value);
-            Assert.AreEqual(2, updated.Version);
-            Assert.IsTrue(updated.LastWriteTime > updated.CreatedTime);
+            updated.Should().NotBeNull();
+            updated.Name.Should().Be("Updated Name");
+            updated.Value.Should().Be(100);
+            updated.Version.Should().Be(2);
+            updated.LastWriteTime.Should().BeAfter(updated.CreatedTime);
         }
 
         [TestMethod]
         [TestCategory("UnitTest")]
-        [ExpectedException(typeof(ConcurrencyConflictException))]
+        
         public async Task UpdateAsync_ConcurrentUpdate_ThrowsConcurrencyException()
         {
             // Arrange
@@ -296,7 +296,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             var deleted = await this.provider.GetAsync("test-1", new CallerInfo());
-            Assert.IsNull(deleted);
+            deleted.Should().BeNull();
         }
 
         [TestMethod]
@@ -320,10 +320,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var results = await this.provider.GetAllAsync(new CallerInfo());
 
             // Assert
-            Assert.AreEqual(3, results.Count());
-            Assert.IsTrue(results.Any(e => e.Id == "test-1"));
-            Assert.IsTrue(results.Any(e => e.Id == "test-2"));
-            Assert.IsTrue(results.Any(e => e.Id == "test-3"));
+            results.Count().Should().Be(3);
+            results.Any(e => e.Id == "test-1").Should().BeTrue();
+            results.Any(e => e.Id == "test-2").Should().BeTrue();
+            results.Any(e => e.Id == "test-3").Should().BeTrue();
         }
 
         #endregion
@@ -348,13 +348,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var updated = await this.softDeleteProvider.UpdateAsync(created, new CallerInfo());
 
             // Assert
-            Assert.AreEqual(2, updated.Version);
+            updated.Version.Should().Be(2);
             
             // Verify both versions exist in database
             var current = await this.softDeleteProvider.GetAsync("soft-1", new CallerInfo());
-            Assert.IsNotNull(current);
-            Assert.IsTrue(current.Version > entity.Version);
-            Assert.IsTrue(current.Title == "Updated Title");
+            current.Should().NotBeNull();
+            current.Version.Should().BeGreaterThan(entity.Version);
+            current.Title.Should().Be("Updated Title");
         }
 
         [TestMethod]
@@ -375,14 +375,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             var deletedItems = await this.softDeleteProvider.GetByKeyAsync("soft-1", new CallerInfo(), includeDeleted: true, includeAllVersions: true);
-            Assert.IsNotNull(deletedItems);
+            deletedItems.Should().NotBeNull();
             deletedItems!.Should().HaveCount(2);
             var deleted = deletedItems.OrderByDescending(d => d.Version).First();
-            Assert.IsTrue(deleted.IsDeleted);
+            deleted.IsDeleted.Should().BeTrue();
 
             // Should not be returned in normal queries
             var notFound = await this.softDeleteProvider.GetAsync("soft-1", new CallerInfo());
-            Assert.IsNull(notFound);
+            notFound.Should().BeNull();
         }
 
         [TestMethod]
@@ -408,9 +408,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var latest = await this.softDeleteProvider.GetAsync("soft-1", new CallerInfo());
 
             // Assert
-            Assert.IsNotNull(latest);
-            Assert.AreEqual("Version 3", latest.Title);
-            Assert.AreEqual(3, latest.Version);
+            latest.Should().NotBeNull();
+            latest.Title.Should().Be("Version 3");
+            latest.Version.Should().Be(3);
         }
 
         [TestMethod]
@@ -432,12 +432,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var updated = await this.noSoftDeleteProvider.UpdateAsync(created, new CallerInfo());
 
             // Assert
-            Assert.AreEqual(2, updated.Version);
+            updated.Version.Should().Be(2);
             
             // Verify only one record exists
             var all = await this.noSoftDeleteProvider.GetAllAsync(new CallerInfo());
-            Assert.AreEqual(1, all.Count());
-            Assert.AreEqual("Updated Content", all.First().Content);
+            all.Count().Should().Be(1);
+            all.First().Content.Should().Be("Updated Content");
         }
 
         [TestMethod]
@@ -457,7 +457,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             var all = await this.noSoftDeleteProvider.GetAllAsync(new CallerInfo());
-            Assert.AreEqual(0, all.Count());
+            all.Count().Should().Be(0);
         }
 
         #endregion

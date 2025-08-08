@@ -9,18 +9,22 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
     using System;
     using System.Collections.Generic;
     using System.Diagnostics;
+    using System.IO;
     using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
+    using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using PerfTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Performance.PerfTestEntity;
 
     [TestClass]
     [TestCategory("Performance")]
-    public class PerformanceTests
+    public class PerformanceTests : SQLiteTestBase
     {
+        private string testDbPath;
         private string connectionString;
         private SQLitePersistenceProvider<PerfTestEntity, Guid> provider;
         private CallerInfo callerInfo;
@@ -28,7 +32,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             var config = new SqliteConfiguration
             {
                 JournalMode = JournalMode.WAL,
@@ -37,7 +42,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             };
             this.provider = new SQLitePersistenceProvider<PerfTestEntity, Guid>(this.connectionString, config);
             await this.provider.InitializeAsync();
-            
+
             this.callerInfo = new CallerInfo
             {
                 UserId = "TestUser",
@@ -52,6 +57,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             {
                 await this.provider.DisposeAsync();
             }
+            
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         [TestMethod]
@@ -66,7 +73,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
                 Data = new string('x', 1000), // 1KB of data
                 Value = 100
             };
-            
+
             // Warm up
             await this.provider.CreateAsync(
                 new PerfTestEntity { Id = Guid.NewGuid(), Name = "Warmup" },
@@ -78,8 +85,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             stopwatch.Stop();
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 50, 
+            result.Should().NotBeNull();
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(50,
                 $"Single create took {stopwatch.ElapsedMilliseconds}ms, target is < 50ms");
         }
 
@@ -103,8 +110,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             stopwatch.Stop();
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 20,
+            result.Should().NotBeNull();
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(20,
                 $"Single read took {stopwatch.ElapsedMilliseconds}ms, target is < 20ms");
         }
 
@@ -131,8 +138,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             stopwatch.Stop();
 
             // Assert
-            Assert.AreEqual(1000, results.Count());
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 2000,
+            results.Count().Should().Be(1000);
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(2000,
                 $"Batch create of 1000 entities took {stopwatch.ElapsedMilliseconds}ms, target is < 2000ms");
         }
 
@@ -163,8 +170,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             stopwatch.Stop();
 
             // Assert
-            Assert.AreEqual(500, results.Count()); // 50% should match
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 500,
+            results.Count().Should().Be(500); // 50% should match
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(500,
                 $"Query returning 1000 results took {stopwatch.ElapsedMilliseconds}ms, target is < 500ms");
         }
 
@@ -191,14 +198,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             stopwatch.Stop();
 
             // Assert
-            Assert.AreEqual(10000, result.SuccessCount);
-            Assert.IsTrue(stopwatch.ElapsedMilliseconds < 30000,
+            result.SuccessCount.Should().Be(10000);
+            stopwatch.ElapsedMilliseconds.Should().BeLessThan(30000,
                 $"Bulk import of 10000 entities took {stopwatch.ElapsedMilliseconds}ms, target is < 30s");
         }
 
         [TestMethod]
         [TestCategory("Performance")]
-        public async Task ConcurrentOperations_100Threads_NoDeadlock()
+        public void ConcurrentOperations_100Threads_NoDeadlock()
         {
             // Arrange
             var tasks = new List<Task>();
@@ -207,7 +214,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
             var lockObject = new object();
 
             // Act - Launch 100 concurrent operations
-            for (int i = 0; i < 100; i++)
+            for (var i = 0; i < 100; i++)
             {
                 var index = i;
                 var task = Task.Run(async () =>
@@ -220,7 +227,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
                             Name = $"Concurrent {index}",
                             Value = index
                         };
-                        
+
                         // Mix of operations
                         if (index % 3 == 0)
                         {
@@ -240,7 +247,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
                             await this.provider.CreateAsync(entity, this.callerInfo);
                             await this.provider.DeleteAsync(entity.Id, this.callerInfo);
                         }
-                        
+
                         lock (lockObject)
                         {
                             successCount++;
@@ -254,17 +261,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Perfo
                         }
                     }
                 });
-                
+
                 tasks.Add(task);
             }
-            
+
             // Wait for all tasks with timeout
             var allCompleted = Task.WaitAll(tasks.ToArray(), TimeSpan.FromSeconds(30));
 
             // Assert
-            Assert.IsTrue(allCompleted, "All tasks should complete within 30 seconds");
-            Assert.AreEqual(0, errors.Count, $"No errors expected, but got {errors.Count}");
-            Assert.AreEqual(100, successCount, "All 100 operations should succeed");
+            allCompleted.Should().BeTrue("All tasks should complete within 30 seconds");
+            errors.Count.Should().Be(0, $"No errors expected, but got {errors.Count}");
+            successCount.Should().Be(100, "All 100 operations should succeed");
         }
     }
 }

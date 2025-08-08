@@ -172,7 +172,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var result = await this.expirationProvider.GetAsync("exp-1", new CallerInfo());
 
             // Assert
-            Assert.IsNull(result);
+            result.Should().BeNull();
         }
 
         [TestMethod]
@@ -195,7 +195,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             results.Should().HaveCount(1);
             var result = results.First();
             result.Should().NotBeNull();
-            Assert.IsTrue(result.IsExpired);
+            result.IsExpired.Should().BeTrue();
         }
 
         [TestMethod]
@@ -238,9 +238,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var includeExpired = await this.expirationProvider.GetAllAsync(new CallerInfo(), includeExpired: true);
 
             // Assert
-            Assert.AreEqual(2, activeOnly.Count());
-            Assert.IsTrue(activeOnly.All(e => !e.IsExpired));
-            Assert.AreEqual(3, includeExpired.Count());
+            activeOnly.Count().Should().Be(2);
+            activeOnly.All(e => !e.IsExpired).Should().BeTrue();
+            includeExpired.Count().Should().Be(3);
         }
 
         [TestMethod]
@@ -287,10 +287,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             });
 
             // Assert
-            Assert.AreEqual(2, purgeResult.EntitiesPurged);
+            purgeResult.EntitiesPurged.Should().Be(2);
             var remaining = await this.expirationProvider.GetAllAsync(new CallerInfo());
-            Assert.AreEqual(1, remaining.Count());
-            Assert.AreEqual("exp-1", remaining.First().Id);
+            remaining.Count().Should().Be(1);
+            remaining.First().Id.Should().Be("exp-1");
         }
 
         #endregion
@@ -314,8 +314,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var created = await this.archiveProvider.CreateAsync(entity, new CallerInfo());
 
             // Assert
-            Assert.IsNotNull(created);
-            Assert.IsFalse(created.IsArchived);
+            created.Should().NotBeNull();
+            created.IsArchived.Should().BeFalse();
             created.AbsoluteExpiration.Should().BeCloseTo(created.CreatedTime.AddDays(7), TimeSpan.FromMinutes(1));
         }
 
@@ -366,23 +366,23 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
                 });
 
             // Assert
-            Assert.AreEqual(1, exportResults.ExportedCount);
+            exportResults.ExportedCount.Should().Be(1);
 
             // Verify active entities remain active
             var active = await this.archiveProvider.GetAsync("arc-1", new CallerInfo());
-            Assert.IsNotNull(active);
-            Assert.IsFalse(active.IsArchived);
+            active.Should().NotBeNull();
+            active.IsArchived.Should().BeFalse();
 
             // Verify expired entities are archived
             var archived2 = await this.archiveProvider.GetByKeyAsync("arc-2", new CallerInfo(), includeExpired: true);
-            Assert.IsNotNull(archived2);
+            archived2.Should().NotBeNull();
             archived2.Should().HaveCount(1);
-            Assert.IsTrue(archived2.First().IsExpired);
+            archived2.First().IsExpired.Should().BeTrue();
 
             var archived3 = await this.archiveProvider.GetByKeyAsync("arc-3", new CallerInfo(), includeExpired: true);
-            Assert.IsNotNull(archived3);
+            archived3.Should().NotBeNull();
             archived3.Should().HaveCount(1);
-            Assert.IsTrue(archived3.First().IsExpired);
+            archived3.First().IsExpired.Should().BeTrue();
         }
 
         [TestMethod]
@@ -417,13 +417,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var all = await this.archiveProvider.GetAllAsync(new CallerInfo(), includeExpired: true);
 
             // Assert
-            Assert.AreEqual(2, activeOnly.Count());
-            Assert.IsTrue(activeOnly.All(e => !e.IsArchived));
+            activeOnly.Count().Should().Be(2);
+            activeOnly.All(e => !e.IsArchived).Should().BeTrue();
             
-            Assert.AreEqual(4, archivedOnly.ExportedEntities.Count());
+            archivedOnly.ExportedEntities.Count().Should().Be(4);
             archivedOnly.ExportedEntities.Count(e => e.IsArchived).Should().Be(2);
             
-            Assert.AreEqual(4, all.Count());
+            all.Count().Should().Be(4);
         }
 
         [TestMethod]
@@ -451,13 +451,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
                 });
 
             // Assert
-            Assert.IsNotNull(importResult);
+            importResult.Should().NotBeNull();
             importResult.SuccessCount.Should().Be(1);
 
             var restored = await this.archiveProvider.GetAsync("arc-1", new CallerInfo());
-            Assert.IsNotNull(restored);
-            Assert.IsTrue(restored.AbsoluteExpiration > DateTimeOffset.UtcNow); // Should have new expiration
-            Assert.AreEqual(entity.Version, restored.Version); // Version should NOT increment when originally missing
+            restored.Should().NotBeNull();
+            restored.AbsoluteExpiration.Should().BeAfter(DateTimeOffset.UtcNow); // Should have new expiration
+            restored.Version.Should().Be(entity.Version); // Version should NOT increment when originally missing
         }
 
         #endregion
@@ -491,9 +491,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var updated = await cacheProvider.UpdateAsync(accessed, new CallerInfo());
 
             // Assert
-            Assert.IsNotNull(updated);
-            Assert.IsFalse(updated.IsExpired());
-            Assert.IsTrue(updated.LastAccessTime > entry.LastAccessTime);
+            updated.Should().NotBeNull();
+            updated.IsExpired().Should().BeFalse();
+            updated.LastAccessTime.Value.Should().BeAfter(entry.LastAccessTime.Value);
         }
 
         [TestMethod]
@@ -521,9 +521,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var result = await cacheProvider.GetByKeyAsync("cache-1", new CallerInfo(), includeExpired: true);
 
             // Assert
-            Assert.IsNotNull(result);
+            result.Should().NotBeNull();
             result.Should().HaveCount(1);
-            Assert.IsTrue(result.First().IsExpired()); // Should be expired due to absolute expiration
+            result.First().IsExpired().Should().BeTrue(); // Should be expired due to absolute expiration
         }
 
         #endregion
@@ -551,7 +551,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             var results = await this.expirationProvider.GetAllAsync(new CallerInfo());
-            Assert.AreEqual(5, results.Count());
+            results.Count().Should().Be(5);
             foreach (var result in results)
             {
                 result.AbsoluteExpiration.Should().BeCloseTo(result.CreatedTime.AddHours(1), TimeSpan.FromMinutes(1));

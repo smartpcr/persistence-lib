@@ -15,12 +15,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Integration;
+    using FluentAssertions;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     [TestClass]
     [TestCategory("Integration")]
-    public class IntegrationTests
+    public class IntegrationTests : SQLiteTestBase
     {
+        private string testDbPath;
+
         private string connectionString;
         private SQLitePersistenceProvider<Order, Guid> orderProvider;
         private SQLitePersistenceProvider<OrderItem, Guid> orderItemProvider;
@@ -30,7 +34,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             var config = new SqliteConfiguration
             {
                 JournalMode = JournalMode.WAL,
@@ -60,6 +65,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             if (this.orderProvider != null) await this.orderProvider.DisposeAsync();
             if (this.orderItemProvider != null) await this.orderItemProvider.DisposeAsync();
             if (this.productProvider != null) await this.productProvider.DisposeAsync();
+
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         private async Task SeedProducts()
@@ -124,7 +131,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             // Step 3: Update status (optimistic lock)
             order.Status = "Processing";
             order = await this.orderProvider.UpdateAsync(order, this.callerInfo);
-            Assert.AreEqual(2, order.Version);
+            order.Version.Should().Be(2);
 
             // Step 4: Query orders (pagination)
             var pendingOrders = await this.orderProvider.QueryPagedAsync(
@@ -132,8 +139,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
                 10,
                 1);
 
-            Assert.AreEqual(1, pendingOrders.TotalCount);
-            Assert.AreEqual(order.Id, pendingOrders.Items.First().Id);
+            pendingOrders.TotalCount.Should().Be(1);
+            pendingOrders.Items.First().Id.Should().Be(order.Id);
 
             // Step 5: Archive old orders (bulk export)
             var exportPath = Path.GetTempFileName();
@@ -142,7 +149,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
                 using var stream = File.OpenWrite(exportPath);
                 var exportResult = await this.orderProvider.BulkExportAsync();
 
-                Assert.AreEqual(1, exportResult.ExportedCount);
+                exportResult.ExportedCount.Should().Be(1);
             }
             finally
             {
@@ -157,13 +164,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             var purgeResult = await this.orderProvider.PurgeAsync(
                 o => o.Status == "Archived" && o.CreatedTime < DateTime.UtcNow.AddDays(-90));
 
-            Assert.AreEqual(1, purgeResult.EntitiesPurged);
+            purgeResult.EntitiesPurged.Should().Be(1);
 
             // Note: Audit trail querying would need to be implemented separately
             // var auditTrail = await this.orderProvider.QueryAuditTrailAsync(
             //     entityId: order.Id.ToString(),
             //     callerInfo: this.callerInfo);
-            // Assert.IsTrue(auditTrail.Count() >= 3); // CREATE, UPDATE (total), UPDATE (status)
+            // auditTrail.Count(.Should().BeTrue() >= 3); // CREATE, UPDATE (total), UPDATE (status)
         }
 
         [TestMethod]
@@ -180,25 +187,25 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
 
             // Verify cleared
             var remaining = await this.productProvider.CountAsync();
-            Assert.AreEqual(0, remaining);
+            remaining.Should().Be(0);
 
             // Step 3: Import data back
             var importResult = await this.productProvider.BulkImportAsync(
                 exportData,
                 new BulkImportOptions { ConflictResolution = ConflictResolution.UseSource });
 
-            Assert.AreEqual(exportData.Count, importResult.SuccessCount);
+            importResult.SuccessCount.Should().Be(exportData.Count);
 
             // Step 4: Verify migration
             var migratedProducts = await this.productProvider.GetAllAsync(this.callerInfo);
-            Assert.AreEqual(exportData.Count, migratedProducts.Count());
+            migratedProducts.Count().Should().Be(exportData.Count);
 
             foreach (var original in exportData)
             {
                 var migrated = migratedProducts.FirstOrDefault(p => p.Id == original.Id);
-                Assert.IsNotNull(migrated);
-                Assert.AreEqual(original.Name, migrated.Name);
-                Assert.AreEqual(original.Price, migrated.Price);
+                migrated.Should().NotBeNull();
+                migrated.Name.Should().Be(original.Name);
+                migrated.Price.Should().Be(original.Price);
             }
         }
 
@@ -214,6 +221,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
 
             // Step 2: Simulate SQL Server provider (using another SQLite instance)
             var sqlServerConnectionString = "Data Source=:memory:";
+
             var sqlServerProvider = new SQLitePersistenceProvider<Product, Guid>(sqlServerConnectionString);
             await sqlServerProvider.InitializeAsync();
 
@@ -221,18 +229,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             var importResult = await sqlServerProvider.CreateAsync(sqliteData, this.callerInfo);
 
             // Step 4: Verify data integrity
-            Assert.AreEqual(sqliteData.Count(), importResult.Count());
+            importResult.Count().Should().Be(sqliteData.Count());
 
             var sqlServerData = await sqlServerProvider.GetAllAsync(this.callerInfo);
-            Assert.AreEqual(sqliteData.Count(), sqlServerData.Count());
+            sqlServerData.Count().Should().Be(sqliteData.Count());
 
             // Verify each product
             foreach (var sqliteProduct in sqliteData)
             {
                 var sqlServerProduct = sqlServerData.FirstOrDefault(p => p.Id == sqliteProduct.Id);
-                Assert.IsNotNull(sqlServerProduct);
-                Assert.AreEqual(sqliteProduct.Name, sqlServerProduct.Name);
-                Assert.AreEqual(sqliteProduct.Price, sqlServerProduct.Price);
+                sqlServerProduct.Should().NotBeNull();
+                sqlServerProduct.Name.Should().Be(sqliteProduct.Name);
+                sqlServerProduct.Price.Should().Be(sqliteProduct.Price);
             }
 
             await sqlServerProvider.DisposeAsync();
@@ -316,8 +324,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             }
 
             // Assert
-            Assert.IsTrue(operationCount > 100, $"Should complete at least 100 operations in {duration.TotalSeconds} seconds, completed {operationCount}");
-            Assert.AreEqual(0, errors.Count, $"No errors expected during sustained load, but got {errors.Count}");
+            operationCount.Should().BeGreaterThan(100, $"Should complete at least 100 operations in {duration.TotalSeconds} seconds, completed {operationCount}");
+            errors.Count.Should().Be(0, $"No errors expected during sustained load, but got {errors.Count}");
 
             // Calculate throughput
             var throughput = operationCount / duration.TotalSeconds;

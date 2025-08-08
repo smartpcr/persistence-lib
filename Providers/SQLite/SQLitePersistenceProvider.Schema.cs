@@ -47,7 +47,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
         private async Task InitializeDatabaseAsync(CancellationToken cancellationToken)
         {
-            using var connection = new SQLiteConnection(this.connectionString);
+            await using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync(cancellationToken);
 
             // Apply PRAGMA settings from configuration
@@ -179,19 +179,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             if (mapper.SyncWithList)
             {
                 var createEntityListMappingSql = this.entryListMappingMapper.GenerateCreateTableSql();
-                using var createListMappingCmd = this.CreateCommand(createEntityListMappingSql, connection);
+                await using var createListMappingCmd = this.CreateCommand(createEntityListMappingSql, connection);
                 await createListMappingCmd.ExecuteNonQueryAsync(cancellationToken);
             }
 
             if (mapper.EnableSoftDelete)
             {
                 var createVersionTableSql = this.versionMapper.GenerateCreateTableSql(includeIfNotExists: true);
-                using var createVersionCmd = this.CreateCommand(createVersionTableSql, connection);
+                await using var createVersionCmd = this.CreateCommand(createVersionTableSql, connection);
                 await createVersionCmd.ExecuteNonQueryAsync(cancellationToken);
             }
 
             var createTableSql = mapper.GenerateCreateTableSql(includeIfNotExists: true);
-            using var command = this.CreateCommand(createTableSql, connection);
+            await using var command = this.CreateCommand(createTableSql, connection);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 

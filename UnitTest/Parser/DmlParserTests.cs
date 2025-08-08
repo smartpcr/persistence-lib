@@ -94,13 +94,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                       "VALUES (@Name, @Count, @CreatedDate, @Amount, @ComplexData, @CacheKey, @Version, @CreatedTime, @LastWriteTime)";
 
             var node = this.ParseStatement(sql);
-            Assert.IsInstanceOfType(node, typeof(InsertStatement));
+            node.Should().BeOfType<InsertStatement>();
             var stmt = (InsertStatement)node;
-            Assert.AreEqual("TestEntity", stmt.TableName);
-            CollectionAssert.AreEqual(
-                new[] { "Name", "Count", "CreatedDate", "Amount", "ComplexData", "CacheKey", "Version", "CreatedTime", "LastWriteTime" },
-                stmt.Columns);
-            Assert.AreEqual(9, stmt.Values.Count);
+            stmt.TableName.Should().Be("TestEntity");
+            stmt.Columns.Should().BeEquivalentTo(new[] { "Name", "Count", "CreatedDate", "Amount", "ComplexData", "CacheKey", "Version", "CreatedTime", "LastWriteTime" });
+            stmt.Values.Count.Should().Be(9);
         }
 
         [TestMethod]
@@ -108,13 +106,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
         {
             var sql = "UPDATE users SET name = 'Alice', age = 30 WHERE id = 1";
             var node = this.ParseStatement(sql);
-            Assert.IsInstanceOfType(node, typeof(UpdateStatement));
+            node.Should().BeOfType<UpdateStatement>();
             var stmt = (UpdateStatement)node;
-            Assert.AreEqual("users", stmt.TableName);
-            Assert.AreEqual(2, stmt.SetClauses.Count);
-            Assert.AreEqual("name", stmt.SetClauses[0].Column);
-            Assert.AreEqual("Alice", ((LiteralExpression)stmt.SetClauses[0].Value).Value);
-            Assert.IsNotNull(stmt.Where);
+            stmt.TableName.Should().Be("users");
+            stmt.SetClauses.Count.Should().Be(2);
+            stmt.SetClauses[0].Column.Should().Be("name");
+            ((LiteralExpression)stmt.SetClauses[0].Value).Value.Should().Be("Alice");
+            stmt.Where.Should().NotBeNull();
         }
 
         [TestMethod]
@@ -122,10 +120,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
         {
             var sql = "DELETE FROM users WHERE id = 1";
             var node = this.ParseStatement(sql);
-            Assert.IsInstanceOfType(node, typeof(DeleteStatement));
+            node.Should().BeOfType<DeleteStatement>();
             var stmt = (DeleteStatement)node;
-            Assert.AreEqual("users", stmt.TableName);
-            Assert.IsNotNull(stmt.Where);
+            stmt.TableName.Should().Be("users");
+            stmt.Where.Should().NotBeNull();
         }
     }
 }

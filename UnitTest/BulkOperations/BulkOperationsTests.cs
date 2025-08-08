@@ -16,6 +16,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Newtonsoft.Json;
     using BulkTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.BulkOperations.BulkTestEntity;
@@ -77,12 +78,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             var result = await this.provider.BulkImportAsync(entities);
 
             // Assert
-            Assert.AreEqual(10000, result.SuccessCount);
-            Assert.AreEqual(0, result.FailureCount);
+            result.SuccessCount.Should().Be(10000);
+            result.FailureCount.Should().Be(0);
             
             // Verify import
             var count = await this.provider.CountAsync();
-            Assert.AreEqual(10000, count);
+            count.Should().Be(10000);
         }
 
         [TestMethod]
@@ -107,13 +108,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                 new BulkImportOptions { ConflictResolution = ConflictResolution.UseTarget });
 
             // Assert
-            Assert.AreEqual(1, result.SuccessCount);
-            Assert.AreEqual(1, result.Statistics.EntitiesSkipped);
+            result.SuccessCount.Should().Be(1);
+            result.Statistics.EntitiesSkipped.Should().Be(1);
             
             // Verify existing entity wasn't overwritten
             var existing = await this.provider.GetAsync(existingId, this.callerInfo);
-            Assert.AreEqual("Existing", existing.Name);
-            Assert.AreEqual(100, existing.Value);
+            existing.Name.Should().Be("Existing");
+            existing.Value.Should().Be(100);
         }
 
         [TestMethod]
@@ -138,12 +139,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                 new BulkImportOptions { ConflictResolution = ConflictResolution.UseSource });
 
             // Assert
-            Assert.AreEqual(2, result.SuccessCount);
+            result.SuccessCount.Should().Be(2);
             
             // Verify existing entity was overwritten
             var overwritten = await this.provider.GetAsync(existingId, this.callerInfo);
-            Assert.AreEqual("Overwritten", overwritten.Name);
-            Assert.AreEqual(200, overwritten.Value);
+            overwritten.Name.Should().Be("Overwritten");
+            overwritten.Value.Should().Be(200);
         }
 
         [TestMethod]
@@ -172,9 +173,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                 progress);
 
             // Assert
-            Assert.IsTrue(progressUpdates.Count > 0, "Progress should be reported");
-            Assert.IsTrue(progressUpdates.Any(p => p.PercentComplete > 0 && p.PercentComplete < 100));
-            Assert.IsTrue(progressUpdates.Last().PercentComplete == 100);
+            progressUpdates.Count.Should().BeGreaterThan(0, "Progress should be reported");
+            progressUpdates.Any(p => p.PercentComplete > 0 && p.PercentComplete < 100).Should().BeTrue();
+            progressUpdates.Last().PercentComplete.Should().Be(100);
         }
 
         [TestMethod]
@@ -198,10 +199,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                     tempFile);
 
                 // Assert
-                Assert.AreEqual(2, result.SuccessCount);
+                result.SuccessCount.Should().Be(2);
                 
                 var imported = await this.provider.GetAllAsync(this.callerInfo);
-                Assert.AreEqual(2, imported.Count());
+                imported.Count().Should().Be(2);
             }
             finally
             {
@@ -228,7 +229,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                     tempFile);
 
                 // Assert
-                Assert.AreEqual(2, result.SuccessCount);
+                result.SuccessCount.Should().Be(2);
             }
             finally
             {
@@ -254,11 +255,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             var result = await this.provider.BulkExportAsync();
 
             // Assert
-            Assert.AreEqual(100, result.ExportedCount);
+            result.ExportedCount.Should().Be(100);
 
             // Verify exported data
             var exported = result.ExportedEntities.ToList();
-            Assert.AreEqual(100, exported.Count);
+            exported.Count.Should().Be(100);
         }
 
         [TestMethod]
@@ -269,15 +270,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             var entity = new BulkTestEntity { Id = Guid.NewGuid(), Name = "ToExport", Value = 1 };
             await this.provider.CreateAsync(entity, this.callerInfo);
 
-            Assert.IsFalse(await ColumnExistsAsync("ExportedDate"));
+            (await ColumnExistsAsync("ExportedDate")).Should().BeFalse();
 
             // Act
             var result = await this.provider.BulkExportAsync(
                 options: new BulkExportOptions { Mode = ExportMode.Archive, MarkAsExported = true });
 
             // Assert
-            Assert.AreEqual(1, result.ExportedCount);
-            Assert.IsTrue(await ColumnExistsAsync("ExportedDate"));
+            result.ExportedCount.Should().Be(1);
+            (await ColumnExistsAsync("ExportedDate")).Should().BeTrue();
         }
 
         [TestMethod]
@@ -309,11 +310,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                 var result = new { Success = true, ExportedCount = 250 };
 
                 // Assert - commented out since method is not implemented
-                // Assert.IsTrue(result.Success);
-                // Assert.AreEqual(250, result.ExportedCount);
+                // result.Success.Should().BeTrue();
+                // result.ExportedCount.Should().Be(250);
                 
                 var files = Directory.GetFiles(tempDir, "*.json");
-                Assert.AreEqual(3, files.Length); // 250 items / 100 per chunk = 3 files
+                files.Length.Should().Be(3); // 250 items / 100 per chunk = 3 files
             }
             finally
             {
@@ -346,7 +347,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             var result2 = await this.provider.BulkExportAsync();
 
             // Assert - Note: cannot test compression without stream support
-            Assert.AreEqual(result1.ExportedCount, result2.ExportedCount);
+            result2.ExportedCount.Should().Be(result1.ExportedCount);
         }
 
         [TestMethod]
@@ -388,11 +389,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                 e => e.CreatedTime < DateTime.UtcNow.AddDays(-90));
 
             // Assert
-            Assert.AreEqual(5, result.EntitiesPurged);
+            result.EntitiesPurged.Should().Be(5);
             
             var remaining = await this.provider.GetAllAsync(this.callerInfo);
-            Assert.AreEqual(3, remaining.Count());
-            Assert.IsTrue(remaining.All(e => e.Name.StartsWith("Recent")));
+            remaining.Count().Should().Be(3);
+            remaining.All(e => e.Name.StartsWith("Recent")).Should().BeTrue();
         }
 
         [TestMethod]
@@ -413,13 +414,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                 new PurgeOptions { SafeMode = true });
 
             // Assert
-            Assert.IsTrue(result.IsPreview);
-            Assert.AreEqual(5, result.Preview.AffectedEntityCount);
-            Assert.AreEqual(0, result.EntitiesPurged);
+            result.IsPreview.Should().BeTrue();
+            result.Preview.AffectedEntityCount.Should().Be(5);
+            result.EntitiesPurged.Should().Be(0);
             
             // Verify nothing was actually deleted
             var allEntities = await this.provider.GetAllAsync(this.callerInfo);
-            Assert.AreEqual(10, allEntities.Count());
+            allEntities.Count().Should().Be(10);
         }
 
         [TestMethod]
@@ -440,11 +441,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                 new PurgeOptions { OptimizeStorage = true });
 
             // Assert
-            Assert.AreEqual(500, result.EntitiesPurged);
-            Assert.IsTrue(result.SpaceReclaimedBytes > 0, "VACUUM should reclaim space");
+            result.EntitiesPurged.Should().Be(500);
+            result.SpaceReclaimedBytes.Should().BeGreaterThan(0, "VACUUM should reclaim space");
             
             var remaining = await this.provider.CountAsync();
-            Assert.AreEqual(500, remaining);
+            remaining.Should().Be(500);
         }
 
         private async Task<bool> ColumnExistsAsync(string columnName)

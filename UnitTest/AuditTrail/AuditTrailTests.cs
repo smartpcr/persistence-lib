@@ -6,6 +6,7 @@
 
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.AuditTrail
 {
+    using System.IO;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -15,11 +16,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using AuditTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.AuditTrail.AuditTestEntity;
+    using FluentAssertions;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
 
     [TestClass]
-    public class AuditTrailTests
+    public class AuditTrailTests : SQLiteTestBase
     {
+        private string testDbPath;
+
         private string connectionString;
         private SQLitePersistenceProvider<AuditTestEntity, Guid> provider;
         private CallerInfo callerInfo;
@@ -46,6 +51,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             if (this.provider != null)
             {
                 await this.provider.DisposeAsync();
+            
+
+                this.SafeDeleteDatabase(this.testDbPath);
+
             }
         }
 
@@ -72,15 +81,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
                 callerInfo: this.callerInfo);
             
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // Assert.IsNotNull(auditRecords);
-            // Assert.AreEqual(1, auditRecords.Count());
+            // auditRecords.Should().NotBeNull();
+            // auditRecords.Count().Should().Be(1);
             // var createAudit = auditRecords.First();
-            // Assert.AreEqual("CREATE", createAudit.Operation);
-            // Assert.AreEqual(entity.Id.ToString(), createAudit.EntityId);
-            // Assert.AreEqual("AuditTestEntity", createAudit.EntityType);
-            // Assert.AreEqual("TestUser", createAudit.UserId);
-            // Assert.IsNotNull(createAudit.NewValue);
-            // Assert.IsNull(createAudit.OldValue);
+            // createAudit.Operation.Should().Be("CREATE");
+            // createAudit.EntityId.Should().Be(entity.Id.ToString());
+            // createAudit.EntityType.Should().Be("AuditTestEntity");
+            // createAudit.UserId.Should().Be("TestUser");
+            // createAudit.NewValue.Should().NotBeNull();
+            // createAudit.OldValue.Should().BeNull();
         }
 
         [TestMethod]
@@ -109,13 +118,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             var auditRecords = new List<AuditRecord>();
             
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // Assert.IsTrue(auditRecords.Count() >= 2);
+            // auditRecords.Count(.Should().BeTrue() >= 2);
             // var updateAudit = auditRecords.FirstOrDefault(a => a.Operation == "UPDATE");
-            // Assert.IsNotNull(updateAudit);
-            // Assert.IsNotNull(updateAudit.OldValue);
-            // Assert.IsNotNull(updateAudit.NewValue);
-            // Assert.IsTrue(updateAudit.OldValue.Contains("Original Name"));
-            // Assert.IsTrue(updateAudit.NewValue.Contains("Updated Name"));
+            // updateAudit.Should().NotBeNull();
+            // updateAudit.OldValue.Should().NotBeNull();
+            // updateAudit.NewValue.Should().NotBeNull();
+            // updateAudit.OldValue.Should().Contain("Original Name");
+            // updateAudit.NewValue.Should().Contain("Updated Name");
         }
 
         [TestMethod]
@@ -142,9 +151,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
             // var deleteAudit = auditRecords.FirstOrDefault(a => a.Operation == "DELETE");
-            // Assert.IsNotNull(deleteAudit);
-            // Assert.IsNotNull(deleteAudit.OldValue);
-            // Assert.IsTrue(deleteAudit.OldValue.Contains("To Delete"));
+            // deleteAudit.Should().NotBeNull();
+            // deleteAudit.OldValue.Should().NotBeNull();
+            // deleteAudit.OldValue.Should().Contain("To Delete");
         }
 
         [TestMethod]
@@ -169,11 +178,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
             // var audit = auditRecords.First();
-            // Assert.AreEqual("TestUser", audit.UserId);
-            // Assert.AreEqual(this.callerInfo.CorrelationId, audit.CorrelationId); // CorrelationId not in AuditRecord
-            // Assert.AreEqual("TestMethod", audit.CallerMember); // Property name is CallerMember
-            // Assert.AreEqual("TestFile.cs", audit.CallerFile); // Property name is CallerFile
-            // Assert.AreEqual(42, audit.CallerLineNumber);
+            // audit.UserId.Should().Be("TestUser");
+            // audit.CorrelationId.Should().Be(this.callerInfo.CorrelationId); // CorrelationId not in AuditRecord
+            // audit.CallerMember.Should().Be("TestMethod"); // Property name is CallerMember
+            // audit.CallerFile.Should().Be("TestFile.cs"); // Property name is CallerFile
+            // audit.CallerLineNumber.Should().Be(42);
         }
 
         [TestMethod]
@@ -209,12 +218,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             var auditHistory = new List<AuditRecord>();
 
             // Assert
-            Assert.IsNotNull(auditHistory);
+            auditHistory.Should().NotBeNull();
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // Assert.IsTrue(auditHistory.Count() >= 4); // CREATE, UPDATE, UPDATE, DELETE
+            // auditHistory.Count(.Should().BeTrue() >= 4); // CREATE, UPDATE, UPDATE, DELETE
             // var operations = auditHistory.Select(a => a.Operation).ToList();
-            // Assert.AreEqual("CREATE", operations[0]);
-            // Assert.AreEqual("DELETE", operations[operations.Count - 1]);
+            // operations[0].Should().Be("CREATE");
+            // operations[operations.Count - 1].Should().Be("DELETE");
         }
 
         [TestMethod]
@@ -249,10 +258,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
 
             // Assert
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // Assert.AreEqual(3, user1Activity.Count());
-            // Assert.IsTrue(user1Activity.All(a => a.UserId == "User1"));
-            // Assert.AreEqual(2, user2Activity.Count());
-            // Assert.IsTrue(user2Activity.All(a => a.UserId == "User2"));
+            // user1Activity.Count().Should().Be(3);
+            // user1Activity.All(a => a.UserId == "User1").Should().BeTrue();
+            // user2Activity.Count().Should().Be(2);
+            // user2Activity.All(a => a.UserId == "User2").Should().BeTrue();
         }
     }
 }

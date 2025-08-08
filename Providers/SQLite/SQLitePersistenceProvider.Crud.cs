@@ -28,6 +28,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// </summary>
         public async Task<T> CreateAsync(T entity, CallerInfo callerInfo, CancellationToken cancellationToken = default)
         {
+            if (entity == null)
+            {
+                throw new ArgumentNullException(nameof(entity), "Entity cannot be null");
+            }
+
             var stopwatch = Stopwatch.StartNew();
             var keyString = this.Mapper.SerializeKey(entity.Id);
             var versionEntity = this.Mapper.EnableSoftDelete ? entity as IVersionedEntity<TKey> : null;
@@ -37,17 +42,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Note: SQLite transactions use synchronous Commit/Rollback methods
                 // as the underlying SQLite library doesn't provide true async transaction operations
-                using var transaction = connection.BeginTransaction();
+                await using var transaction = connection.BeginTransaction();
                 try
                 {
                     // step 1, if soft-delete is enabled, get next version
                     if (this.Mapper.EnableSoftDelete)
                     {
-                        using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
+                        await using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                         versionCommand.Connection = connection;
                         versionCommand.Transaction = transaction;
                         newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
@@ -66,10 +71,10 @@ ORDER BY Version DESC
 LIMIT 1";
                     }
 
-                    using var checkCommand = this.CreateCommand(checkExistsSql, connection, transaction);
+                    await using var checkCommand = this.CreateCommand(checkExistsSql, connection, transaction);
                     checkCommand.Parameters.AddWithValue("@key", this.Mapper.SerializeKey(entity.Id));
 
-                    using var checkReader = await checkCommand.ExecuteReaderAsync(cancellationToken);
+                    await using var checkReader = await checkCommand.ExecuteReaderAsync(cancellationToken);
                     if (await checkReader.ReadAsync(cancellationToken))
                     {
                         // step 3. when entity already exists, it must be soft-deleted
@@ -103,7 +108,7 @@ LIMIT 1";
                     var context = CommandContext<T, TKey>.ForInsert(entity);
                     context.CommandTimeout = this.configuration.CommandTimeout;
                     context.Transaction = transaction;
-                    
+
                     using var insertCommand = this.Mapper.CreateCommand(DbOperationType.Insert, context);
                     insertCommand.Connection = connection;
                     insertCommand.ExecuteNonQuery();
@@ -115,11 +120,11 @@ FROM {this.Mapper.TableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
   AND Version = @version;";
 
-                    using var selectCommand = this.CreateCommand(selectSql, connection, transaction);
+                    await using var selectCommand = this.CreateCommand(selectSql, connection, transaction);
                     selectCommand.Parameters.AddWithValue("@key", this.Mapper.SerializeKey(entity.Id));
                     selectCommand.Parameters.AddWithValue("@version", entity.Version);
 
-                    using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
+                    await using var reader = await selectCommand.ExecuteReaderAsync(cancellationToken);
                     T result;
                     if (await reader.ReadAsync(cancellationToken))
                     {
@@ -198,7 +203,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                 //    between "never existed" and "was deleted"
                 T result = null;
 
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Use CreateSelectCommand which internally uses the new CreateCommand
                 // includeAllVersions=false: only get latest version
@@ -331,9 +336,9 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                 // Store original version for optimistic concurrency check
                 var originalVersion = entity.Version;
 
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
-                using var transaction = connection.BeginTransaction();
+                await using var transaction = connection.BeginTransaction();
                 try
                 {
                     // Step 1: concurrency check
@@ -351,10 +356,10 @@ ORDER BY Version DESC
 LIMIT 1";
                     }
 
-                    using var selectOldCommand = this.CreateCommand(selectOldSql, connection, transaction);
+                    await using var selectOldCommand = this.CreateCommand(selectOldSql, connection, transaction);
                     selectOldCommand.Parameters.AddWithValue("@key", this.Mapper.SerializeKey(entity.Id));
 
-                    using var oldReader = await selectOldCommand.ExecuteReaderAsync(cancellationToken);
+                    await using var oldReader = await selectOldCommand.ExecuteReaderAsync(cancellationToken);
                     if (await oldReader.ReadAsync(cancellationToken))
                     {
                         oldValue = this.Mapper.MapFromReader(oldReader);
@@ -377,7 +382,7 @@ LIMIT 1";
                     // Step 2: Insert into Version table to get next version
                     if (versionedEntity != null)
                     {
-                        using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
+                        await using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                         versionCommand.Connection = connection;
                         versionCommand.Transaction = transaction;
                         var newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
@@ -391,17 +396,17 @@ LIMIT 1";
                     // Update tracking fields
                     entity.LastWriteTime = DateTime.UtcNow;
                     int rowsAffected;
-                    
+
                     // Use new command pattern for update
                     var context = CommandContext<T, TKey>.ForUpdate(entity, oldValue);
                     context.CommandTimeout = this.configuration.CommandTimeout;
                     context.Transaction = transaction;
-                    
+
                     using var command = this.Mapper.CreateCommand(
-                        versionedEntity == null ? DbOperationType.Update : DbOperationType.Insert, 
+                        versionedEntity == null ? DbOperationType.Update : DbOperationType.Insert,
                         context);
                     command.Connection = connection;
-                    
+
                     // For versioned entities (soft delete), we need to track changes
                     if (versionedEntity != null || command.CommandText.Contains("SELECT changes()"))
                     {
@@ -478,8 +483,8 @@ LIMIT 1";
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
-                using var transaction = connection.BeginTransaction();
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var transaction = connection.BeginTransaction();
 
                 // Step 1: Check if entity exists and get the old value
                 T oldValue = null;
@@ -494,10 +499,10 @@ ORDER BY Version DESC
 LIMIT 1";
                 }
 
-                using var selectOldCommand = this.CreateCommand(selectOldSql, connection, transaction);
+                await using var selectOldCommand = this.CreateCommand(selectOldSql, connection, transaction);
                 selectOldCommand.Parameters.AddWithValue("@key", this.Mapper.SerializeKey(key));
 
-                using var oldReader = await selectOldCommand.ExecuteReaderAsync(cancellationToken);
+                await using var oldReader = await selectOldCommand.ExecuteReaderAsync(cancellationToken);
                 if (await oldReader.ReadAsync(cancellationToken))
                 {
                     oldValue = this.Mapper.MapFromReader(oldReader);
@@ -529,7 +534,7 @@ LIMIT 1";
                 if (this.Mapper.EnableSoftDelete)
                 {
                     // Step 2. insert into Version table to get next version
-                    using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
+                    await using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                     versionCommand.Connection = connection;
                     versionCommand.Transaction = transaction;
                     var newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
@@ -552,7 +557,7 @@ LIMIT 1";
 INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});";
 
-                    using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
+                    await using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
                     this.Mapper.AddParameters(insertCommand, deletedEntity);
                     await insertCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
@@ -562,7 +567,7 @@ VALUES ({string.Join(", ", parameters)});";
 DELETE FROM {this.Mapper.TableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;
 SELECT changes();";
-                    using var command = this.CreateCommand(sql, connection, transaction);
+                    await using var command = this.CreateCommand(sql, connection, transaction);
                     command.Parameters.AddWithValue("@key", this.Mapper.SerializeKey(key));
                     await command.ExecuteScalarAsync(cancellationToken);
                 }

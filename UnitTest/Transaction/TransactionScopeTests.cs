@@ -7,17 +7,21 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Transaction
 {
     using System;
+    using System.IO;
     using System.Threading;
     using System.Threading.Tasks;
     using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using TransactionTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Transaction.TransactionTestEntity;
 
     [TestClass]
-    public class TransactionScopeTests
+    public class TransactionScopeTests : SQLiteTestBase
     {
+        private string testDbPath;
+
         private string connectionString;
         private SQLitePersistenceProvider<TransactionTestEntity, Guid> provider;
         private CallerInfo callerInfo;
@@ -42,6 +46,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             if (this.provider != null)
             {
                 await this.provider.DisposeAsync();
+            
+
+                this.SafeDeleteDatabase(this.testDbPath);
+
             }
         }
 

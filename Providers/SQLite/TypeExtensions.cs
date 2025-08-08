@@ -36,9 +36,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 // Floating point types - map to REAL
                 SqlDbType.Float => SQLiteDbType.Real,
                 SqlDbType.Real => SQLiteDbType.Real,
-                SqlDbType.Decimal => SQLiteDbType.Numeric,
-                SqlDbType.Money => SQLiteDbType.Numeric,
-                SqlDbType.SmallMoney => SQLiteDbType.Numeric,
+                SqlDbType.Decimal => SQLiteDbType.Real, // do not use SQLiteDbType.Numeric
+                SqlDbType.Money => SQLiteDbType.Real,
+                SqlDbType.SmallMoney => SQLiteDbType.Real,
 
                 // String types - map to TEXT
                 SqlDbType.NVarChar => SQLiteDbType.Text,
@@ -53,7 +53,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 SqlDbType.DateTime2 => SQLiteDbType.Text,
                 SqlDbType.DateTimeOffset => SQLiteDbType.Text,
                 SqlDbType.Date => SQLiteDbType.Text,
-                SqlDbType.Time => SQLiteDbType.Text,
+                SqlDbType.Time => SQLiteDbType.Integer, // CLR type timespan
                 SqlDbType.SmallDateTime => SQLiteDbType.Text,
 
                 // Binary types - map to BLOB

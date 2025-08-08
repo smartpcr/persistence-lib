@@ -9,6 +9,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
     using System;
     using System.Threading;
     using System.Threading.Tasks;
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -74,15 +75,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
 
             // Assert
             var result1 = await this.provider.GetAsync(entity1.Id, this.callerInfo);
-            Assert.IsNotNull(result1);
-            Assert.AreEqual("Entity 1", result1.Name);
+            result1.Should().NotBeNull();
+            result1.Name.Should().Be("Entity 1");
             
             var result2 = await this.provider.GetAsync(entity2.Id, this.callerInfo);
-            Assert.IsNotNull(result2);
-            Assert.AreEqual("Updated Entity 2", result2.Name);
+            result2.Should().NotBeNull();
+            result2.Name.Should().Be("Updated Entity 2");
             
             var result3 = await this.provider.GetAsync(entity3.Id, this.callerInfo);
-            Assert.IsNull(result3);
+            result3.Should().BeNull();
         }
 
         [TestMethod]
@@ -109,11 +110,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
 
             // Assert
             var result1 = await this.provider.GetAsync(entity1.Id, this.callerInfo);
-            Assert.IsNull(result1, "Entity should not exist after rollback");
+            result1.Should().BeNull("Entity should not exist after rollback");
             
             var result2 = await this.provider.GetAsync(entity2.Id, this.callerInfo);
-            Assert.IsNotNull(result2);
-            Assert.AreEqual("Original", result2.Name, "Entity should not be updated after rollback");
+            result2.Should().NotBeNull();
+            result2.Name.Should().Be("Original", "Entity should not be updated after rollback");
         }
 
         [TestMethod]
@@ -141,10 +142,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
 
             // Assert
             var result1 = await this.provider.GetAsync(entity1.Id, this.callerInfo);
-            Assert.IsNotNull(result1);
+            result1.Should().NotBeNull();
             
             var result2 = await this.provider.GetAsync(entity2.Id, this.callerInfo);
-            Assert.IsNotNull(result2);
+            result2.Should().NotBeNull();
         }
 
         [TestMethod]
@@ -209,7 +210,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
                     // This should wait for transaction 1 to complete
                     // Transaction scope doesn't support direct Get operations
                     var current = await this.provider.GetAsync(entity.Id, this.callerInfo);
-                    Assert.IsNotNull(current);
+                    current.Should().NotBeNull();
                     
                     current.Name = "Transaction 2";
                     current.Value = 300;
@@ -223,9 +224,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
 
             // Assert - Transaction 2 should have the final update
             var result = await this.provider.GetAsync(entity.Id, this.callerInfo);
-            Assert.IsNotNull(result);
-            Assert.AreEqual("Transaction 2", result.Name);
-            Assert.AreEqual(300, result.Value);
+            result.Should().NotBeNull();
+            result.Name.Should().Be("Transaction 2");
+            result.Value.Should().Be(300);
         }
     }
 }

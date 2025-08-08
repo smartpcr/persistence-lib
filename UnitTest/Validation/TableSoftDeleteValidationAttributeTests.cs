@@ -8,6 +8,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
 {
     using System;
     using System.ComponentModel.DataAnnotations;
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Validation;
@@ -31,7 +32,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = attribute.GetValidationResult(null, validationContext);
 
             // Assert
-            Assert.AreEqual(ValidationResult.Success, result);
+            result.Should().Be(ValidationResult.Success);
         }
 
         [TestMethod]
@@ -47,7 +48,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = attribute.GetValidationResult(testObject, validationContext);
 
             // Assert
-            Assert.AreEqual(ValidationResult.Success, result);
+            result.Should().Be(ValidationResult.Success);
         }
 
         [TestMethod]
@@ -63,7 +64,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = attribute.GetValidationResult(testObject, validationContext);
 
             // Assert
-            Assert.AreEqual(ValidationResult.Success, result);
+            result.Should().Be(ValidationResult.Success);
         }
 
         [TestMethod]
@@ -79,7 +80,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = attribute.GetValidationResult(testObject, validationContext);
 
             // Assert
-            Assert.AreEqual(ValidationResult.Success, result);
+            result.Should().Be(ValidationResult.Success);
         }
 
         [TestMethod]
@@ -95,9 +96,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = attribute.GetValidationResult(testObject, validationContext);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreNotEqual(ValidationResult.Success, result);
-            Assert.IsTrue(result.ErrorMessage.Contains("does not have a Version property"));
+            result.Should().NotBeNull();
+            result.Should().NotBe(ValidationResult.Success);
+            result.ErrorMessage.Should().Contain("does not have a Version property");
         }
 
         [TestMethod]
@@ -113,9 +114,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = attribute.GetValidationResult(testObject, validationContext);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreNotEqual(ValidationResult.Success, result);
-            Assert.IsTrue(result.ErrorMessage.Contains("instead of 'long'"));
+            result.Should().NotBeNull();
+            result.Should().NotBe(ValidationResult.Success);
+            result.ErrorMessage.Should().Contain("instead of 'long'");
         }
 
         [TestMethod]
@@ -131,9 +132,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = attribute.GetValidationResult(testObject, validationContext);
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreNotEqual(ValidationResult.Success, result);
-            Assert.IsTrue(result.ErrorMessage.Contains("read-only"));
+            result.Should().NotBeNull();
+            result.Should().NotBe(ValidationResult.Success);
+            result.ErrorMessage.Should().Contain("read-only");
         }
 
         [TestMethod]
@@ -149,7 +150,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = attribute.GetValidationResult(testObject, validationContext);
 
             // Assert
-            Assert.AreEqual(ValidationResult.Success, result);
+            result.Should().Be(ValidationResult.Success);
         }
 
         [TestMethod]
@@ -157,8 +158,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
         public void ValidateType_WhenTypeIsNull_ThrowsArgumentNullException()
         {
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => 
-                TableSoftDeleteValidationAttribute.ValidateType(null));
+            Action act = () => TableSoftDeleteValidationAttribute.ValidateType(null);
+            act.Should().Throw<ArgumentNullException>();
         }
 
         [TestMethod]
@@ -169,7 +170,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = TableSoftDeleteValidationAttribute.ValidateType(typeof(ValidClassWithSoftDeleteEnabled));
 
             // Assert
-            Assert.AreEqual(ValidationResult.Success, result);
+            result.Should().Be(ValidationResult.Success);
         }
 
         [TestMethod]
@@ -180,8 +181,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
             var result = TableSoftDeleteValidationAttribute.ValidateType(typeof(ClassWithSoftDeleteEnabledButNoVersion));
 
             // Assert
-            Assert.IsNotNull(result);
-            Assert.AreNotEqual(ValidationResult.Success, result);
+            result.Should().NotBeNull();
+            result.Should().NotBe(ValidationResult.Success);
         }
 
         [TestMethod]
@@ -189,8 +190,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
         public void ValidateAssembly_WhenAssemblyIsNull_ThrowsArgumentNullException()
         {
             // Act & Assert
-            Assert.ThrowsException<ArgumentNullException>(() => 
-                TableSoftDeleteValidationAttribute.ValidateAssembly(null));
+            Action act = () => TableSoftDeleteValidationAttribute.ValidateAssembly(null);
+            act.Should().Throw<ArgumentNullException>();
         }
 
         [TestMethod]
@@ -205,10 +206,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Valid
 
             // Assert
             // Should find at least our test classes that fail validation
-            Assert.IsTrue(results.Length > 0);
+            results.Length.Should().BeGreaterThan(0);
             foreach (var result in results)
             {
-                Assert.AreNotEqual(ValidationResult.Success, result);
+                result.Should().NotBe(ValidationResult.Success);
             }
         }
 

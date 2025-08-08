@@ -15,8 +15,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.EntityMapping;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Moq;
     using Newtonsoft.Json;
@@ -53,13 +53,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             this.mapper.TestGetSqlType(typeof(int)).Should().Be("INTEGER");
             this.mapper.TestGetSqlType(typeof(DateTime)).Should().Be("TEXT");
             this.mapper.TestGetSqlType(typeof(DateTimeOffset)).Should().Be("TEXT");
-            this.mapper.TestGetSqlType(typeof(TimeSpan)).Should().Be("TEXT");
+            this.mapper.TestGetSqlType(typeof(TimeSpan)).Should().Be("INTEGER"); // in seconds
             this.mapper.TestGetSqlType(typeof(decimal)).Should().Be("REAL");
             this.mapper.TestGetSqlType(typeof(bool)).Should().Be("INTEGER");
-            this.mapper.TestGetSqlType(typeof(long)).Should().Be("BIGINT");
+            this.mapper.TestGetSqlType(typeof(long)).Should().Be("INTEGER");
             this.mapper.TestGetSqlType(typeof(float)).Should().Be("REAL");
             this.mapper.TestGetSqlType(typeof(double)).Should().Be("REAL");
-            this.mapper.TestGetSqlType(typeof(byte[])).Should().Be("VARBINARY");
+            this.mapper.TestGetSqlType(typeof(byte[])).Should().Be("BLOB");
         }
 
         [TestMethod]
@@ -71,7 +71,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             this.mapper.TestGetSqlType(typeof(decimal?)).Should().Be("REAL");
             this.mapper.TestGetSqlType(typeof(DateTime?)).Should().Be("TEXT");
             this.mapper.TestGetSqlType(typeof(DateTimeOffset?)).Should().Be("TEXT");
-            this.mapper.TestGetSqlType(typeof(TimeSpan?)).Should().Be("TEXT");
+            this.mapper.TestGetSqlType(typeof(TimeSpan?)).Should().Be("INTEGER");
             this.mapper.TestGetSqlType(typeof(bool?)).Should().Be("INTEGER");
         }
 
@@ -101,13 +101,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             using var command = this.mapper.CreateCommand(DbOperationType.Insert, context);
 
             // Assert
-            Assert.IsNotNull(command);
-            Assert.IsTrue(command.CommandText.StartsWith("INSERT INTO"),
-                "Command should be an INSERT statement");
-            Assert.IsTrue(command.CommandText.Contains("Entities.EntityMapping.SQLiteMapperTestEntity"),
-                "Should reference the correct table");
-            Assert.AreEqual(CommandType.Text, command.CommandType);
-            Assert.IsTrue(command.Parameters.Count > 0, "Should have parameters");
+            var insertSql = command.CommandText;
+            var parsed = DebugParser.ParseSqlStatement(insertSql);
+            parsed.Should().NotBeNull();
+
+            command.Should().NotBeNull();
+            command.CommandText.Should().StartWith("INSERT INTO", "Command should be an INSERT statement");
+            command.CommandText.Should().Contain("SQLiteMapperTestEntity", "Should reference the correct table");
+            command.CommandType.Should().Be(CommandType.Text);
+            command.Parameters.Count.Should().BeGreaterThan(0, "Should have parameters");
         }
 
         [TestMethod]
@@ -135,13 +137,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             using var command = this.mapper.CreateCommand(DbOperationType.Update, context);
 
             // Assert
-            Assert.IsNotNull(command);
-            Assert.IsTrue(command.CommandText.StartsWith("UPDATE"),
-                "Command should be an UPDATE statement");
-            Assert.IsTrue(command.CommandText.Contains("WHERE"),
-                "Should have WHERE clause");
-            Assert.IsTrue(command.CommandText.Contains("Version"),
-                "Should check version for optimistic concurrency");
+            command.Should().NotBeNull();
+            command.CommandText.Should().StartWith("UPDATE", "Command should be an UPDATE statement");
+            command.CommandText.Should().Contain("WHERE", "Should have WHERE clause");
+            command.CommandText.Should().Contain("Version", "Should check version for optimistic concurrency");
         }
 
         [TestMethod]
@@ -160,13 +159,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             using var command = this.mapper.CreateCommand(DbOperationType.Delete, context);
 
             // Assert
-            Assert.IsNotNull(command);
-            Assert.IsTrue(command.CommandText.StartsWith("DELETE FROM"),
-                "Command should be a DELETE statement");
-            Assert.IsTrue(command.CommandText.Contains("WHERE"),
-                "Should have WHERE clause");
-            Assert.IsTrue(command.CommandText.Contains("@Id"),
-                "Should have Id parameter");
+            command.Should().NotBeNull();
+            command.CommandText.Should().StartWith("DELETE FROM", "Command should be a DELETE statement");
+            command.CommandText.Should().Contain("WHERE", "Should have WHERE clause");
+            command.CommandText.Should().Contain("@Id", "Should have Id parameter");
         }
 
         [TestMethod]
@@ -212,12 +208,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var entity = this.mapper.MapFromReader(mockReader.Object);
 
             // Assert
-            Assert.IsNotNull(entity);
-            Assert.AreEqual(testGuid, entity.Id);
-            Assert.AreEqual("Test Name", entity.Name);
-            Assert.AreEqual(42, entity.Count);
-            Assert.AreEqual(123.45m, entity.Amount);
-            Assert.AreEqual(1, entity.Version);
+            entity.Should().NotBeNull();
+            entity.Id.Should().Be(testGuid);
+            entity.Name.Should().Be("Test Name");
+            entity.Count.Should().Be(42);
+            entity.Amount.Should().Be(123.45m);
+            entity.Version.Should().Be(1);
         }
 
         [TestMethod]
@@ -262,10 +258,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var entity = this.mapper.MapFromReader(mockReader.Object);
 
             // Assert
-            Assert.IsNotNull(entity);
-            Assert.AreEqual(testGuid, entity.Id);
-            Assert.AreEqual("Test", entity.Name);
-            Assert.IsNull(entity.Amount, "Nullable Amount should be null when DBNull");
+            entity.Should().NotBeNull();
+            entity.Id.Should().Be(testGuid);
+            entity.Name.Should().Be("Test");
+            entity.Amount.Should().BeNull("Nullable Amount should be null when DBNull");
         }
 
         [TestMethod]
@@ -290,16 +286,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             this.mapper.AddParameters(command, entity);
 
             // Assert
-            Assert.IsTrue(command.Parameters.Contains("@Id"));
-            Assert.IsTrue(command.Parameters.Contains("@Name"));
-            Assert.IsTrue(command.Parameters.Contains("@Count"));
-            Assert.IsTrue(command.Parameters.Contains("@CreatedDate"));
-            Assert.IsTrue(command.Parameters.Contains("@Amount"));
-            Assert.IsTrue(command.Parameters.Contains("@Version"));
+            command.Parameters.Contains("@Id").Should().BeTrue();
+            command.Parameters.Contains("@Name").Should().BeTrue();
+            command.Parameters.Contains("@Count").Should().BeTrue();
+            command.Parameters.Contains("@CreatedDate").Should().BeTrue();
+            command.Parameters.Contains("@Amount").Should().BeTrue();
+            command.Parameters.Contains("@Version").Should().BeTrue();
 
-            Assert.AreEqual(entity.Id.ToString(), command.Parameters["@Id"].Value);
-            Assert.AreEqual(entity.Name, command.Parameters["@Name"].Value);
-            Assert.AreEqual(entity.Count, command.Parameters["@Count"].Value);
+            command.Parameters["@Id"].Value.Should().Be(entity.Id.ToString());
+            command.Parameters["@Name"].Value.Should().Be(entity.Name);
+            command.Parameters["@Count"].Value.Should().Be(entity.Count);
         }
 
         [TestMethod]
@@ -330,7 +326,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             // Verify it's valid JSON
             var json = JsonConvert.SerializeObject(entity);
             var deserialized = JsonConvert.DeserializeObject<Entities.EntityMapping.SQLiteMapperTestEntity>(json);
-            Assert.IsNotNull(deserialized);
+            deserialized.Should().NotBeNull();
         }
 
         [TestMethod]
@@ -357,13 +353,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var deserialized = JsonConvert.DeserializeObject<Entities.EntityMapping.SQLiteMapperTestEntity>(json);
 
             // Assert
-            Assert.IsNotNull(deserialized);
-            Assert.AreEqual(original.Id, deserialized.Id);
-            Assert.AreEqual(original.Name, deserialized.Name);
-            Assert.AreEqual(original.Count, deserialized.Count);
-            Assert.AreEqual(original.Amount, deserialized.Amount);
-            Assert.IsNotNull(deserialized.ComplexData);
-            Assert.AreEqual(original.ComplexData, deserialized.ComplexData);
+            deserialized.Should().NotBeNull();
+            deserialized.Id.Should().Be(original.Id);
+            deserialized.Name.Should().Be(original.Name);
+            deserialized.Count.Should().Be(original.Count);
+            deserialized.Amount.Should().Be(original.Amount);
+            deserialized.ComplexData.Should().NotBeNull();
+            deserialized.ComplexData.Should().Be(original.ComplexData);
             // Complex object assertions commented out since ComplexData is a string
             // Assert.AreEqual(original.ComplexData.Field1, deserialized.ComplexData.Field1);
             // Assert.AreEqual(original.ComplexData.Field2, deserialized.ComplexData.Field2);

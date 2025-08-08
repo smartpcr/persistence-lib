@@ -9,6 +9,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
     using System;
     using System.Linq;
     using System.Threading.Tasks;
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -77,9 +78,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(results);
-            Assert.AreEqual(4, results.Count());
-            Assert.IsTrue(results.All(e => e.Status == "Active"));
+            results.Should().NotBeNull();
+            results.Count().Should().Be(4);
+            results.Should().OnlyContain(e => e.Status == "Active");
         }
 
         [TestMethod]
@@ -93,9 +94,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(results);
-            Assert.AreEqual(2, results.Count()); // Beta (200) and TestAlpha (175)
-            Assert.IsTrue(results.All(e => e.Status == "Active" && e.Amount > 100));
+            results.Should().NotBeNull();
+            results.Count().Should().Be(2); // Beta (200) and TestAlpha (175)
+            results.Should().OnlyContain(e => e.Status == "Active" && e.Amount > 100);
         }
 
         [TestMethod]
@@ -109,8 +110,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 this.callerInfo);
 
             // Assert
-            Assert.AreEqual(2, startsWithResults.Count());
-            Assert.IsTrue(startsWithResults.All(e => e.Name.StartsWith("Test")));
+            startsWithResults.Count().Should().Be(2);
+            startsWithResults.Should().OnlyContain(e => e.Name.StartsWith("Test"));
             
             // Act - Contains
             var containsResults = await this.provider.QueryAsync(
@@ -119,7 +120,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 this.callerInfo);
             
             // Assert
-            Assert.AreEqual(2, containsResults.Count()); // Beta and TestBeta
+            containsResults.Count().Should().Be(2); // Beta and TestBeta
             
             // Act - EndsWith
             var endsWithResults = await this.provider.QueryAsync(
@@ -128,7 +129,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 this.callerInfo);
             
             // Assert
-            Assert.IsTrue(endsWithResults.Count() >= 2); // Alpha, Beta, Gamma, Delta, TestAlpha, TestBeta
+            endsWithResults.Count().Should().BeGreaterOrEqualTo(2); // Alpha, Beta, Gamma, Delta, TestAlpha, TestBeta
         }
 
         [TestMethod]
@@ -142,10 +143,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 this.callerInfo);
 
             // Assert
-            Assert.IsNotNull(ascResults);
-            Assert.AreEqual(7, ascResults.Count());
-            Assert.AreEqual(50, ascResults.First().Amount);
-            Assert.AreEqual(300, ascResults.Last().Amount);
+            ascResults.Should().NotBeNull();
+            ascResults.Count().Should().Be(7);
+            ascResults.First().Amount.Should().Be(50);
+            ascResults.Last().Amount.Should().Be(300);
             
             // Act - Order by Name descending
             var descResults = await this.provider.QueryAsync(
@@ -154,7 +155,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 this.callerInfo);
             
             // Assert
-            Assert.IsTrue(descResults.First().Name.CompareTo(descResults.Last().Name) > 0);
+            descResults.First().Name.CompareTo(descResults.Last().Name).Should().BeGreaterThan(0);
         }
 
         [TestMethod]
@@ -170,8 +171,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 take: 3);
 
             // Assert
-            Assert.IsNotNull(pagedResults);
-            Assert.AreEqual(3, pagedResults.Count());
+            pagedResults.Should().NotBeNull();
+            pagedResults.Count().Should().Be(3);
             
             // Verify we skipped the first 2 when ordered by name
             var allOrdered = await this.provider.QueryAsync(
@@ -181,9 +182,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             
             var allOrderedArray = allOrdered.ToArray();
             var pagedResultsArray = pagedResults.ToArray();
-            Assert.AreEqual(allOrderedArray[2].Id, pagedResultsArray[0].Id);
-            Assert.AreEqual(allOrderedArray[3].Id, pagedResultsArray[1].Id);
-            Assert.AreEqual(allOrderedArray[4].Id, pagedResultsArray[2].Id);
+            pagedResultsArray[0].Id.Should().Be(allOrderedArray[2].Id);
+            pagedResultsArray[1].Id.Should().Be(allOrderedArray[3].Id);
+            pagedResultsArray[2].Id.Should().Be(allOrderedArray[4].Id);
         }
 
         [TestMethod]
@@ -197,13 +198,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 1);
 
             // Assert
-            Assert.IsNotNull(pagedResult);
-            Assert.AreEqual(2, pagedResult.Items.Count());
-            Assert.AreEqual(1, pagedResult.PageNumber);
-            Assert.AreEqual(2, pagedResult.PageSize);
-            Assert.AreEqual(3, pagedResult.TotalCount); // Alpha, Gamma, TestAlpha
-            Assert.IsTrue(pagedResult.PageNumber < pagedResult.TotalPages); // HasNextPage
-            Assert.IsFalse(pagedResult.PageNumber > 1); // HasPreviousPage
+            pagedResult.Should().NotBeNull();
+            pagedResult.Items.Count().Should().Be(2);
+            pagedResult.PageNumber.Should().Be(1);
+            pagedResult.PageSize.Should().Be(2);
+            pagedResult.TotalCount.Should().Be(3); // Alpha, Gamma, TestAlpha
+            (pagedResult.PageNumber < pagedResult.TotalPages).Should().BeTrue(); // HasNextPage
+            (pagedResult.PageNumber > 1).Should().BeFalse(); // HasPreviousPage
         }
 
         [TestMethod]
@@ -217,11 +218,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 2);
 
             // Assert
-            Assert.IsNotNull(pagedResult);
-            Assert.AreEqual(3, pagedResult.TotalPages); // 7 items / 3 per page = 3 pages
-            Assert.AreEqual(2, pagedResult.PageNumber);
-            Assert.IsTrue(pagedResult.PageNumber > 1); // HasPreviousPage
-            Assert.IsTrue(pagedResult.PageNumber < pagedResult.TotalPages); // HasNextPage
+            pagedResult.Should().NotBeNull();
+            pagedResult.TotalPages.Should().Be(3); // 7 items / 3 per page = 3 pages
+            pagedResult.PageNumber.Should().Be(2);
+            (pagedResult.PageNumber > 1).Should().BeTrue(); // HasPreviousPage
+            (pagedResult.PageNumber < pagedResult.TotalPages).Should().BeTrue(); // HasNextPage
         }
 
         [TestMethod]
@@ -233,14 +234,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 e => e.Status == "Active");
 
             // Assert
-            Assert.AreEqual(4, activeCount);
+            activeCount.Should().Be(4);
             
             // Act
             var highAmountCount = await this.provider.CountAsync(
                 e => e.Amount >= 200);
             
             // Assert
-            Assert.AreEqual(3, highAmountCount); // Beta (200), Epsilon (300), TestBeta (225)
+            highAmountCount.Should().Be(3); // Beta (200), Epsilon (300), TestBeta (225)
         }
 
         [TestMethod]
@@ -251,7 +252,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             var totalCount = await this.provider.CountAsync();
 
             // Assert
-            Assert.AreEqual(7, totalCount);
+            totalCount.Should().Be(7);
         }
 
         [TestMethod]
@@ -263,7 +264,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 e => e.Name == "Alpha" && e.Status == "Active");
 
             // Assert
-            Assert.IsTrue(exists);
+            exists.Should().BeTrue();
         }
 
         [TestMethod]
@@ -275,7 +276,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
                 e => e.Name == "NonExistent" || e.Amount > 1000);
 
             // Assert
-            Assert.IsFalse(exists);
+            exists.Should().BeFalse();
         }
     }
 }

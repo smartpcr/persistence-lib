@@ -7,6 +7,7 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser
 {
     using System.Linq;
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -24,13 +25,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var tokens = lexer.Tokenize();
 
             // Assert
-            Assert.AreEqual(5, tokens.Count); // SELECT, *, FROM, users, EOF
-            Assert.AreEqual(SqlTokenType.SELECT, tokens[0].Type);
-            Assert.AreEqual(SqlTokenType.STAR, tokens[1].Type);
-            Assert.AreEqual(SqlTokenType.FROM, tokens[2].Type);
-            Assert.AreEqual(SqlTokenType.IDENTIFIER, tokens[3].Type);
-            Assert.AreEqual("users", tokens[3].Value);
-            Assert.AreEqual(SqlTokenType.EOF, tokens[4].Type);
+            tokens.Count.Should().Be(5); // SELECT, *, FROM, users, EOF
+            tokens[0].Type.Should().Be(SqlTokenType.SELECT);
+            tokens[1].Type.Should().Be(SqlTokenType.STAR);
+            tokens[2].Type.Should().Be(SqlTokenType.FROM);
+            tokens[3].Type.Should().Be(SqlTokenType.IDENTIFIER);
+            tokens[3].Value.Should().Be("users");
+            tokens[4].Type.Should().Be(SqlTokenType.EOF);
         }
 
         [TestMethod]
@@ -45,8 +46,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var stringToken = tokens.FirstOrDefault(t => t.Type == SqlTokenType.STRING_LITERAL);
-            Assert.IsNotNull(stringToken);
-            Assert.AreEqual("John Doe", stringToken.Value);
+            stringToken.Should().NotBeNull();
+            stringToken.Value.Should().Be("John Doe");
         }
 
         [TestMethod]
@@ -61,8 +62,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var numberToken = tokens.FirstOrDefault(t => t.Type == SqlTokenType.NUMBER_LITERAL);
-            Assert.IsNotNull(numberToken);
-            Assert.AreEqual("25.5", numberToken.Value);
+            numberToken.Should().NotBeNull();
+            numberToken.Value.Should().Be("25.5");
         }
 
         [TestMethod]
@@ -76,11 +77,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var tokens = lexer.Tokenize();
 
             // Assert
-            Assert.IsTrue(tokens.Any(t => t.Type == SqlTokenType.EQUALS));
-            Assert.IsTrue(tokens.Any(t => t.Type == SqlTokenType.AND));
-            Assert.IsTrue(tokens.Any(t => t.Type == SqlTokenType.NOT_EQUALS));
-            Assert.IsTrue(tokens.Any(t => t.Type == SqlTokenType.OR));
-            Assert.IsTrue(tokens.Any(t => t.Type == SqlTokenType.GREATER_THAN_EQUALS));
+            tokens.Should().Contain(t => t.Type == SqlTokenType.EQUALS);
+            tokens.Should().Contain(t => t.Type == SqlTokenType.AND);
+            tokens.Should().Contain(t => t.Type == SqlTokenType.NOT_EQUALS);
+            tokens.Should().Contain(t => t.Type == SqlTokenType.OR);
+            tokens.Should().Contain(t => t.Type == SqlTokenType.GREATER_THAN_EQUALS);
         }
 
         [TestMethod]
@@ -95,9 +96,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var identifiers = tokens.Where(t => t.Type == SqlTokenType.IDENTIFIER).ToList();
-            Assert.AreEqual(2, identifiers.Count);
-            Assert.AreEqual("First Name", identifiers[0].Value);
-            Assert.AreEqual("User Table", identifiers[1].Value);
+            identifiers.Count.Should().Be(2);
+            identifiers[0].Value.Should().Be("First Name");
+            identifiers[1].Value.Should().Be("User Table");
         }
 
         [TestMethod]
@@ -111,9 +112,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var tokens = lexer.Tokenize();
 
             // Assert
-            Assert.AreEqual(SqlTokenType.SELECT, tokens[0].Type);
-            Assert.AreEqual(SqlTokenType.FROM, tokens[2].Type);
-            Assert.AreEqual(SqlTokenType.WHERE, tokens[4].Type);
+            tokens[0].Type.Should().Be(SqlTokenType.SELECT);
+            tokens[2].Type.Should().Be(SqlTokenType.FROM);
+            tokens[4].Type.Should().Be(SqlTokenType.WHERE);
         }
     }
 }

@@ -14,6 +14,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Extensions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
 
     [Table("TestEntity")]
     public class SQLiteMapperTestEntity : BaseEntity<Guid>
@@ -38,7 +39,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     {
         public PropertyInfo[] GetProperties() => this.GetPropertyMappings().Keys.ToArray();
 
-        public string TestGetSqlType(Type type) => type.ToSqlTypeString();
+        public string TestGetSqlType(Type type) => type.ToSqlDbType().ToSQLiteDbType().ToString().ToUpper();
 
         public string TestGenerateColumnName(string propertyName) => this.GetPropertyMappings()
             .FirstOrDefault(p => p.Key.Name ==propertyName).Value?.ColumnName;

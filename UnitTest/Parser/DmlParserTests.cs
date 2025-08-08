@@ -6,6 +6,7 @@
 
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser
 {
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -25,12 +26,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
         {
             var sql = "CREATE TABLE users (id INT, name TEXT)";
             var node = this.ParseStatement(sql);
-            Assert.IsInstanceOfType(node, typeof(CreateTableStatement));
+            node.Should().BeOfType<CreateTableStatement>();
             var stmt = (CreateTableStatement)node;
-            Assert.AreEqual("users", stmt.TableName);
-            Assert.AreEqual(2, stmt.Columns.Count);
-            Assert.AreEqual("id", stmt.Columns[0].Name);
-            Assert.AreEqual("INT", stmt.Columns[0].DataType);
+            stmt.TableName.Should().Be("users");
+            stmt.Columns.Count.Should().Be(2);
+            stmt.Columns[0].Name.Should().Be("id");
+            stmt.Columns[0].DataType.Should().Be("INT");
         }
 
         [TestMethod]
@@ -38,12 +39,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
         {
             var sql = "CREATE INDEX idx_users_name ON users(name)";
             var node = this.ParseStatement(sql);
-            Assert.IsInstanceOfType(node, typeof(CreateIndexStatement));
+            node.Should().BeOfType<CreateIndexStatement>();
             var stmt = (CreateIndexStatement)node;
-            Assert.AreEqual("idx_users_name", stmt.IndexName);
-            Assert.AreEqual("users", stmt.TableName);
-            Assert.AreEqual(1, stmt.Columns.Count);
-            Assert.AreEqual("name", stmt.Columns[0]);
+            stmt.IndexName.Should().Be("idx_users_name");
+            stmt.TableName.Should().Be("users");
+            stmt.Columns.Count.Should().Be(1);
+            stmt.Columns[0].Should().Be("name");
         }
 
         [TestMethod]
@@ -51,12 +52,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
         {
             var sql = "CREATE TABLE users (id INT, name TEXT, CONSTRAINT pk_users PRIMARY KEY (id))";
             var node = this.ParseStatement(sql);
-            Assert.IsInstanceOfType(node, typeof(CreateTableStatement));
+            node.Should().BeOfType<CreateTableStatement>();
             var stmt = (CreateTableStatement)node;
-            Assert.AreEqual(1, stmt.Constraints.Count);
+            stmt.Constraints.Count.Should().Be(1);
             var constraint = stmt.Constraints[0];
-            Assert.AreEqual(ConstraintType.PrimaryKey, constraint.Type);
-            CollectionAssert.AreEqual(new[] { "id" }, constraint.Columns);
+            constraint.Type.Should().Be(ConstraintType.PrimaryKey);
+            constraint.Columns.Should().BeEquivalentTo(new[] { "id" });
         }
 
         [TestMethod]
@@ -76,14 +77,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                       ")";
 
             var node = this.ParseStatement(sql);
-            Assert.IsInstanceOfType(node, typeof(CreateTableStatement));
+            node.Should().BeOfType<CreateTableStatement>();
             var stmt = (CreateTableStatement)node;
-            Assert.AreEqual("TestEntity", stmt.TableName);
-            Assert.AreEqual(9, stmt.Columns.Count);
-            Assert.AreEqual(1, stmt.Constraints.Count);
+            stmt.TableName.Should().Be("TestEntity");
+            stmt.Columns.Count.Should().Be(9);
+            stmt.Constraints.Count.Should().Be(1);
             var pk = stmt.Constraints[0];
-            Assert.AreEqual(ConstraintType.PrimaryKey, pk.Type);
-            CollectionAssert.AreEqual(new[] { "Id", "Version" }, pk.Columns);
+            pk.Type.Should().Be(ConstraintType.PrimaryKey);
+            pk.Columns.Should().BeEquivalentTo(new[] { "Id", "Version" });
         }
     }
 }

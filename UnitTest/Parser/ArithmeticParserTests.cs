@@ -7,6 +7,7 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser
 {
     using System;
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -29,11 +30,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var expr = ast.SelectList[0].Expression;
-            Assert.IsInstanceOfType(expr, typeof(BinaryExpression));
+            expr.Should().BeOfType<BinaryExpression>();
             var binExpr = (BinaryExpression)expr;
-            Assert.AreEqual(SqlTokenType.PLUS, binExpr.Operator);
-            Assert.IsInstanceOfType(binExpr.Left, typeof(ColumnExpression));
-            Assert.IsInstanceOfType(binExpr.Right, typeof(ColumnExpression));
+            binExpr.Operator.Should().Be(SqlTokenType.PLUS);
+            binExpr.Left.Should().BeOfType<ColumnExpression>();
+            binExpr.Right.Should().BeOfType<ColumnExpression>();
         }
 
         [TestMethod]
@@ -44,9 +45,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var expr = ast.SelectList[0].Expression;
-            Assert.IsInstanceOfType(expr, typeof(BinaryExpression));
+            expr.Should().BeOfType<BinaryExpression>();
             var binExpr = (BinaryExpression)expr;
-            Assert.AreEqual(SqlTokenType.MULTIPLY, binExpr.Operator);
+            binExpr.Operator.Should().Be(SqlTokenType.MULTIPLY);
         }
 
         [TestMethod]
@@ -57,18 +58,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var expr = ast.SelectList[0].Expression;
-            Assert.IsInstanceOfType(expr, typeof(BinaryExpression));
+            expr.Should().BeOfType<BinaryExpression>();
             var addExpr = (BinaryExpression)expr;
-            Assert.AreEqual(SqlTokenType.PLUS, addExpr.Operator);
+            addExpr.Operator.Should().Be(SqlTokenType.PLUS);
             
             // Left should be column 'a'
-            Assert.IsInstanceOfType(addExpr.Left, typeof(ColumnExpression));
-            Assert.AreEqual("a", ((ColumnExpression)addExpr.Left).ColumnName);
+            addExpr.Left.Should().BeOfType<ColumnExpression>();
+            ((ColumnExpression)addExpr.Left).ColumnName.Should().Be("a");
             
             // Right should be 'b * c'
-            Assert.IsInstanceOfType(addExpr.Right, typeof(BinaryExpression));
+            addExpr.Right.Should().BeOfType<BinaryExpression>();
             var mulExpr = (BinaryExpression)addExpr.Right;
-            Assert.AreEqual(SqlTokenType.MULTIPLY, mulExpr.Operator);
+            mulExpr.Operator.Should().Be(SqlTokenType.MULTIPLY);
         }
 
         [TestMethod]
@@ -79,23 +80,23 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var expr = ast.SelectList[0].Expression;
-            Assert.IsInstanceOfType(expr, typeof(BinaryExpression), "Root expression should be BinaryExpression");
+            expr.Should().BeOfType<BinaryExpression>("Root expression should be BinaryExpression");
             
             // The expression tree should be:
             // (price * quantity + tax) - (discount / 2)
             // Which is: ((price * quantity) + tax) - (discount / 2)
             var rootExpr = (BinaryExpression)expr;
-            Assert.AreEqual(SqlTokenType.MINUS, rootExpr.Operator, "Root operator should be MINUS");
+            rootExpr.Operator.Should().Be(SqlTokenType.MINUS, "Root operator should be MINUS");
             
             // Left side: (price * quantity) + tax
-            Assert.IsInstanceOfType(rootExpr.Left, typeof(BinaryExpression), "Left side should be BinaryExpression");
+            rootExpr.Left.Should().BeOfType<BinaryExpression>("Left side should be BinaryExpression");
             var leftExpr = (BinaryExpression)rootExpr.Left;
-            Assert.AreEqual(SqlTokenType.PLUS, leftExpr.Operator, "Left operator should be PLUS");
+            leftExpr.Operator.Should().Be(SqlTokenType.PLUS, "Left operator should be PLUS");
             
             // Right side: discount / 2
-            Assert.IsInstanceOfType(rootExpr.Right, typeof(BinaryExpression), "Right side should be BinaryExpression");
+            rootExpr.Right.Should().BeOfType<BinaryExpression>("Right side should be BinaryExpression");
             var rightExpr = (BinaryExpression)rootExpr.Right;
-            Assert.AreEqual(SqlTokenType.DIVIDE, rightExpr.Operator, "Right operator should be DIVIDE");
+            rightExpr.Operator.Should().Be(SqlTokenType.DIVIDE, "Right operator should be DIVIDE");
         }
 
         [TestMethod]
@@ -106,14 +107,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var expr = ast.SelectList[0].Expression;
-            Assert.IsInstanceOfType(expr, typeof(BinaryExpression));
+            expr.Should().BeOfType<BinaryExpression>();
             var mulExpr = (BinaryExpression)expr;
-            Assert.AreEqual(SqlTokenType.MULTIPLY, mulExpr.Operator);
+            mulExpr.Operator.Should().Be(SqlTokenType.MULTIPLY);
             
             // Left should be (a + b)
-            Assert.IsInstanceOfType(mulExpr.Left, typeof(BinaryExpression));
+            mulExpr.Left.Should().BeOfType<BinaryExpression>();
             var addExpr = (BinaryExpression)mulExpr.Left;
-            Assert.AreEqual(SqlTokenType.PLUS, addExpr.Operator);
+            addExpr.Operator.Should().Be(SqlTokenType.PLUS);
         }
 
         [TestMethod]
@@ -123,15 +124,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT * FROM orders WHERE price * quantity > 100");
 
             // Assert
-            Assert.IsNotNull(ast.Where);
-            Assert.IsInstanceOfType(ast.Where, typeof(BinaryExpression));
+            ast.Where.Should().NotBeNull();
+            ast.Where.Should().BeOfType<BinaryExpression>();
             var compareExpr = (BinaryExpression)ast.Where;
-            Assert.AreEqual(SqlTokenType.GREATER_THAN, compareExpr.Operator);
+            compareExpr.Operator.Should().Be(SqlTokenType.GREATER_THAN);
             
             // Left should be price * quantity
-            Assert.IsInstanceOfType(compareExpr.Left, typeof(BinaryExpression));
+            compareExpr.Left.Should().BeOfType<BinaryExpression>();
             var mulExpr = (BinaryExpression)compareExpr.Left;
-            Assert.AreEqual(SqlTokenType.MULTIPLY, mulExpr.Operator);
+            mulExpr.Operator.Should().Be(SqlTokenType.MULTIPLY);
         }
     }
 }

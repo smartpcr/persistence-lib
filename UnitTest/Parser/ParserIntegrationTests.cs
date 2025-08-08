@@ -6,6 +6,7 @@
 
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser
 {
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -27,7 +28,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Act & Assert - Should not throw
             var ast = (SelectStatement)parser.Parse();
-            Assert.IsNotNull(ast);
+            ast.Should().NotBeNull();
         }
 
         [TestMethod]
@@ -80,12 +81,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = (SelectStatement)parser.Parse();
 
             // Assert
-            Assert.IsNotNull(ast);
-            Assert.AreEqual(2, ast.CTEs.Count);
-            Assert.IsTrue(ast.From.Joins.Count > 0);
-            Assert.IsTrue(ast.GroupBy.Count > 0);
-            Assert.IsTrue(ast.OrderBy.Count > 0);
-            Assert.AreEqual(100, ast.Limit);
+            ast.Should().NotBeNull();
+            ast.CTEs.Count.Should().Be(2);
+            ast.From.Joins.Count.Should().BeGreaterThan(0);
+            ast.GroupBy.Count.Should().BeGreaterThan(0);
+            ast.OrderBy.Count.Should().BeGreaterThan(0);
+            ast.Limit.Should().Be(100);
         }
     }
 }

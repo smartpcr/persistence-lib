@@ -7,6 +7,7 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser
 {
     using System;
+    using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -28,12 +29,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT * FROM users");
 
             // Assert
-            Assert.IsNotNull(ast);
-            Assert.AreEqual(1, ast.SelectList.Count);
-            Assert.IsInstanceOfType(ast.SelectList[0].Expression, typeof(ColumnExpression));
-            Assert.AreEqual("*", ((ColumnExpression)ast.SelectList[0].Expression).ColumnName);
-            Assert.IsNotNull(ast.From);
-            Assert.AreEqual("users", ast.From.Table.TableName);
+            ast.Should().NotBeNull();
+            ast.SelectList.Count.Should().Be(1);
+            ast.SelectList[0].Expression.Should().BeOfType<ColumnExpression>();
+            ((ColumnExpression)ast.SelectList[0].Expression).ColumnName.Should().Be("*");
+            ast.From.Should().NotBeNull();
+            ast.From.Table.TableName.Should().Be("users");
         }
 
         [TestMethod]
@@ -43,10 +44,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT id, name, email FROM users");
 
             // Assert
-            Assert.AreEqual(3, ast.SelectList.Count);
-            Assert.AreEqual("id", ((ColumnExpression)ast.SelectList[0].Expression).ColumnName);
-            Assert.AreEqual("name", ((ColumnExpression)ast.SelectList[1].Expression).ColumnName);
-            Assert.AreEqual("email", ((ColumnExpression)ast.SelectList[2].Expression).ColumnName);
+            ast.SelectList.Count.Should().Be(3);
+            ((ColumnExpression)ast.SelectList[0].Expression).ColumnName.Should().Be("id");
+            ((ColumnExpression)ast.SelectList[1].Expression).ColumnName.Should().Be("name");
+            ((ColumnExpression)ast.SelectList[2].Expression).ColumnName.Should().Be("email");
         }
 
         [TestMethod]
@@ -56,9 +57,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT id AS user_id, name user_name FROM users");
 
             // Assert
-            Assert.AreEqual(2, ast.SelectList.Count);
-            Assert.AreEqual("user_id", ast.SelectList[0].Alias);
-            Assert.AreEqual("user_name", ast.SelectList[1].Alias);
+            ast.SelectList.Count.Should().Be(2);
+            ast.SelectList[0].Alias.Should().Be("user_id");
+            ast.SelectList[1].Alias.Should().Be("user_name");
         }
 
         [TestMethod]
@@ -68,7 +69,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT DISTINCT name FROM users");
 
             // Assert
-            Assert.IsTrue(ast.IsDistinct);
+            ast.IsDistinct.Should().BeTrue();
         }
 
         [TestMethod]
@@ -78,11 +79,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT u.id FROM users u");
 
             // Assert
-            Assert.AreEqual("users", ast.From.Table.TableName);
-            Assert.AreEqual("u", ast.From.Table.Alias);
+            ast.From.Table.TableName.Should().Be("users");
+            ast.From.Table.Alias.Should().Be("u");
             var col = (ColumnExpression)ast.SelectList[0].Expression;
-            Assert.AreEqual("u", col.TableAlias);
-            Assert.AreEqual("id", col.ColumnName);
+            col.TableAlias.Should().Be("u");
+            col.ColumnName.Should().Be("id");
         }
 
         [TestMethod]
@@ -92,12 +93,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT * FROM users WHERE age > 18");
 
             // Assert
-            Assert.IsNotNull(ast.Where);
-            Assert.IsInstanceOfType(ast.Where, typeof(BinaryExpression));
+            ast.Where.Should().NotBeNull();
+            ast.Where.Should().BeOfType<BinaryExpression>();
             var where = (BinaryExpression)ast.Where;
-            Assert.AreEqual(SqlTokenType.GREATER_THAN, where.Operator);
-            Assert.AreEqual("age", ((ColumnExpression)where.Left).ColumnName);
-            Assert.AreEqual(18.0, ((LiteralExpression)where.Right).Value);
+            where.Operator.Should().Be(SqlTokenType.GREATER_THAN);
+            ((ColumnExpression)where.Left).ColumnName.Should().Be("age");
+            ((LiteralExpression)where.Right).Value.Should().Be(18.0);
         }
 
         [TestMethod]
@@ -107,10 +108,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT * FROM users WHERE age > 18 AND active = 1 OR admin = 1");
 
             // Assert
-            Assert.IsNotNull(ast.Where);
-            Assert.IsInstanceOfType(ast.Where, typeof(BinaryExpression));
+            ast.Where.Should().NotBeNull();
+            ast.Where.Should().BeOfType<BinaryExpression>();
             var root = (BinaryExpression)ast.Where;
-            Assert.AreEqual(SqlTokenType.OR, root.Operator);
+            root.Operator.Should().Be(SqlTokenType.OR);
         }
 
         [TestMethod]
@@ -123,12 +124,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 INNER JOIN posts p ON u.id = p.user_id");
 
             // Assert
-            Assert.AreEqual(1, ast.From.Joins.Count);
+            ast.From.Joins.Count.Should().Be(1);
             var join = ast.From.Joins[0];
-            Assert.AreEqual(JoinType.Inner, join.Type);
-            Assert.AreEqual("posts", join.Table.TableName);
-            Assert.AreEqual("p", join.Table.Alias);
-            Assert.IsNotNull(join.OnCondition);
+            join.Type.Should().Be(JoinType.Inner);
+            join.Table.TableName.Should().Be("posts");
+            join.Table.Alias.Should().Be("p");
+            join.OnCondition.Should().NotBeNull();
         }
 
         [TestMethod]
@@ -142,9 +143,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 INNER JOIN comments c ON p.id = c.post_id");
 
             // Assert
-            Assert.AreEqual(2, ast.From.Joins.Count);
-            Assert.AreEqual(JoinType.Left, ast.From.Joins[0].Type);
-            Assert.AreEqual(JoinType.Inner, ast.From.Joins[1].Type);
+            ast.From.Joins.Count.Should().Be(2);
+            ast.From.Joins[0].Type.Should().Be(JoinType.Left);
+            ast.From.Joins[1].Type.Should().Be(JoinType.Inner);
         }
 
         [TestMethod]
@@ -158,9 +159,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 HAVING COUNT(*) > 5");
 
             // Assert
-            Assert.AreEqual(1, ast.GroupBy.Count);
-            Assert.AreEqual("user_id", ((ColumnExpression)ast.GroupBy[0]).ColumnName);
-            Assert.IsNotNull(ast.Having);
+            ast.GroupBy.Count.Should().Be(1);
+            ((ColumnExpression)ast.GroupBy[0]).ColumnName.Should().Be("user_id");
+            ast.Having.Should().NotBeNull();
         }
 
         [TestMethod]
@@ -170,9 +171,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT * FROM users ORDER BY name ASC, age DESC");
 
             // Assert
-            Assert.AreEqual(2, ast.OrderBy.Count);
-            Assert.IsTrue(ast.OrderBy[0].IsAscending);
-            Assert.IsFalse(ast.OrderBy[1].IsAscending);
+            ast.OrderBy.Count.Should().Be(2);
+            ast.OrderBy[0].IsAscending.Should().BeTrue();
+            ast.OrderBy[1].IsAscending.Should().BeFalse();
         }
 
         [TestMethod]
@@ -182,8 +183,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT * FROM users LIMIT 10 OFFSET 20");
 
             // Assert
-            Assert.AreEqual(10, ast.Limit);
-            Assert.AreEqual(20, ast.Offset);
+            ast.Limit.Should().Be(10);
+            ast.Offset.Should().Be(20);
         }
 
         [TestMethod]
@@ -197,9 +198,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 SELECT * FROM user_counts");
 
             // Assert
-            Assert.AreEqual(1, ast.CTEs.Count);
-            Assert.AreEqual("user_counts", ast.CTEs[0].Name);
-            Assert.IsNotNull(ast.CTEs[0].Query);
+            ast.CTEs.Count.Should().Be(1);
+            ast.CTEs[0].Name.Should().Be("user_counts");
+            ast.CTEs[0].Query.Should().NotBeNull();
         }
 
         [TestMethod]
@@ -213,10 +214,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 SELECT * FROM user_stats");
 
             // Assert
-            Assert.AreEqual(1, ast.CTEs.Count);
-            Assert.AreEqual(2, ast.CTEs[0].Columns.Count);
-            Assert.AreEqual("user_id", ast.CTEs[0].Columns[0]);
-            Assert.AreEqual("post_count", ast.CTEs[0].Columns[1]);
+            ast.CTEs.Count.Should().Be(1);
+            ast.CTEs[0].Columns.Count.Should().Be(2);
+            ast.CTEs[0].Columns[0].Should().Be("user_id");
+            ast.CTEs[0].Columns[1].Should().Be("post_count");
         }
 
         [TestMethod]
@@ -230,9 +231,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 SELECT * FROM cte1");
 
             // Assert
-            Assert.AreEqual(2, ast.CTEs.Count);
-            Assert.AreEqual("cte1", ast.CTEs[0].Name);
-            Assert.AreEqual("cte2", ast.CTEs[1].Name);
+            ast.CTEs.Count.Should().Be(2);
+            ast.CTEs[0].Name.Should().Be("cte1");
+            ast.CTEs[1].Name.Should().Be("cte2");
         }
 
         [TestMethod]
@@ -250,10 +251,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var caseExpr = ast.SelectList[0].Expression as CaseExpression;
-            Assert.IsNotNull(caseExpr);
-            Assert.AreEqual(2, caseExpr.WhenClauses.Count);
-            Assert.IsNotNull(caseExpr.ElseExpression);
-            Assert.AreEqual("age_group", ast.SelectList[0].Alias);
+            caseExpr.Should().NotBeNull();
+            caseExpr.WhenClauses.Count.Should().Be(2);
+            caseExpr.ElseExpression.Should().NotBeNull();
+            ast.SelectList[0].Alias.Should().Be("age_group");
         }
 
         [TestMethod]
@@ -263,21 +264,21 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT COUNT(*), MAX(age), CONCAT(first_name, last_name) FROM users");
 
             // Assert
-            Assert.AreEqual(3, ast.SelectList.Count);
+            ast.SelectList.Count.Should().Be(3);
 
             var count = ast.SelectList[0].Expression as FunctionExpression;
-            Assert.IsNotNull(count);
-            Assert.AreEqual("COUNT", count.FunctionName);
-            Assert.AreEqual(1, count.Arguments.Count);
+            count.Should().NotBeNull();
+            count.FunctionName.Should().Be("COUNT");
+            count.Arguments.Count.Should().Be(1);
 
             var max = ast.SelectList[1].Expression as FunctionExpression;
-            Assert.IsNotNull(max);
-            Assert.AreEqual("MAX", max.FunctionName);
+            max.Should().NotBeNull();
+            max.FunctionName.Should().Be("MAX");
 
             var concat = ast.SelectList[2].Expression as FunctionExpression;
-            Assert.IsNotNull(concat);
-            Assert.AreEqual("CONCAT", concat.FunctionName);
-            Assert.AreEqual(2, concat.Arguments.Count);
+            concat.Should().NotBeNull();
+            concat.FunctionName.Should().Be("CONCAT");
+            concat.Arguments.Count.Should().Be(2);
         }
 
         [TestMethod]
@@ -290,11 +291,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 WHERE id IN (SELECT user_id FROM posts WHERE active = 1)");
 
             // Assert
-            Assert.IsNotNull(ast.Where);
+            ast.Where.Should().NotBeNull();
             var inExpr = ast.Where as FunctionExpression;
-            Assert.IsNotNull(inExpr);
-            Assert.AreEqual("IN", inExpr.FunctionName);
-            Assert.IsInstanceOfType(inExpr.Arguments[1], typeof(SubqueryExpression));
+            inExpr.Should().NotBeNull();
+            inExpr.FunctionName.Should().Be("IN");
+            inExpr.Arguments[1].Should().BeOfType<SubqueryExpression>();
         }
 
         [TestMethod]
@@ -320,13 +321,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 LIMIT 100");
 
             // Assert
-            Assert.AreEqual(1, ast.CTEs.Count);
-            Assert.AreEqual(3, ast.SelectList.Count);
-            Assert.AreEqual(1, ast.From.Joins.Count);
-            Assert.AreEqual(2, ast.GroupBy.Count);
-            Assert.IsNotNull(ast.Having);
-            Assert.AreEqual(1, ast.OrderBy.Count);
-            Assert.AreEqual(100, ast.Limit);
+            ast.CTEs.Count.Should().Be(1);
+            ast.SelectList.Count.Should().Be(3);
+            ast.From.Joins.Count.Should().Be(1);
+            ast.GroupBy.Count.Should().Be(2);
+            ast.Having.Should().NotBeNull();
+            ast.OrderBy.Count.Should().Be(1);
+            ast.Limit.Should().Be(100);
         }
 
         [TestMethod]
@@ -352,8 +353,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT * FROM dbo.users");
 
             // Assert
-            Assert.AreEqual("dbo", ast.From.Table.Schema);
-            Assert.AreEqual("users", ast.From.Table.TableName);
+            ast.From.Table.Schema.Should().Be("dbo");
+            ast.From.Table.TableName.Should().Be("users");
         }
 
         [TestMethod]
@@ -364,8 +365,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var where = ast.Where as BinaryExpression;
-            Assert.IsNotNull(where);
-            Assert.AreEqual(SqlTokenType.LIKE, where.Operator);
+            where.Should().NotBeNull();
+            where.Operator.Should().Be(SqlTokenType.LIKE);
         }
 
         [TestMethod]
@@ -376,8 +377,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
 
             // Assert
             var where = ast.Where as UnaryExpression;
-            Assert.IsNotNull(where);
-            Assert.AreEqual(SqlTokenType.NOT, where.Operator);
+            where.Should().NotBeNull();
+            where.Operator.Should().Be(SqlTokenType.NOT);
         }
 
         [TestMethod]
@@ -387,7 +388,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT * FROM users WHERE deleted_at IS NULL");
 
             // Assert
-            Assert.IsNotNull(ast.Where);
+            ast.Where.Should().NotBeNull();
             // Note: IS NULL would need additional implementation in the parser
             // This test demonstrates the NULL literal parsing
         }
@@ -399,17 +400,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT price * 2 FROM orders");
 
             // Assert
-            Assert.IsNotNull(ast);
-            Assert.AreEqual(1, ast.SelectList.Count);
+            ast.Should().NotBeNull();
+            ast.SelectList.Count.Should().Be(1);
 
             var expr = ast.SelectList[0].Expression;
-            Assert.IsInstanceOfType(expr, typeof(BinaryExpression),
-                "Expression should be BinaryExpression for multiplication");
+            expr.Should().BeOfType<BinaryExpression>("Expression should be BinaryExpression for multiplication");
 
             var binaryExpr = (BinaryExpression)expr;
-            Assert.AreEqual(SqlTokenType.MULTIPLY, binaryExpr.Operator);
-            Assert.AreEqual("price", ((ColumnExpression)binaryExpr.Left).ColumnName);
-            Assert.AreEqual(2.0, ((LiteralExpression)binaryExpr.Right).Value);
+            binaryExpr.Operator.Should().Be(SqlTokenType.MULTIPLY);
+            ((ColumnExpression)binaryExpr.Left).ColumnName.Should().Be("price");
+            ((LiteralExpression)binaryExpr.Right).Value.Should().Be(2.0);
         }
 
         [TestMethod]
@@ -419,45 +419,45 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT price * quantity + tax - discount / 2 FROM orders");
 
             // Assert
-            Assert.IsNotNull(ast, "AST should not be null");
-            Assert.IsNotNull(ast.SelectList, "SelectList should not be null");
-            Assert.AreEqual(1, ast.SelectList.Count, "Should have exactly one select item");
+            ast.Should().NotBeNull("AST should not be null");
+            ast.SelectList.Should().NotBeNull("SelectList should not be null");
+            ast.SelectList.Count.Should().Be(1, "Should have exactly one select item");
 
             var expr = ast.SelectList[0].Expression;
-            Assert.IsNotNull(expr, "Expression should not be null");
+            expr.Should().NotBeNull("Expression should not be null");
 
             // Debug: Let's see what type we actually got
             if (!(expr is BinaryExpression))
             {
-                Assert.Fail($"Expected BinaryExpression but got {expr.GetType().Name}. " +
+                throw new AssertFailedException($"Expected BinaryExpression but got {expr.GetType().Name}. " +
                            $"This might indicate the parser is not correctly parsing arithmetic expressions.");
             }
 
-            Assert.IsInstanceOfType(expr, typeof(BinaryExpression));
+            expr.Should().BeOfType<BinaryExpression>();
 
             // The root should be a subtraction (last operation due to left-to-right precedence)
             var rootExpr = expr as BinaryExpression;
-            Assert.IsNotNull(rootExpr);
-            Assert.AreEqual(SqlTokenType.MINUS, rootExpr.Operator);
+            rootExpr.Should().NotBeNull();
+            rootExpr.Operator.Should().Be(SqlTokenType.MINUS);
 
             // Left side should be addition: (price * quantity) + tax
             var leftExpr = rootExpr.Left as BinaryExpression;
-            Assert.IsNotNull(leftExpr);
-            Assert.AreEqual(SqlTokenType.PLUS, leftExpr.Operator);
+            leftExpr.Should().NotBeNull();
+            leftExpr.Operator.Should().Be(SqlTokenType.PLUS);
 
             // Left side of addition should be multiplication: price * quantity
             var multiplyExpr = leftExpr.Left as BinaryExpression;
-            Assert.IsNotNull(multiplyExpr);
-            Assert.AreEqual(SqlTokenType.MULTIPLY, multiplyExpr.Operator);
-            Assert.AreEqual("price", ((ColumnExpression)multiplyExpr.Left).ColumnName);
-            Assert.AreEqual("quantity", ((ColumnExpression)multiplyExpr.Right).ColumnName);
+            multiplyExpr.Should().NotBeNull();
+            multiplyExpr.Operator.Should().Be(SqlTokenType.MULTIPLY);
+            ((ColumnExpression)multiplyExpr.Left).ColumnName.Should().Be("price");
+            ((ColumnExpression)multiplyExpr.Right).ColumnName.Should().Be("quantity");
 
             // Right side of subtraction should be division: discount / 2
             var divideExpr = rootExpr.Right as BinaryExpression;
-            Assert.IsNotNull(divideExpr);
-            Assert.AreEqual(SqlTokenType.DIVIDE, divideExpr.Operator);
-            Assert.AreEqual("discount", ((ColumnExpression)divideExpr.Left).ColumnName);
-            Assert.AreEqual(2.0, ((LiteralExpression)divideExpr.Right).Value);
+            divideExpr.Should().NotBeNull();
+            divideExpr.Operator.Should().Be(SqlTokenType.DIVIDE);
+            ((ColumnExpression)divideExpr.Left).ColumnName.Should().Be("discount");
+            ((LiteralExpression)divideExpr.Right).Value.Should().Be(2.0);
         }
 
         [TestMethod]
@@ -467,19 +467,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
             var ast = this.ParseQuery("SELECT price * quantity AS total_price, tax + shipping fee FROM orders");
 
             // Assert
-            Assert.AreEqual(2, ast.SelectList.Count);
+            ast.SelectList.Count.Should().Be(2);
 
             // First expression with explicit alias
             var expr1 = ast.SelectList[0].Expression as BinaryExpression;
-            Assert.IsNotNull(expr1);
-            Assert.AreEqual(SqlTokenType.MULTIPLY, expr1.Operator);
-            Assert.AreEqual("total_price", ast.SelectList[0].Alias);
+            expr1.Should().NotBeNull();
+            expr1.Operator.Should().Be(SqlTokenType.MULTIPLY);
+            ast.SelectList[0].Alias.Should().Be("total_price");
 
             // Second expression with implicit alias
             var expr2 = ast.SelectList[1].Expression as BinaryExpression;
-            Assert.IsNotNull(expr2);
-            Assert.AreEqual(SqlTokenType.PLUS, expr2.Operator);
-            Assert.AreEqual("fee", ast.SelectList[1].Alias);
+            expr2.Should().NotBeNull();
+            expr2.Operator.Should().Be(SqlTokenType.PLUS);
+            ast.SelectList[1].Alias.Should().Be("fee");
         }
 
         [TestMethod]
@@ -494,27 +494,27 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 FROM products");
 
             // Assert
-            Assert.AreEqual(3, ast.SelectList.Count);
+            ast.SelectList.Count.Should().Be(3);
 
             // First: (price + tax) * quantity
             var expr1 = ast.SelectList[0].Expression as BinaryExpression;
-            Assert.IsNotNull(expr1);
-            Assert.AreEqual(SqlTokenType.MULTIPLY, expr1.Operator);
-            Assert.AreEqual("total_with_tax", ast.SelectList[0].Alias);
+            expr1.Should().NotBeNull();
+            expr1.Operator.Should().Be(SqlTokenType.MULTIPLY);
+            ast.SelectList[0].Alias.Should().Be("total_with_tax");
 
             // Verify the grouped expression
             var grouped = expr1.Left as BinaryExpression;
-            Assert.IsNotNull(grouped);
-            Assert.AreEqual(SqlTokenType.PLUS, grouped.Operator);
+            grouped.Should().NotBeNull();
+            grouped.Operator.Should().Be(SqlTokenType.PLUS);
 
             // Second: price * 0.9
             var expr2 = ast.SelectList[1].Expression as BinaryExpression;
-            Assert.IsNotNull(expr2);
-            Assert.AreEqual(SqlTokenType.MULTIPLY, expr2.Operator);
-            Assert.AreEqual(0.9, ((LiteralExpression)expr2.Right).Value);
+            expr2.Should().NotBeNull();
+            expr2.Operator.Should().Be(SqlTokenType.MULTIPLY);
+            ((LiteralExpression)expr2.Right).Value.Should().Be(0.9);
 
             // Third: CASE expression
-            Assert.IsInstanceOfType(ast.SelectList[2].Expression, typeof(CaseExpression));
+            ast.SelectList[2].Expression.Should().BeOfType<CaseExpression>();
         }
     }
 }

@@ -329,23 +329,23 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
             return sqlType switch
             {
                 SqlDbType.BigInt => "BIGINT",
-                SqlDbType.Binary => size.HasValue ? $"BINARY({size})" : "BINARY",
+                SqlDbType.Binary => size > 0 ? $"BINARY({size})" : "BINARY",
                 SqlDbType.Bit => "BIT",
-                SqlDbType.Char => size.HasValue ? $"CHAR({size})" : "CHAR",
+                SqlDbType.Char => size > 0 ? $"CHAR({size})" : "CHAR",
                 SqlDbType.Date => "DATE",
                 SqlDbType.DateTime => "DATETIME",
                 SqlDbType.DateTime2 => "DATETIME2",
                 SqlDbType.DateTimeOffset => "DATETIMEOFFSET",
-                SqlDbType.Decimal => precision.HasValue && scale.HasValue
+                SqlDbType.Decimal => precision.HasValue && scale.HasValue && precision > 0 && scale >= 0
                     ? $"DECIMAL({precision},{scale})"
                     : "DECIMAL(18,2)",
                 SqlDbType.Float => "FLOAT",
                 SqlDbType.Image => "IMAGE",
                 SqlDbType.Int => "INT",
                 SqlDbType.Money => "MONEY",
-                SqlDbType.NChar => size.HasValue ? $"NCHAR({size})" : "NCHAR",
+                SqlDbType.NChar => size > 0 ? $"NCHAR({size})" : "NCHAR",
                 SqlDbType.NText => "NTEXT",
-                SqlDbType.NVarChar => size == -1 ? "NVARCHAR(MAX)" : $"NVARCHAR({size ?? 255})",
+                SqlDbType.NVarChar => size == -1 ? "NVARCHAR(MAX)" : $"NVARCHAR({(size > 0 ? size : 255)})",
                 SqlDbType.Real => "REAL",
                 SqlDbType.SmallDateTime => "SMALLDATETIME",
                 SqlDbType.SmallInt => "SMALLINT",
@@ -355,8 +355,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
                 SqlDbType.Timestamp => "TIMESTAMP",
                 SqlDbType.TinyInt => "TINYINT",
                 SqlDbType.UniqueIdentifier => "UNIQUEIDENTIFIER",
-                SqlDbType.VarBinary => size == -1 ? "VARBINARY(MAX)" : $"VARBINARY({size ?? 8000})",
-                SqlDbType.VarChar => size == -1 ? "VARCHAR(MAX)" : $"VARCHAR({size ?? 255})",
+                SqlDbType.VarBinary => size == -1 ? "VARBINARY(MAX)" : $"VARBINARY({(size > 0 ? size : 8000)})",
+                SqlDbType.VarChar => size == -1 ? "VARCHAR(MAX)" : $"VARCHAR({(size > 0 ? size : 255)})",
                 SqlDbType.Xml => "XML",
                 _ => "NVARCHAR(MAX)" // Default fallback
             };

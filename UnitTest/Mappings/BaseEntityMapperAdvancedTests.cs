@@ -74,8 +74,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateCreateTableSql();
 
             // Assert
-            sql.Should().Contain("DecimalField REAL");
-            sql.Should().Contain("StringField TEXT");
+            sql.Should().Contain("DecimalField DECIMAL(18,2)");
+            sql.Should().Contain("StringField NVARCHAR(100)");
         }
 
         #endregion
@@ -135,7 +135,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             sql.Should().Contain("CONSTRAINT CK_Phone_Format CHECK (Phone REGEXP '^[0-9-]+$')");
             sql.Should().Contain("CONSTRAINT CK_Status_Valid CHECK (Status IN ('Active', 'Inactive', 'Suspended'))");
             sql.Should().Contain("CONSTRAINT CK_Score_Range CHECK (Score BETWEEN 0 AND 100)");
-            sql.Should().Contain("CreatedDate TEXT DEFAULT 'CURRENT_TIMESTAMP')");
+            sql.Should().Contain("CreatedDate DATETIME DEFAULT 'CURRENT_TIMESTAMP'");
         }
 
         #endregion
@@ -187,9 +187,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             var sql = mapper.GenerateCreateTableSql();
 
             // Assert
-            sql.Should().Contain("TotalPrice REAL AS (Quantity * UnitPrice)");
-            sql.Should().Contain("FullName TEXT AS (FirstName || ' ' || LastName)");
-            sql.Should().Contain("CreatedYear INTEGER AS (strftime('%Y', CreatedTime))");
+            sql.Should().Contain("TotalPrice DECIMAL(18,2) AS (Quantity * UnitPrice)");
+            sql.Should().Contain("FullName NVARCHAR(255) AS (FirstName || ' ' || LastName)");
+            sql.Should().Contain("CreatedYear INT AS (strftime('%Y', CreatedTime))");
         }
 
         #endregion

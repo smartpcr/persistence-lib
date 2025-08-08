@@ -377,31 +377,18 @@ SELECT COUNT(*) FROM LatestVersions";
             {
                 await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
-                // Translate the predicate expression to SQL
-                var translator = new ExpressionTranslator<T>(
-                    this.Mapper.GetPropertyMappings(),
-                    () => this.Mapper.GetPrimaryKeyColumn());
-                var translationResult = translator.Translate(predicate);
-
                 // Check if any entity exists matching the predicate (only checking latest versions)
+                var (selectSql, parameters) = this.Mapper.GenerateSelectSql(predicate);
                 var sql = $@"
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM {this.Mapper.TableName} t1
-                    WHERE {translationResult.Sql}
-                      AND IsDeleted = 0
-                      AND Version = (
-                          SELECT MAX(Version)
-                          FROM {this.Mapper.TableName} t2
-                          WHERE t2.{this.Mapper.GetPrimaryKeyColumn()} = t1.{this.Mapper.GetPrimaryKeyColumn()}
-                      )
-                    LIMIT 1
-                )";
+SELECT EXISTS (
+    {selectSql}
+    LIMIT 1
+)";
 
                 await using var command = this.CreateCommand(sql, connection);
 
                 // Add parameters from the translation
-                foreach (var param in translationResult.Parameters)
+                foreach (var param in parameters)
                 {
                     command.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }

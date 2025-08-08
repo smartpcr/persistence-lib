@@ -80,6 +80,79 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             {
                 await this.provider.CreateAsync(entity, this.callerInfo);
             }
+
+            // Seed soft delete entities
+            var softDeleteEntities = new[]
+            {
+                new QueryTestSoftDeleteEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Alpha",
+                    Status = "Active",
+                    Amount = 100,
+                    Category = "A",
+                    DateCreated = DateTime.UtcNow.AddDays(-10)
+                },
+                new QueryTestSoftDeleteEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Beta",
+                    Status = "Active",
+                    Amount = 200,
+                    Category = "B",
+                    DateCreated = DateTime.UtcNow.AddDays(-8)
+                },
+                new QueryTestSoftDeleteEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Gamma",
+                    Status = "Inactive",
+                    Amount = 150,
+                    Category = "A",
+                    DateCreated = DateTime.UtcNow.AddDays(-6)
+                },
+                new QueryTestSoftDeleteEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Delta",
+                    Status = "Active",
+                    Amount = 50,
+                    Category = "C",
+                    DateCreated = DateTime.UtcNow.AddDays(-4)
+                },
+                new QueryTestSoftDeleteEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Epsilon",
+                    Status = "Pending",
+                    Amount = 300,
+                    Category = "B",
+                    DateCreated = DateTime.UtcNow.AddDays(-2)
+                },
+                new QueryTestSoftDeleteEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "TestAlpha",
+                    Status = "Active",
+                    Amount = 175,
+                    Category = "A",
+                    DateCreated = DateTime.UtcNow.AddDays(-1)
+                },
+                new QueryTestSoftDeleteEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "TestBeta",
+                    Status = "Inactive",
+                    Amount = 225,
+                    Category = "C",
+                    DateCreated = DateTime.UtcNow
+                }
+            };
+
+            foreach (var entity in softDeleteEntities)
+            {
+                await this.softDeleteProvider.CreateAsync(entity, this.callerInfo);
+            }
         }
 
         [TestMethod]
@@ -288,6 +361,30 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
         {
             // Act
             var exists = await this.provider.ExistsAsync(
+                e => e.Name == "NonExistent" || e.Amount > 1000);
+
+            // Assert
+            exists.Should().BeFalse();
+        }
+
+        [TestMethod]
+        [TestCategory("QueryOperations")]
+        public async Task ExistsAsync_ExistingSoftDeleteEntity_ReturnsTrue()
+        {
+            // Act
+            var exists = await this.softDeleteProvider.ExistsAsync(
+                e => e.Name == "Alpha" && e.Status == "Active");
+
+            // Assert
+            exists.Should().BeTrue();
+        }
+
+        [TestMethod]
+        [TestCategory("QueryOperations")]
+        public async Task ExistsAsync_NonExistentSoftDeleteEntity_ReturnsFalse()
+        {
+            // Act
+            var exists = await this.softDeleteProvider.ExistsAsync(
                 e => e.Name == "NonExistent" || e.Amount > 1000);
 
             // Assert

@@ -90,6 +90,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         string GenerateSelectByIdSql();
 
         /// <summary>
+        /// Generates a SELECT SQL statement with a predicate expression.
+        /// </summary>
+        /// <param name="predicate">The predicate expression to translate to a WHERE clause.</param>
+        /// <param name="options">The select options to use (optional).</param>
+        /// <returns>The generated SELECT SQL statement with parameters.</returns>
+        (string sql, Dictionary<string, object> parameters) GenerateSelectSql(
+            Expression<Func<T, bool>> predicate,
+            SelectOptions options = null);
+
+        /// <summary>
         /// Generates the INSERT SQL statement.
         /// </summary>
         /// <returns>The INSERT SQL statement.</returns>

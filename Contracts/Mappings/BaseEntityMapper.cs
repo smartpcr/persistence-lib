@@ -1120,6 +1120,42 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         }
 
         /// <summary>
+        /// Generates a SELECT SQL statement with a predicate expression.
+        /// </summary>
+        /// <param name="predicate">The predicate expression to translate to a WHERE clause.</param>
+        /// <param name="options">The select options to use (optional).</param>
+        /// <returns>The generated SELECT SQL statement with parameters.</returns>
+        public virtual (string sql, Dictionary<string, object> parameters) GenerateSelectSql(
+            Expression<Func<T, bool>> predicate,
+            SelectOptions options = null)
+        {
+            options = options ?? new SelectOptions();
+
+            if (predicate != null)
+            {
+                // Use ExpressionTranslator to convert the predicate to SQL
+                var translator = new ExpressionTranslator<T>(this.PropertyMappings, () => this.GetPrimaryKeyColumn());
+                var translationResult = translator.Translate(predicate);
+
+                // Set the WHERE clause from the translated predicate
+                // Mark it as already containing table references so it won't be prefixed again
+                options.WhereClause = translationResult.Sql;
+                options.PredicateAlreadyPrefixed = true;
+
+                // Generate the SQL using the existing method
+                var sql = this.GenerateSelectSql(options);
+
+                return (sql, translationResult.Parameters);
+            }
+            else
+            {
+                // No predicate, just use the existing method
+                var sql = this.GenerateSelectSql(options);
+                return (sql, new Dictionary<string, object>());
+            }
+        }
+
+        /// <summary>
         /// Generates a SELECT SQL statement based on the provided options.
         /// This is the single comprehensive method for all SELECT query generation.
         /// </summary>
@@ -1178,11 +1214,25 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             // Add custom WHERE clause
             if (!string.IsNullOrEmpty(options.WhereClause))
             {
-                if (useTableAlias && !options.WhereClause.Contains("."))
+                // Check if the WHERE clause needs table alias prefixing
+                // Don't prefix if:
+                // 1. PredicateAlreadyPrefixed is true (from ExpressionTranslator)
+                // 2. The clause already contains table references (has dots)
+                bool needsPrefix = useTableAlias &&
+                                  !options.PredicateAlreadyPrefixed &&
+                                  !options.WhereClause.Contains(".");
+
+                if (needsPrefix)
                 {
-                    // Add table alias to WHERE clause if not already present
-                    // This handles simple cases like "Id = @Id"
+                    // Add table alias to WHERE clause for simple cases like "Id = @Id"
                     conditions.Add($"t.{options.WhereClause}");
+                }
+                else if (useTableAlias && options.PredicateAlreadyPrefixed)
+                {
+                    // The predicate was translated by ExpressionTranslator
+                    // It needs proper table aliasing applied to column references
+                    var prefixedClause = this.AddTableAliasToPredicateClause(options.WhereClause, "t");
+                    conditions.Add(prefixedClause);
                 }
                 else
                 {
@@ -1690,6 +1740,46 @@ FROM {fromClause}{joinClause}
                 return Activator.CreateInstance(type);
             }
             return null;
+        }
+
+        /// <summary>
+        /// Adds table alias to column references in a predicate clause.
+        /// This handles predicates translated by ExpressionTranslator.
+        /// </summary>
+        /// <param name="predicateClause">The predicate clause to process.</param>
+        /// <param name="tableAlias">The table alias to add.</param>
+        /// <returns>The predicate clause with table aliases added to column references.</returns>
+        protected virtual string AddTableAliasToPredicateClause(string predicateClause, string tableAlias)
+        {
+            if (string.IsNullOrEmpty(predicateClause))
+                return predicateClause;
+
+            // Get all column names from property mappings
+            var columnNames = this.PropertyMappings.Values
+                .Where(m => !m.IsNotMapped)
+                .Select(m => m.ColumnName)
+                .OrderByDescending(c => c.Length) // Process longer names first to avoid partial matches
+                .ToList();
+
+            var result = predicateClause;
+
+            // Replace column references with aliased versions
+            // We need to be careful to only replace actual column references, not parameter names
+            foreach (var columnName in columnNames)
+            {
+                // Match column name that:
+                // 1. Is at the start of string OR preceded by space, (, or logical operator
+                // 2. Is followed by space, ), =, !, <, >, or end of string
+                // This avoids replacing parts of parameter names like @p0
+                var pattern = $@"(?<=^|\s|\(|AND\s|OR\s){System.Text.RegularExpressions.Regex.Escape(columnName)}(?=\s|\)|=|!|<|>|$)";
+                result = System.Text.RegularExpressions.Regex.Replace(
+                    result,
+                    pattern,
+                    $"{tableAlias}.{columnName}",
+                    System.Text.RegularExpressions.RegexOptions.None);
+            }
+
+            return result;
         }
 
         #endregion

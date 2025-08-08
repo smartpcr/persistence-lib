@@ -178,8 +178,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             sql.Should().Contain("CREATE TABLE IF NOT EXISTS TestEntity");
             sql.Should().Contain("CacheKey TEXT NOT NULL");
             sql.Should().Contain("Name TEXT");
-            sql.Should().Contain("Age INTEGER");
-            sql.Should().Contain("Version INTEGER NOT NULL");
+            sql.Should().Contain("Age INT");
+            sql.Should().Contain("Version BIGINT NOT NULL");
             sql.Should().Contain("PRIMARY KEY (CacheKey)");
         }
 
@@ -195,7 +195,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
 
             // Assert
             sql.Should().Contain("PRIMARY KEY (CacheKey, Version)");
-            sql.Should().Contain("IsDeleted INTEGER NOT NULL DEFAULT 0");
+            sql.Should().Contain("IsDeleted BIT NOT NULL DEFAULT 0");
         }
 
         [TestMethod]
@@ -213,7 +213,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             sql.Should().Contain("CREATE TABLE IF NOT EXISTS TestEntityWithIndexes");
             sql.Should().Contain("Email TEXT");
             sql.Should().Contain("Category TEXT");
-            sql.Should().Contain("DateCreated TEXT");
+            sql.Should().Contain("DateCreated DATETIME");
             sql.Should().Contain("PRIMARY KEY (CacheKey)");
 
             indexSql.Should().HaveCountGreaterThanOrEqualTo(2);
@@ -568,7 +568,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
             act.Should().Throw<System.Reflection.TargetInvocationException>()
                 .WithInnerException<InvalidOperationException>()
                 .WithMessage("Entity type EntityWithoutPrimaryKey must have at least one property marked with [PrimaryKey]*"); // Optional: validate the inner exception message contains "primary key"
-            
+
         }
 
 

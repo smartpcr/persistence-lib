@@ -30,7 +30,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
         public DateTime DateCreated { get; set; }
     }
 
-    [Table("QueryTestEntity", SoftDeleteEnabled = true)]
+    [Table("QueryTestSoftDeleteEntity", SoftDeleteEnabled = true)]
     public class QueryTestSoftDeleteEntity : BaseEntity<Guid>, IVersionedEntity<Guid>
     {
         [Column("Name", SqlDbType.NVarChar, Size = 100)]

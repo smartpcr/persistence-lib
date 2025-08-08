@@ -37,7 +37,8 @@
       "Bash(grep:*)",
       "Bash(sed:*)",
       "Bash(dotnet clean:*)",
-      "Bash(dotnet test:*)"
+      "Bash(dotnet test:*)",
+      "Bash(dotnet run:*)"
     ],
     "deny": []
   }

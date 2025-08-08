@@ -13,6 +13,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
     using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.QueryOperations;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using QueryTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.QueryOperations.QueryTestEntity;
@@ -23,6 +24,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
         private string testDbPath;
         private string connectionString;
         private SQLitePersistenceProvider<QueryTestEntity, Guid> provider;
+        private SQLitePersistenceProvider<QueryTestSoftDeleteEntity, Guid> softDeleteProvider;
         private CallerInfo callerInfo;
 
         [TestInitialize]
@@ -32,6 +34,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.provider = new SQLitePersistenceProvider<QueryTestEntity, Guid>(this.connectionString);
             await this.provider.InitializeAsync();
+            this.softDeleteProvider = new SQLitePersistenceProvider<QueryTestSoftDeleteEntity, Guid>(this.connectionString);
+            await this.softDeleteProvider.InitializeAsync();
 
             this.callerInfo = new CallerInfo
             {
@@ -50,7 +54,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
             {
                 await this.provider.DisposeAsync();
             }
-            
+
+            if (this.softDeleteProvider != null)
+            {
+                await this.softDeleteProvider.DisposeAsync();
+            }
+
             this.SafeDeleteDatabase(this.testDbPath);
         }
 
@@ -94,14 +103,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
         public async Task QueryAsync_CompoundPredicate_AppliesAllConditions()
         {
             // Act
-            var results = await this.provider.QueryAsync(
+            var results = (await this.provider.QueryAsync(
                 e => e.Status == "Active" && e.Amount > 100,
                 null,
-                this.callerInfo);
+                this.callerInfo))?.ToList();
 
             // Assert
             results.Should().NotBeNull();
-            results.Count().Should().Be(2); // Beta (200) and TestAlpha (175)
+            results!.Count.Should().Be(2); // Beta (200) and TestAlpha (175)
             results.Should().OnlyContain(e => e.Status == "Active" && e.Amount > 100);
         }
 
@@ -197,11 +206,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Query
         [TestCategory("QueryOperations")]
         public async Task QueryPagedAsync_ReturnsPagedResult()
         {
-            // Act
+            // Act, 3 items with category "A", page size 2, page number 1
             var pagedResult = await this.provider.QueryPagedAsync(
                 e => e.Category == "A",
-                2,
-                1);
+                pageSize: 2,
+                pageNumber: 1);
 
             // Assert
             pagedResult.Should().NotBeNull();

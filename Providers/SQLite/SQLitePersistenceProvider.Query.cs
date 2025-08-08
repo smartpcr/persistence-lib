@@ -8,7 +8,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 {
     using System;
     using System.Collections.Generic;
-    using System.Data.SQLite;
     using System.Diagnostics;
     using System.Linq;
     using System.Linq.Expressions;
@@ -91,7 +90,7 @@ FROM {this.Mapper.TableName}
                     sql += $" OFFSET {skip.Value}";
                 }
 
-                using var command = this.CreateCommand(sql, connection);
+                await using var command = this.CreateCommand(sql, connection);
 
                 // Add parameters from the translation
                 foreach (var param in parameters)
@@ -100,7 +99,7 @@ FROM {this.Mapper.TableName}
                     command.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }
 
-                using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
                 // Track the latest version for each unique key
                 var latestVersions = new Dictionary<TKey, long>();
@@ -173,7 +172,7 @@ FROM {this.Mapper.TableName}
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Translate the predicate expression to SQL
                 var translator = new ExpressionTranslator<T>(
@@ -211,7 +210,7 @@ WITH LatestVersions AS (
 SELECT COUNT(*) FROM LatestVersions;";
 
                 long totalCount;
-                using (var countCommand = this.CreateCommand(countSql, connection))
+                await using (var countCommand = this.CreateCommand(countSql, connection))
                 {
                     // Add parameters for count query
                     foreach (var param in parameters)
@@ -245,31 +244,31 @@ SELECT COUNT(*) FROM LatestVersions;";
 
                 // Build the main query with pagination
                 var sql = $@"
-                WITH LatestVersions AS (
-                    SELECT *, ROW_NUMBER() OVER (PARTITION BY {this.Mapper.GetPrimaryKeyColumn()} ORDER BY Version DESC) as rn
-                    FROM {this.Mapper.TableName}
-                    {whereClause}
-                )
-                SELECT {string.Join(", ", this.Mapper.GetSelectColumns().Select(c => $"lv.{c}"))}
-                FROM LatestVersions lv
-                WHERE lv.rn = 1
-                {orderByClause}
-                LIMIT @pageSize OFFSET @offset";
+WITH LatestVersions AS (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY {this.Mapper.GetPrimaryKeyColumn()} ORDER BY Version DESC) as rn
+    FROM {this.Mapper.TableName}
+    {whereClause}
+)
+SELECT {string.Join(", ", this.Mapper.GetSelectColumns().Select(c => $"lv.{c}"))}
+FROM LatestVersions lv
+WHERE lv.rn = 1
+{orderByClause}
+LIMIT @pageSize OFFSET @offset";
 
                 var items = new List<T>();
-                using (var command = this.CreateCommand(sql, connection))
+                await using (var command = this.CreateCommand(sql, connection))
                 {
                     // Add parameters from the translation
                     foreach (var param in parameters)
                     {
-                        command.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                        command.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                     }
 
                     // Add pagination parameters
                     command.Parameters.AddWithValue("@pageSize", pageSize);
                     command.Parameters.AddWithValue("@offset", offset);
 
-                    using var reader = await command.ExecuteReaderAsync(cancellationToken);
+                    await using var reader = await command.ExecuteReaderAsync(cancellationToken);
                     while (await reader.ReadAsync(cancellationToken))
                     {
                         var entity = this.Mapper.MapFromReader(reader);
@@ -312,7 +311,7 @@ SELECT COUNT(*) FROM LatestVersions;";
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 var whereClause = "WHERE 1=1"; // Default condition if no predicate
                 var parameters = new Dictionary<string, object>();
@@ -345,12 +344,12 @@ WITH LatestVersions AS (
 SELECT COUNT(*) FROM LatestVersions";
 
 
-                using var command = this.CreateCommand(sql, connection);
+                await using var command = this.CreateCommand(sql, connection);
 
                 // Add parameters from the translation
                 foreach (var param in parameters)
                 {
-                    command.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                    command.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }
 
                 var result = await command.ExecuteScalarAsync(cancellationToken);
@@ -376,7 +375,7 @@ SELECT COUNT(*) FROM LatestVersions";
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Translate the predicate expression to SQL
                 var translator = new ExpressionTranslator<T>(
@@ -399,12 +398,12 @@ SELECT COUNT(*) FROM LatestVersions";
                     LIMIT 1
                 )";
 
-                using var command = this.CreateCommand(sql, connection);
+                await using var command = this.CreateCommand(sql, connection);
 
                 // Add parameters from the translation
                 foreach (var param in translationResult.Parameters)
                 {
-                    command.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                    command.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }
 
                 var result = await command.ExecuteScalarAsync(cancellationToken);

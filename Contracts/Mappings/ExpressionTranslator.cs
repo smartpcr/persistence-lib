@@ -39,6 +39,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         public class TranslationResult
         {
             public string Sql { get; set; }
+
+            /// <summary>
+            /// Note: key already has "@" prefix.
+            /// </summary>
             public Dictionary<string, object> Parameters { get; set; }
         }
 
@@ -60,12 +64,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
 
             // Create a spy queryable to capture the ordering expressions
             var spyQueryable = new OrderBySpyQueryable<T>(this);
-            
+
             try
             {
                 // Execute the orderBy function with our spy queryable
                 orderBy(spyQueryable);
-                
+
                 // Get the captured ORDER BY clause
                 return spyQueryable.GetOrderBySql();
             }

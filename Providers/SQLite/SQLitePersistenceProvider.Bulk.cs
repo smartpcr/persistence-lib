@@ -292,7 +292,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     Directory.CreateDirectory(options.ExportFolder);
                 }
 
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Build base WHERE clause from predicate
                 var whereClause = "1=1"; // Default condition
@@ -842,7 +842,7 @@ SELECT COUNT(*) FROM LatestVersions";
             using var countCmd = this.CreateCommand(countSql, connection);
             foreach (var param in parameters)
             {
-                countCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                countCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
             }
 
             return Convert.ToInt64(await countCmd.ExecuteScalarAsync(cancellationToken));
@@ -888,7 +888,7 @@ SELECT COUNT(*) FROM LatestVersions";
             using var command = this.CreateCommand(sql, connection);
             foreach (var param in parameters)
             {
-                command.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                command.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
             }
 
             using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -1068,8 +1068,8 @@ SELECT COUNT(*) FROM LatestVersions";
         {
             // Add ExportedDate column if it doesn't exist
             var checkColumnSql = $@"
-                SELECT COUNT(*) 
-                FROM pragma_table_info('{this.Mapper.TableName}') 
+                SELECT COUNT(*)
+                FROM pragma_table_info('{this.Mapper.TableName}')
                 WHERE name = 'ExportedDate'";
 
             using var checkCmd = this.CreateCommand(checkColumnSql, connection);
@@ -1093,7 +1093,7 @@ SELECT COUNT(*) FROM LatestVersions";
 
             foreach (var param in parameters)
             {
-                updateCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                updateCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
             }
 
             await updateCmd.ExecuteNonQueryAsync(cancellationToken);
@@ -1177,16 +1177,16 @@ SELECT COUNT(*) FROM LatestVersions";
                         FROM {this.Mapper.TableName}
                         WHERE {whereClause}
                     )
-                    SELECT 
+                    SELECT
                         (SELECT COUNT(*) FROM AffectedEntities) as EntityCount,
                         (SELECT COUNT(*) FROM {this.Mapper.TableName} t
-                         WHERE EXISTS (SELECT 1 FROM AffectedEntities a 
+                         WHERE EXISTS (SELECT 1 FROM AffectedEntities a
                                       WHERE a.{this.Mapper.GetPrimaryKeyColumn()} = t.{this.Mapper.GetPrimaryKeyColumn()})) as VersionCount";
 
                 using var countCmd = this.CreateCommand(countSql, connection);
                 foreach (var param in parameters)
                 {
-                    countCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                    countCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }
 
                 using var reader = await countCmd.ExecuteReaderAsync(cancellationToken);
@@ -1203,7 +1203,7 @@ SELECT COUNT(*) FROM LatestVersions";
                 using var countCmd = this.CreateCommand(countSql, connection);
                 foreach (var param in parameters)
                 {
-                    countCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                    countCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }
 
                 preview.AffectedEntityCount = Convert.ToInt64(await countCmd.ExecuteScalarAsync(cancellationToken));
@@ -1222,7 +1222,7 @@ SELECT COUNT(*) FROM LatestVersions";
                 using var sampleCmd = this.CreateCommand(sampleSql, connection);
                 foreach (var param in parameters)
                 {
-                    sampleCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                    sampleCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }
 
                 using var sampleReader = await sampleCmd.ExecuteReaderAsync(cancellationToken);
@@ -1377,7 +1377,7 @@ SELECT COUNT(*) FROM LatestVersions";
 
                 foreach (var param in parameters)
                 {
-                    deleteCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                    deleteCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }
 
                 var rowsDeleted = await deleteCmd.ExecuteNonQueryAsync(cancellationToken);
@@ -1407,7 +1407,7 @@ SELECT COUNT(*) FROM LatestVersions";
 
                 foreach (var param in parameters)
                 {
-                    deleteCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                    deleteCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
                 }
 
                 var rowsDeleted = await deleteCmd.ExecuteNonQueryAsync(cancellationToken);
@@ -1419,9 +1419,9 @@ SELECT COUNT(*) FROM LatestVersions";
             if (this.Mapper.SyncWithList)
             {
                 var listCleanupSql = $@"
-                    DELETE FROM EntryListMapping 
+                    DELETE FROM EntryListMapping
                     WHERE EntityKey NOT IN (
-                        SELECT DISTINCT {this.Mapper.GetPrimaryKeyColumn()} 
+                        SELECT DISTINCT {this.Mapper.GetPrimaryKeyColumn()}
                         FROM {this.Mapper.TableName}
                     )";
 
@@ -1513,7 +1513,7 @@ SELECT COUNT(*) FROM LatestVersions";
             using var deleteCmd = this.CreateCommand(deleteSql, connection, transaction);
             foreach (var param in parameters)
             {
-                deleteCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                deleteCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
             }
 
             result.VersionsPurged = await deleteCmd.ExecuteNonQueryAsync(cancellationToken);
@@ -1527,7 +1527,7 @@ SELECT COUNT(*) FROM LatestVersions";
             using var countCmd = this.CreateCommand(entityCountSql, connection, transaction);
             foreach (var param in parameters)
             {
-                countCmd.Parameters.AddWithValue($"@{param.Key}", param.Value ?? DBNull.Value);
+                countCmd.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
             }
 
             // This count is before deletion, so we need to adjust

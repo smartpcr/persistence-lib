@@ -29,4 +29,25 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
         [Column("DateCreated", SqlDbType.DateTime)]
         public DateTime DateCreated { get; set; }
     }
+
+    [Table("QueryTestEntity", SoftDeleteEnabled = true)]
+    public class QueryTestSoftDeleteEntity : BaseEntity<Guid>, IVersionedEntity<Guid>
+    {
+        [Column("Name", SqlDbType.NVarChar, Size = 100)]
+        public string Name { get; set; }
+
+        [Column("Status", SqlDbType.NVarChar, Size = 50)]
+        public string Status { get; set; }
+
+        [Column("Amount", SqlDbType.Int)]
+        public int Amount { get; set; }
+
+        [Column("Category", SqlDbType.NVarChar, Size = 50)]
+        public string Category { get; set; }
+
+        [Column("DateCreated", SqlDbType.DateTime)]
+        public DateTime DateCreated { get; set; }
+
+        public bool IsDeleted { get; set; }
+    }
 }

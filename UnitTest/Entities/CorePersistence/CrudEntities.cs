@@ -14,6 +14,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     [Table("TestEntity")]
     public class CrudTestEntity : BaseEntity<Guid>
     {
+        [PrimaryKey]
+        [Column("Id", SqlDbType.UniqueIdentifier, NotNull = true)]
+        public new Guid Id { get; set; }
+
         [Column("Name", SqlDbType.NVarChar, Size = 100)]
         public string Name { get; set; }
 

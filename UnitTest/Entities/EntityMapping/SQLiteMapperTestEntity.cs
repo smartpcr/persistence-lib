@@ -19,6 +19,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     [Table("TestEntity")]
     public class SQLiteMapperTestEntity : BaseEntity<Guid>
     {
+        [PrimaryKey]
+        [Column("Id")]
+        public new Guid Id { get; set; }
+
         [Column("Name", SqlDbType.NVarChar, Size = 100)]
         public string Name { get; set; }
 

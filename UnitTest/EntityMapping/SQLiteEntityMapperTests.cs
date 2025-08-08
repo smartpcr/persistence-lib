@@ -110,7 +110,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             parsed.Should().BeOfType<InsertStatement>();
             var insertStatement = (InsertStatement)parsed;
             insertStatement.TableName.Should().Be("TestEntity", "Should reference the correct table");
-            insertStatement.Columns.Should().BeEquivalentTo(new[] { "CacheKey", "Name", "Count", "CreatedDate", "Version", "CreatedTime", "LastWriteTime", "Amount", "ComplexData", }, "Should include all entity properties");
+            insertStatement.Columns.Should().BeEquivalentTo(new[] { "Id", "Name", "Count", "CreatedDate", "Version", "CreatedTime", "LastWriteTime", "Amount", "ComplexData", }, "Should include all entity properties");
             insertStatement.Values.Count.Should().Be(9, "Should have parameters for all properties");
 
             command.Should().NotBeNull();
@@ -178,13 +178,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var binaryExpression = (BinaryExpression)deleteStatement.Where;
             binaryExpression.Left.Should().BeOfType<ColumnExpression>();
             var columnExpression = (ColumnExpression)binaryExpression.Left;
-            columnExpression.ColumnName.Should().Be("CacheKey", "Should filter by CacheKey (Id) column");
+            columnExpression.ColumnName.Should().Be("Id", "Should filter by Id (Id) column");
             binaryExpression.Operator.Should().Be(SqlTokenType.EQUALS);
 
             command.Should().NotBeNull();
             command.CommandText.Should().StartWith("DELETE FROM", "Command should be a DELETE statement");
             command.CommandText.Should().Contain("WHERE", "Should have WHERE clause");
-            command.CommandText.Should().Contain("@CacheKey", "Should have Id parameter");
+            command.CommandText.Should().Contain("@Id", "Should have Id parameter");
         }
 
         [TestMethod]
@@ -219,7 +219,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             mockReader.Setup(r => r.GetValue(7)).Returns(testDateTimeOffset);
 
             mockReader.Setup(r => r.FieldCount).Returns(8);
-            for (int i = 0; i < 8; i++)
+            for (var i = 0; i < 8; i++)
             {
                 var index = i;
                 mockReader.Setup(r => r.GetName(index)).Returns(
@@ -250,7 +250,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var testDateTimeOffset = new DateTimeOffset(testDate);
 
             // Setup ordinals
-            mockReader.Setup(r => r.GetOrdinal("CacheKey")).Returns(0);
+            mockReader.Setup(r => r.GetOrdinal("Id")).Returns(0);
             mockReader.Setup(r => r.GetOrdinal("Name")).Returns(1);
             mockReader.Setup(r => r.GetOrdinal("Amount")).Returns(2);
             mockReader.Setup(r => r.GetOrdinal("Version")).Returns(3);
@@ -274,7 +274,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             {
                 var index = i;
                 mockReader.Setup(r => r.GetName(index)).Returns(
-                    new[] { "CacheKey", "Name", "Amount", "Version", "CreatedTime", "LastWriteTime" }[index]
+                    new[] { "Id", "Name", "Amount", "Version", "CreatedTime", "LastWriteTime" }[index]
                 );
             }
 
@@ -324,7 +324,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
 
         [TestMethod]
         [TestCategory("EntityMapping")]
-        [Ignore("Test has incorrect property assignments - ComplexData is string, not ComplexObject")]
         public void SerializeEntity_HandlesComplexObjects()
         {
             // Arrange
@@ -355,7 +354,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
 
         [TestMethod]
         [TestCategory("EntityMapping")]
-        [Ignore("Test has incorrect property assignments and calls non-existent DeserializeEntity method")]
         public void DeserializeEntity_ReconstructsObjects()
         {
             // Arrange
@@ -384,9 +382,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             deserialized.Amount.Should().Be(original.Amount);
             deserialized.ComplexData.Should().NotBeNull();
             deserialized.ComplexData.Should().Be(original.ComplexData);
-            // Complex object assertions commented out since ComplexData is a string
-            // Assert.AreEqual(original.ComplexData.Field1, deserialized.ComplexData.Field1);
-            // Assert.AreEqual(original.ComplexData.Field2, deserialized.ComplexData.Field2);
         }
     }
 }

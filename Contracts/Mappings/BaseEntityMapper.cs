@@ -408,6 +408,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                 return dateTimeOffset.ToString("O");
             }
 
+            if (value is Guid guid)
+            {
+                return guid.ToString("D");
+            }
+
             return value;
         }
 

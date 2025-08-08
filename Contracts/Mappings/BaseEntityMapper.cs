@@ -459,26 +459,32 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             // Step 1: Collect all property values from the reader into a dictionary
             var propertyValues = new Dictionary<string, object>();
 
+            // Build a lookup of available columns to their ordinals to avoid
+            // exceptions when the reader doesn't contain a mapped column
+            var columnOrdinals = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < reader.FieldCount; i++)
+            {
+                columnOrdinals[reader.GetName(i)] = i;
+            }
+
             foreach (var mapping in this.PropertyMappings.Values.Where(m => !m.IsNotMapped))
             {
-                try
+                if (!columnOrdinals.TryGetValue(mapping.ColumnName, out var ordinal))
                 {
-                    var ordinal = reader.GetOrdinal(mapping.ColumnName);
-                    if (!reader.IsDBNull(ordinal))
-                    {
-                        var dbValue = reader.GetValue(ordinal);
-                        // Convert database value to appropriate C# type
-                        var convertedValue = this.ConvertDbValueToCSharpType(dbValue, mapping.PropertyType);
-                        propertyValues[mapping.PropertyName] = convertedValue;
-                    }
-                    else
-                    {
-                        propertyValues[mapping.PropertyName] = null;
-                    }
+                    // Column not present in result set
+                    propertyValues[mapping.PropertyName] = null;
+                    continue;
                 }
-                catch (IndexOutOfRangeException)
+
+                if (!reader.IsDBNull(ordinal))
                 {
-                    // Column not in result set, skip
+                    var dbValue = reader.GetValue(ordinal);
+                    // Convert database value to appropriate C# type
+                    var convertedValue = this.ConvertDbValueToCSharpType(dbValue, mapping.PropertyType);
+                    propertyValues[mapping.PropertyName] = convertedValue;
+                }
+                else
+                {
                     propertyValues[mapping.PropertyName] = null;
                 }
             }

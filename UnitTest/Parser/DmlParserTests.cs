@@ -102,5 +102,30 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parse
                 stmt.Columns);
             Assert.AreEqual(9, stmt.Values.Count);
         }
+
+        [TestMethod]
+        public void TestUpdateStatement()
+        {
+            var sql = "UPDATE users SET name = 'Alice', age = 30 WHERE id = 1";
+            var node = this.ParseStatement(sql);
+            Assert.IsInstanceOfType(node, typeof(UpdateStatement));
+            var stmt = (UpdateStatement)node;
+            Assert.AreEqual("users", stmt.TableName);
+            Assert.AreEqual(2, stmt.SetClauses.Count);
+            Assert.AreEqual("name", stmt.SetClauses[0].Column);
+            Assert.AreEqual("Alice", ((LiteralExpression)stmt.SetClauses[0].Value).Value);
+            Assert.IsNotNull(stmt.Where);
+        }
+
+        [TestMethod]
+        public void TestDeleteStatement()
+        {
+            var sql = "DELETE FROM users WHERE id = 1";
+            var node = this.ParseStatement(sql);
+            Assert.IsInstanceOfType(node, typeof(DeleteStatement));
+            var stmt = (DeleteStatement)node;
+            Assert.AreEqual("users", stmt.TableName);
+            Assert.IsNotNull(stmt.Where);
+        }
     }
 }

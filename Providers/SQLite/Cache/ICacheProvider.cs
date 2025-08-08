@@ -4,14 +4,14 @@
 // </copyright>
 //-------------------------------------------------------------------------------
 
-namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite
+namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Cache
 {
     using System;
     using System.Collections.Generic;
     using System.Threading;
     using System.Threading.Tasks;
-    using Contracts;
-    using Entities;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Entities;
 
     /// <summary>
     /// Defines the contract for a cache provider that stores key-value pairs with expiration support.

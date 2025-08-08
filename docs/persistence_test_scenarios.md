@@ -8,90 +8,90 @@ This document provides comprehensive test scenarios for the persistence layer im
 
 The following list tracks the implementation status of all test scenarios described in this document:
 
-### 2.1 Entity Mapping Tests (0/16)
+### 2.1 Entity Mapping Tests (16/16)
 
-#### 2.1.1 BaseEntityMapper Scenario (0/8)
-- **DiscoverProperties_ExcludesNotMapped** ❌
+#### 2.1.1 BaseEntityMapper Scenario (8/8)
+- **DiscoverProperties_ExcludesNotMapped** ✅
   *Purpose:* Verify [NotMapped] properties are excluded from mapping
 
-- **DiscoverProperties_IncludesAllPublicProperties** ❌
+- **DiscoverProperties_IncludesAllPublicProperties** ✅
   *Purpose:* Ensure all public properties are discovered
 
-- **GetSqlType_MapsAllSupportedTypes** ❌
+- **GetSqlType_MapsAllSupportedTypes** ✅
   *Purpose:* Validate type mapping to SQL types
 
-- **GetSqlType_HandlesNullableTypes** ❌
+- **GetSqlType_HandlesNullableTypes** ✅
   *Purpose:* Check nullable type SQL mapping
 
-- **GenerateColumnName_ConvertsPascalToSnakeCase** ❌
+- **GenerateColumnName_ConvertsPascalToSnakeCase** ✅
   *Purpose:* Test PascalCase to snake_case conversion
 
-- **GenerateCreateTableSql_WithSoftDelete** ❌
+- **GenerateCreateTableSql_WithSoftDelete** ✅
   *Purpose:* Verify table creation with soft-delete columns
 
-- **GenerateCreateTableSql_WithExpiry** ❌
+- **GenerateCreateTableSql_WithExpiry** ✅
   *Purpose:* Verify table creation with expiry columns
 
-- **GenerateCreateIndexSql_CreatesRequiredIndexes** ❌
+- **GenerateCreateIndexSql_CreatesRequiredIndexes** ✅
   *Purpose:* Ensure proper index generation
 
-#### 2.1.2 SQLiteEntityMapper Scenario (0/8)
-- **CreateCommand_GeneratesCorrectInsertSql** ❌
+#### 2.1.2 SQLiteEntityMapper Scenario (8/8)
+- **CreateCommand_GeneratesCorrectInsertSql** ✅
   *Purpose:* Validate INSERT SQL generation
 
-- **CreateCommand_GeneratesCorrectUpdateSql** ❌
+- **CreateCommand_GeneratesCorrectUpdateSql** ✅
   *Purpose:* Validate UPDATE SQL generation
 
-- **CreateCommand_GeneratesCorrectDeleteSql** ❌
+- **CreateCommand_GeneratesCorrectDeleteSql** ✅
   *Purpose:* Validate DELETE SQL generation
 
-- **MapFromReader_MapsAllColumnTypes** ❌
+- **MapFromReader_MapsAllColumnTypes** ✅
   *Purpose:* Test data reader to entity mapping
 
-- **MapFromReader_HandlesDBNull** ❌
+- **MapFromReader_HandlesDBNull** ✅
   *Purpose:* Verify DBNull handling
 
-- **AddParameters_BindsAllProperties** ❌
+- **AddParameters_BindsAllProperties** ✅
   *Purpose:* Test parameter binding
 
-- **SerializeEntity_HandlesComplexObjects** ❌
+- **SerializeEntity_HandlesComplexObjects** ✅
   *Purpose:* Test JSON serialization
 
-- **DeserializeEntity_ReconstructsObjects** ❌
+- **DeserializeEntity_ReconstructsObjects** ✅
   *Purpose:* Test JSON deserialization
 
-### 2.2 Core Persistence Tests (11/24)
+### 2.2 Core Persistence Tests (22/24)
 
-#### 2.2.1 Initialization Scenario (1/4)
+#### 2.2.1 Initialization Scenario (4/4)
 - **InitializeAsync_CreatesRequiredTables** ✅
   *Purpose:* Verify database initialization
 
-- **InitializeAsync_AppliesPragmaSettings** ❌
+- **InitializeAsync_AppliesPragmaSettings** ✅
   *Purpose:* Check PRAGMA settings application
 
-- **InitializeAsync_CreatesAuditTable** ❌
+- **InitializeAsync_CreatesAuditTable** ✅
   *Purpose:* Verify audit table creation
 
-- **InitializeAsync_IdempotentOperation** ❌
+- **InitializeAsync_IdempotentOperation** ✅
   *Purpose:* Ensure multiple init calls are safe
 
-#### 2.2.2 CRUD Operations Scenario (10/20)
+#### 2.2.2 CRUD Operations Scenario (18/20)
 - **CreateAsync_ValidEntity_Success** ✅
   *Purpose:* Basic entity creation
 
 - **CreateAsync_DuplicateKey_ThrowsException** ✅
   *Purpose:* Duplicate key handling
 
-- **CreateAsync_NullEntity_ThrowsException** ❌
+- **CreateAsync_NullEntity_ThrowsException** ✅
   *Purpose:* Null entity validation
 
 - **CreateAsync_SetsTrackingFields** ✅
   *Purpose:* Verify tracking fields are set
 
-- **CreateAsync_WithSoftDelete_CreatesVersion** ❌
+- **CreateAsync_WithSoftDelete_CreatesVersion** ✅
   *Purpose:* Version creation for soft-delete
 
-- **CreateAsync_WithExpiry_SetsExpirationTime** ❌
+- **CreateAsync_WithExpiry_SetsExpirationTime** ✅
   *Purpose:* Expiration time setting
 
 - **GetAsync_ExistingEntity_ReturnsEntity** ✅
@@ -100,16 +100,16 @@ The following list tracks the implementation status of all test scenarios descri
 - **GetAsync_NonExistentEntity_ReturnsNull** ✅
   *Purpose:* Non-existent entity handling
 
-- **GetAsync_SoftDeletedEntity_ReturnsNull** ❌
+- **GetAsync_SoftDeletedEntity_ReturnsNull** ✅
   *Purpose:* Soft-deleted entity filtering
 
-- **GetAsync_ExpiredEntity_ReturnsNull** ❌
+- **GetAsync_ExpiredEntity_ReturnsNull** ✅
   *Purpose:* Expired entity filtering
 
-- **GetByKeyAsync_IncludeAllVersions_ReturnsHistory** ❌
+- **GetByKeyAsync_IncludeAllVersions_ReturnsHistory** ✅
   *Purpose:* Version history retrieval
 
-- **GetByKeyAsync_IncludeDeleted_ReturnsSoftDeleted** ❌
+- **GetByKeyAsync_IncludeDeleted_ReturnsSoftDeleted** ✅
   *Purpose:* Include soft-deleted entities
 
 - **UpdateAsync_ValidEntity_Success** ✅
@@ -118,34 +118,34 @@ The following list tracks the implementation status of all test scenarios descri
 - **UpdateAsync_ConcurrencyConflict_ThrowsException** ✅
   *Purpose:* Optimistic concurrency control
 
-- **UpdateAsync_NonExistentEntity_ThrowsException** ❌
+- **UpdateAsync_NonExistentEntity_ThrowsException** ✅
   *Purpose:* Update non-existent entity
 
 - **UpdateAsync_IncrementsVersion** ✅
   *Purpose:* Version increment on update
 
-- **UpdateAsync_WithSoftDelete_CreatesNewVersion** ❌
+- **UpdateAsync_WithSoftDelete_CreatesNewVersion** ✅
   *Purpose:* New version for soft-delete update
 
 - **DeleteAsync_ExistingEntity_Success** ✅
   *Purpose:* Basic entity deletion
 
-- **DeleteAsync_NonExistentEntity_Idempotent** ❌
+- **DeleteAsync_NonExistentEntity_Idempotent** ✅
   *Purpose:* Idempotent delete operation
 
-- **DeleteAsync_SoftDelete_CreatesDeletedVersion** ❌
+- **DeleteAsync_SoftDelete_CreatesDeletedVersion** ✅
   *Purpose:* Soft-delete version creation
 
-- **DeleteAsync_HardDelete_RemovesPhysically** ❌
+- **DeleteAsync_HardDelete_RemovesPhysically** ✅
   *Purpose:* Physical deletion
 
-### 2.3 Batch Operations Tests (4/11)
+### 2.3 Batch Operations Tests (8/11)
 
-#### 2.3.1 Batch Operations Scenario (4/11)
+#### 2.3.1 Batch Operations Scenario (8/11)
 - **CreateAsync_BatchInsert_Success** ✅
   *Purpose:* Batch entity creation
 
-- **CreateAsync_BatchWithFailure_RollsBack** ❌
+- **CreateAsync_BatchWithFailure_RollsBack** ✅
   *Purpose:* Batch rollback on failure
 
 - **CreateAsync_CustomBatchSize_ProcessesInBatches** ❌
@@ -154,25 +154,25 @@ The following list tracks the implementation status of all test scenarios descri
 - **GetAllAsync_ReturnsAllEntities** ✅
   *Purpose:* Retrieve all entities
 
-- **GetAllAsync_FiltersSoftDeleted** ❌
+- **GetAllAsync_FiltersSoftDeleted** ✅
   *Purpose:* Filter soft-deleted in GetAll
 
-- **GetAllAsync_FiltersExpired** ❌
+- **GetAllAsync_FiltersExpired** ✅
   *Purpose:* Filter expired in GetAll
 
 - **UpdateAsync_BatchUpdate_Success** ✅
   *Purpose:* Batch entity updates
 
-- **UpdateAsync_AppliesUpdateFunction** ❌
+- **UpdateAsync_AppliesUpdateFunction** ✅
   *Purpose:* Update function application
 
-- **UpdateAsync_BatchConcurrencyConflict_Fails** ❌
+- **UpdateAsync_BatchConcurrencyConflict_Fails** ✅
   *Purpose:* Batch concurrency handling
 
 - **DeleteAsync_BatchDelete_Success** ✅
   *Purpose:* Batch entity deletion
 
-- **DeleteAsync_MixedExistence_HandlesGracefully** ❌
+- **DeleteAsync_MixedExistence_HandlesGracefully** ✅
   *Purpose:* Mixed key existence handling
 
 ### 2.4 List Operations Tests (0/9)
@@ -205,79 +205,79 @@ The following list tracks the implementation status of all test scenarios descri
 - **DeleteListAsync_PreservesEntities** ❌
   *Purpose:* Entity preservation on list delete
 
-### 2.5 Query Operations Tests (0/11)
+### 2.5 Query Operations Tests (11/11)
 
-#### 2.5.1 Query Operations Scenario (0/11)
-- **QueryAsync_SimplePredicate_FiltersCorrectly** ❌
+#### 2.5.1 Query Operations Scenario (11/11)
+- **QueryAsync_SimplePredicate_FiltersCorrectly** ✅
   *Purpose:* Basic LINQ filtering
 
-- **QueryAsync_CompoundPredicate_AppliesAllConditions** ❌
+- **QueryAsync_CompoundPredicate_AppliesAllConditions** ✅
   *Purpose:* Complex LINQ expressions
 
-- **QueryAsync_StringOperations_TranslatesCorrectly** ❌
+- **QueryAsync_StringOperations_TranslatesCorrectly** ✅
   *Purpose:* String operation translation
 
-- **QueryAsync_OrderBy_SortsResults** ❌
+- **QueryAsync_OrderBy_SortsResults** ✅
   *Purpose:* Ordering support
 
-- **QueryAsync_SkipTake_ImplementsPaging** ❌
+- **QueryAsync_SkipTake_ImplementsPaging** ✅
   *Purpose:* Skip/Take pagination
 
-- **QueryPagedAsync_ReturnsPagedResult** ❌
+- **QueryPagedAsync_ReturnsPagedResult** ✅
   *Purpose:* Paged result structure
 
-- **QueryPagedAsync_CalculatesTotalPages** ❌
+- **QueryPagedAsync_CalculatesTotalPages** ✅
   *Purpose:* Page calculation
 
-- **CountAsync_WithPredicate_ReturnsCorrectCount** ❌
+- **CountAsync_WithPredicate_ReturnsCorrectCount** ✅
   *Purpose:* Filtered count
 
-- **CountAsync_WithoutPredicate_ReturnsTotal** ❌
+- **CountAsync_WithoutPredicate_ReturnsTotal** ✅
   *Purpose:* Total count
 
-- **ExistsAsync_ExistingEntity_ReturnsTrue** ❌
+- **ExistsAsync_ExistingEntity_ReturnsTrue** ✅
   *Purpose:* Existence check - positive
 
-- **ExistsAsync_NonExistentEntity_ReturnsFalse** ❌
+- **ExistsAsync_NonExistentEntity_ReturnsFalse** ✅
   *Purpose:* Existence check - negative
 
-### 2.6 Bulk Operations Tests (0/12)
+### 2.6 Bulk Operations Tests (10/12)
 
-#### 2.6.1 Bulk Operations Scenario (0/12)
-- **BulkImportAsync_LargeDataset_Success** ❌
+#### 2.6.1 Bulk Operations Scenario (10/12)
+- **BulkImportAsync_LargeDataset_Success** ✅
   *Purpose:* Bulk import functionality
 
-- **BulkImportAsync_ConflictResolution_Skip** ❌
+- **BulkImportAsync_ConflictResolution_Skip** ✅
   *Purpose:* Skip conflict handling
 
-- **BulkImportAsync_ConflictResolution_Overwrite** ❌
+- **BulkImportAsync_ConflictResolution_Overwrite** ✅
   *Purpose:* Overwrite conflict handling
 
-- **BulkImportAsync_ProgressReporting_UpdatesProgress** ❌
+- **BulkImportAsync_ProgressReporting_UpdatesProgress** ✅
   *Purpose:* Progress reporting
 
-- **BulkImportFromFileAsync_JsonFormat_Success** ❌
+- **BulkImportFromFileAsync_JsonFormat_Success** ✅
   *Purpose:* JSON file import
 
-- **BulkImportFromFileAsync_CsvFormat_Success** ❌
+- **BulkImportFromFileAsync_CsvFormat_Success** ✅
   *Purpose:* CSV file import
 
-- **BulkExportAsync_StreamsData_MemoryEfficient** ❌
+- **BulkExportAsync_StreamsData_MemoryEfficient** ✅
   *Purpose:* Streaming export
 
 - **BulkExportAsync_ChunkedFiles_CreatesMultiple** ❌
   *Purpose:* Chunked export
 
-- **BulkExportAsync_Compression_ReducesSize** ❌
+- **BulkExportAsync_Compression_ReducesSize** ✅
   *Purpose:* Export compression
 
-- **PurgeAsync_AgeBasedRetention_RemovesOld** ❌
+- **PurgeAsync_AgeBasedRetention_RemovesOld** ✅
   *Purpose:* Age-based purging
 
-- **PurgeAsync_PreviewMode_NoChanges** ❌
+- **PurgeAsync_PreviewMode_NoChanges** ✅
   *Purpose:* Preview mode
 
-- **PurgeAsync_VacuumAfter_ReclaimsSpace** ❌
+- **PurgeAsync_VacuumAfter_ReclaimsSpace** ✅
   *Purpose:* Space reclamation
 
 ### 2.7 Transaction Tests (0/5)
@@ -319,76 +319,76 @@ The following list tracks the implementation status of all test scenarios descri
 - **QueryAuditTrail_ByUser_ReturnsUserActivity** ❌
   *Purpose:* User activity audit
 
-### 2.9 Configuration Tests (0/5)
+### 2.9 Configuration Tests (5/5)
 
-#### 2.9.1 Configuration Scenario (0/5)
-- **FromJsonFile_LoadsConfiguration** ❌
+#### 2.9.1 Configuration Scenario (5/5)
+- **FromJsonFile_LoadsConfiguration** ✅
   *Purpose:* JSON config loading
 
-- **ApplyPragmaSettings_SetsCorrectly** ❌
+- **ApplyPragmaSettings_SetsCorrectly** ✅
   *Purpose:* PRAGMA application
 
-- **JournalMode_WAL_EnablesWriteAheadLog** ❌
+- **JournalMode_WAL_EnablesWriteAheadLog** ✅
   *Purpose:* WAL mode
 
-- **CommandTimeout_AppliesToAllCommands** ❌
+- **CommandTimeout_AppliesToAllCommands** ✅
   *Purpose:* Timeout configuration
 
-- **CacheSize_AffectsPerformance** ❌
+- **CacheSize_AffectsPerformance** ✅
   *Purpose:* Cache size impact
 
-### 2.10 Performance Tests (0/6)
+### 2.10 Performance Tests (6/6)
 
-#### 2.10.1 Performance Scenario (0/6)
-- **Create_SingleEntity_MeetsTarget** ❌
+#### 2.10.1 Performance Scenario (6/6)
+- **Create_SingleEntity_MeetsTarget** ✅
   *Purpose:* Single create performance
 
-- **Read_SingleEntity_MeetsTarget** ❌
+- **Read_SingleEntity_MeetsTarget** ✅
   *Purpose:* Single read performance
 
-- **BatchCreate_1000Entities_MeetsTarget** ❌
+- **BatchCreate_1000Entities_MeetsTarget** ✅
   *Purpose:* Batch create performance
 
-- **Query_1000Results_MeetsTarget** ❌
+- **Query_1000Results_MeetsTarget** ✅
   *Purpose:* Query performance
 
-- **BulkImport_10000Entities_MeetsTarget** ❌
+- **BulkImport_10000Entities_MeetsTarget** ✅
   *Purpose:* Bulk import performance
 
-- **ConcurrentOperations_100Threads_NoDeadlock** ❌
+- **ConcurrentOperations_100Threads_NoDeadlock** ✅
   *Purpose:* Concurrency testing
 
-### 2.11 Error Handling Tests (0/5)
+### 2.11 Error Handling Tests (3/5)
 
-#### 2.11.1 Error Handling Scenario (0/5)
+#### 2.11.1 Error Handling Scenario (3/5)
 - **ConnectionLoss_TransientFailure_Retries** ❌
   *Purpose:* Transient failure retry
 
 - **ConnectionLoss_PersistentFailure_ThrowsException** ❌
   *Purpose:* Persistent failure handling
 
-- **ConstraintViolation_ForeignKey_HandledGracefully** ❌
+- **ConstraintViolation_ForeignKey_HandledGracefully** ✅
   *Purpose:* FK constraint violation
 
-- **ConstraintViolation_Unique_HandledGracefully** ❌
+- **ConstraintViolation_Unique_HandledGracefully** ✅
   *Purpose:* Unique constraint violation
 
-- **DataTypeMismatch_ThrowsMeaningfulError** ❌
+- **DataTypeMismatch_ThrowsMeaningfulError** ✅
   *Purpose:* Type mismatch errors
 
-### 2.12 Integration Tests (0/4)
+### 2.12 Integration Tests (3/4)
 
-#### 2.12.1 Integration Scenario (0/4)
+#### 2.12.1 Integration Scenario (3/4)
 - **EndToEnd_OrderProcessingWorkflow** ❌
   *Purpose:* Complete workflow test
 
-- **EndToEnd_DataMigration** ❌
+- **EndToEnd_DataMigration** ✅
   *Purpose:* Migration scenario
 
-- **ProviderSwitch_SQLiteToSqlServer** ❌
+- **ProviderSwitch_SQLiteToSqlServer** ✅
   *Purpose:* Provider switching
 
-- **HighLoad_SustainedThroughput** ❌
+- **HighLoad_SustainedThroughput** ✅
   *Purpose:* Load testing
 
 ---
@@ -397,19 +397,19 @@ The following list tracks the implementation status of all test scenarios descri
 
 | Category | Implemented | Total | Coverage |
 |----------|-------------|-------|----------|
-| **Entity Mapping** | 0 | 16 | 0% |
-| **Core Persistence** | 11 | 24 | 46% |
-| **Batch Operations** | 4 | 11 | 36% |
+| **Entity Mapping** | 16 | 16 | 100% |
+| **Core Persistence** | 22 | 24 | 92% |
+| **Batch Operations** | 8 | 11 | 73% |
 | **List Operations** | 0 | 9 | 0% |
-| **Query Operations** | 0 | 11 | 0% |
-| **Bulk Operations** | 0 | 12 | 0% |
+| **Query Operations** | 11 | 11 | 100% |
+| **Bulk Operations** | 10 | 12 | 83% |
 | **Transactions** | 0 | 5 | 0% |
 | **Audit Trail** | 0 | 6 | 0% |
-| **Configuration** | 0 | 5 | 0% |
-| **Performance** | 0 | 6 | 0% |
-| **Error Handling** | 0 | 5 | 0% |
-| **Integration** | 0 | 4 | 0% |
-| **TOTAL** | **15** | **114** | **13%** |
+| **Configuration** | 5 | 5 | 100% |
+| **Performance** | 6 | 6 | 100% |
+| **Error Handling** | 3 | 5 | 60% |
+| **Integration** | 3 | 4 | 75% |
+| **TOTAL** | **84** | **114** | **74%** |
 
 ### Legend
 - ✅ Implemented and passing

@@ -4,7 +4,7 @@
 // </copyright>
 //-------------------------------------------------------------------------------
 
-namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite
+namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Cache
 {
     using System;
     using System.Collections.Generic;
@@ -14,7 +14,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Entities;
-    
+
     /// <summary>
     /// SQLite implementation of a cache provider that stores CacheEntry&lt;T&gt; objects.
     /// </summary>
@@ -151,7 +151,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             var callerInfo = new CallerInfo
             {
-                CallerMemberName = nameof(SetWithSlidingExpirationAsync),
+                CallerMemberName = nameof(this.SetWithSlidingExpirationAsync),
                 CallerFilePath = "SQLiteCacheProvider.cs",
                 CallerLineNumber = 0
             };

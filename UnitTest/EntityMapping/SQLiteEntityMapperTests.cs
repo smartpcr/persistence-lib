@@ -10,16 +10,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     using System.Collections.Generic;
     using System.Data;
     using System.Data.SQLite;
+    using System.Linq.Expressions;
     using System.Threading.Tasks;
     using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.EntityMapping;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Parser;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Moq;
     using Newtonsoft.Json;
+    using BinaryExpression = Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Parser.BinaryExpression;
 
     [TestClass]
     public class SQLiteEntityMapperTests
@@ -104,10 +107,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var insertSql = command.CommandText;
             var parsed = DebugParser.ParseSqlStatement(insertSql);
             parsed.Should().NotBeNull();
+            parsed.Should().BeOfType<InsertStatement>();
+            var insertStatement = (InsertStatement)parsed;
+            insertStatement.TableName.Should().Be("TestEntity", "Should reference the correct table");
+            insertStatement.Columns.Should().BeEquivalentTo(new[] { "CacheKey", "Name", "Count", "CreatedDate", "Version", "CreatedTime", "LastWriteTime", "Amount", "ComplexData", }, "Should include all entity properties");
+            insertStatement.Values.Count.Should().Be(9, "Should have parameters for all properties");
 
             command.Should().NotBeNull();
             command.CommandText.Should().StartWith("INSERT INTO", "Command should be an INSERT statement");
-            command.CommandText.Should().Contain("SQLiteMapperTestEntity", "Should reference the correct table");
+            command.CommandText.Should().Contain("TestEntity", "Should reference the correct table");
             command.CommandType.Should().Be(CommandType.Text);
             command.Parameters.Count.Should().BeGreaterThan(0, "Should have parameters");
         }
@@ -159,10 +167,24 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             using var command = this.mapper.CreateCommand(DbOperationType.Delete, context);
 
             // Assert
+            var deleteSql = command.CommandText;
+            var parsed = DebugParser.ParseSqlStatement(deleteSql);
+            parsed.Should().NotBeNull();
+            parsed.Should().BeOfType<DeleteStatement>();
+            var deleteStatement = (DeleteStatement)parsed;
+            deleteStatement.TableName.Should().Be("TestEntity", "Should reference the correct table");
+            deleteStatement.Where.Should().NotBeNull("Should have a WHERE clause");
+            deleteStatement.Where.Should().BeOfType<BinaryExpression>();
+            var binaryExpression = (BinaryExpression)deleteStatement.Where;
+            binaryExpression.Left.Should().BeOfType<ColumnExpression>();
+            var columnExpression = (ColumnExpression)binaryExpression.Left;
+            columnExpression.ColumnName.Should().Be("CacheKey", "Should filter by CacheKey (Id) column");
+            binaryExpression.Operator.Should().Be(SqlTokenType.EQUALS);
+
             command.Should().NotBeNull();
             command.CommandText.Should().StartWith("DELETE FROM", "Command should be a DELETE statement");
             command.CommandText.Should().Contain("WHERE", "Should have WHERE clause");
-            command.CommandText.Should().Contain("@Id", "Should have Id parameter");
+            command.CommandText.Should().Contain("@CacheKey", "Should have Id parameter");
         }
 
         [TestMethod]
@@ -173,6 +195,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var mockReader = new Mock<IDataReader>();
             var testGuid = Guid.NewGuid();
             var testDate = DateTime.UtcNow;
+            var testDateTimeOffset = new DateTimeOffset(testDate);
 
             mockReader.Setup(r => r.GetOrdinal("Id")).Returns(0);
             mockReader.Setup(r => r.GetOrdinal("Name")).Returns(1);
@@ -192,8 +215,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             mockReader.Setup(r => r.GetValue(3)).Returns(testDate);
             mockReader.Setup(r => r.GetValue(4)).Returns(123.45m);
             mockReader.Setup(r => r.GetValue(5)).Returns(1);
-            mockReader.Setup(r => r.GetValue(6)).Returns(testDate);
-            mockReader.Setup(r => r.GetValue(7)).Returns(testDate);
+            mockReader.Setup(r => r.GetValue(6)).Returns(testDateTimeOffset);
+            mockReader.Setup(r => r.GetValue(7)).Returns(testDateTimeOffset);
 
             mockReader.Setup(r => r.FieldCount).Returns(8);
             for (int i = 0; i < 8; i++)
@@ -224,9 +247,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             var mockReader = new Mock<IDataReader>();
             var testGuid = Guid.NewGuid();
             var testDate = DateTime.UtcNow;
+            var testDateTimeOffset = new DateTimeOffset(testDate);
 
             // Setup ordinals
-            mockReader.Setup(r => r.GetOrdinal("Id")).Returns(0);
+            mockReader.Setup(r => r.GetOrdinal("CacheKey")).Returns(0);
             mockReader.Setup(r => r.GetOrdinal("Name")).Returns(1);
             mockReader.Setup(r => r.GetOrdinal("Amount")).Returns(2);
             mockReader.Setup(r => r.GetOrdinal("Version")).Returns(3);
@@ -242,15 +266,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             mockReader.Setup(r => r.GetValue(1)).Returns("Test");
             mockReader.Setup(r => r.GetValue(2)).Returns(DBNull.Value);
             mockReader.Setup(r => r.GetValue(3)).Returns(1);
-            mockReader.Setup(r => r.GetValue(4)).Returns(testDate);
-            mockReader.Setup(r => r.GetValue(5)).Returns(testDate);
+            mockReader.Setup(r => r.GetValue(4)).Returns(testDateTimeOffset);
+            mockReader.Setup(r => r.GetValue(5)).Returns(testDateTimeOffset);
 
             mockReader.Setup(r => r.FieldCount).Returns(6);
             for (int i = 0; i < 6; i++)
             {
                 var index = i;
                 mockReader.Setup(r => r.GetName(index)).Returns(
-                    new[] { "Id", "Name", "Amount", "Version", "CreatedTime", "LastWriteTime" }[index]
+                    new[] { "CacheKey", "Name", "Amount", "Version", "CreatedTime", "LastWriteTime" }[index]
                 );
             }
 

@@ -8,8 +8,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
 {
     using System;
     using System.Collections.Generic;
+    using System.Data.SQLite;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
@@ -21,13 +24,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
     public class BulkOperationsTests
     {
         private string connectionString;
+        private string dbPath;
         private SQLitePersistenceProvider<BulkTestEntity, Guid> provider;
         private CallerInfo callerInfo;
 
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.dbPath = Path.GetTempFileName();
+            this.connectionString = $"Data Source={this.dbPath};Version=3;";
             this.provider = new SQLitePersistenceProvider<BulkTestEntity, Guid>(this.connectionString);
             await this.provider.InitializeAsync();
             
@@ -44,6 +49,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             if (this.provider != null)
             {
                 await this.provider.DisposeAsync();
+            }
+            if (this.dbPath != null && File.Exists(this.dbPath))
+            {
+                File.Delete(this.dbPath);
             }
         }
 
@@ -238,7 +247,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                     new BulkTestEntity { Id = Guid.NewGuid(), Name = $"Export {i}", Value = i },
                     this.callerInfo);
             }
-            
+
             using var stream = new MemoryStream();
 
             // Act
@@ -246,10 +255,29 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
 
             // Assert
             Assert.AreEqual(100, result.ExportedCount);
-            
+
             // Verify exported data
             var exported = result.ExportedEntities.ToList();
             Assert.AreEqual(100, exported.Count);
+        }
+
+        [TestMethod]
+        [TestCategory("BulkOperations")]
+        public async Task BulkExportAsync_MarkAsExported_AddsColumn()
+        {
+            // Arrange
+            var entity = new BulkTestEntity { Id = Guid.NewGuid(), Name = "ToExport", Value = 1 };
+            await this.provider.CreateAsync(entity, this.callerInfo);
+
+            Assert.IsFalse(await ColumnExistsAsync("ExportedDate"));
+
+            // Act
+            var result = await this.provider.BulkExportAsync(
+                options: new BulkExportOptions { Mode = ExportMode.Archive, MarkAsExported = true });
+
+            // Assert
+            Assert.AreEqual(1, result.ExportedCount);
+            Assert.IsTrue(await ColumnExistsAsync("ExportedDate"));
         }
 
         [TestMethod]
@@ -417,6 +445,26 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             
             var remaining = await this.provider.CountAsync();
             Assert.AreEqual(500, remaining);
+        }
+
+        private async Task<bool> ColumnExistsAsync(string columnName)
+        {
+            var method = typeof(SQLitePersistenceProvider<BulkTestEntity, Guid>).GetMethod(
+                "CreateAndOpenConnectionAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            var task = (Task<SQLiteConnection>)method.Invoke(this.provider, new object[] { CancellationToken.None });
+            using var connection = await task;
+            using var cmd = new SQLiteCommand($"PRAGMA table_info('{this.provider.Mapper.TableName}')", connection);
+            using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                if (reader["name"].ToString() == columnName)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

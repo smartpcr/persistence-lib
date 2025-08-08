@@ -79,6 +79,25 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public List<Expression> Values { get; set; } = new List<Expression>();
     }
 
+    public class UpdateStatement : SqlNode
+    {
+        public string TableName { get; set; }
+        public List<SetClause> SetClauses { get; set; } = new List<SetClause>();
+        public Expression Where { get; set; }
+    }
+
+    public class SetClause : SqlNode
+    {
+        public string Column { get; set; }
+        public Expression Value { get; set; }
+    }
+
+    public class DeleteStatement : SqlNode
+    {
+        public string TableName { get; set; }
+        public Expression Where { get; set; }
+    }
+
     // Expression nodes
     public abstract class Expression : SqlNode { }
 

@@ -36,6 +36,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 return this.ParseInsertStatement();
             }
 
+            if (this.Check(SqlTokenType.UPDATE))
+            {
+                return this.ParseUpdateStatement();
+            }
+
+            if (this.Check(SqlTokenType.DELETE))
+            {
+                return this.ParseDeleteStatement();
+            }
+
             if (this.Check(SqlTokenType.CREATE))
             {
                 return this.ParseCreateStatement();
@@ -152,6 +162,48 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
 
             this.Consume(SqlTokenType.RIGHT_PAREN, "Expected ) after VALUES");
+
+            return stmt;
+        }
+
+        private UpdateStatement ParseUpdateStatement()
+        {
+            var stmt = new UpdateStatement();
+
+            this.Consume(SqlTokenType.UPDATE, "Expected UPDATE");
+            stmt.TableName = this.Consume(SqlTokenType.IDENTIFIER, "Expected table name").Value;
+
+            this.Consume(SqlTokenType.SET, "Expected SET");
+
+            do
+            {
+                var column = this.Consume(SqlTokenType.IDENTIFIER, "Expected column name").Value;
+                this.Consume(SqlTokenType.EQUALS, "Expected = after column name");
+                var value = this.ParseExpression();
+                stmt.SetClauses.Add(new SetClause { Column = column, Value = value });
+            }
+            while (this.Match(SqlTokenType.COMMA));
+
+            if (this.Match(SqlTokenType.WHERE))
+            {
+                stmt.Where = this.ParseExpression();
+            }
+
+            return stmt;
+        }
+
+        private DeleteStatement ParseDeleteStatement()
+        {
+            var stmt = new DeleteStatement();
+
+            this.Consume(SqlTokenType.DELETE, "Expected DELETE");
+            this.Consume(SqlTokenType.FROM, "Expected FROM after DELETE");
+            stmt.TableName = this.Consume(SqlTokenType.IDENTIFIER, "Expected table name").Value;
+
+            if (this.Match(SqlTokenType.WHERE))
+            {
+                stmt.Where = this.ParseExpression();
+            }
 
             return stmt;
         }

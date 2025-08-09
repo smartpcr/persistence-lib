@@ -191,7 +191,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// Creates a resilient SQLite command with retry policy if enabled.
         /// Returns a ResilientSQLiteCommand wrapper that provides retry logic.
         /// </summary>
-        protected ResilientSQLiteCommand CreateCommand(string commandText, SQLiteConnection connection, SQLiteTransaction transaction = null)
+        internal ResilientSQLiteCommand CreateCommand(string commandText, SQLiteConnection connection, SQLiteTransaction transaction = null)
         {
             var command = transaction != null
                 ? new SQLiteCommand(commandText, connection, transaction)

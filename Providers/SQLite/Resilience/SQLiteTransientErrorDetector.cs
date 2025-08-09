@@ -15,6 +15,38 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using System.Text;
     using System.Threading.Tasks;
 
+    /// <summary>
+    /// Detects and analyzes transient errors in SQLite operations to determine if they should be retried.
+    /// </summary>
+    /// <remarks>
+    /// SQLite uses a two-part error code system:
+    /// - Base Result Code: Lower 8 bits (0-255) represent the primary error category
+    /// - Extended Code: Higher bits indicate specific sub-type of the error
+    ///
+    /// Extended error codes are calculated as: BASE_CODE | (SUBCODE &lt;&lt; 8)
+    ///
+    /// For example, SQLITE_BUSY (5) can have extended codes:
+    /// - SQLITE_BUSY_RECOVERY = 261 (5 | (1&lt;&lt;8))
+    /// - SQLITE_BUSY_SNAPSHOT = 517 (5 | (2&lt;&lt;8))
+    ///
+    /// This class analyzes SQLite errors, I/O exceptions, and other system errors to determine
+    /// if they represent temporary conditions that may succeed on retry (transient errors)
+    /// or permanent failures that require investigation.
+    ///
+    /// Transient errors include:
+    /// - Database locks (SQLITE_BUSY, SQLITE_LOCKED)
+    /// - Temporary I/O errors (SQLITE_IOERR)
+    /// - Network connectivity issues
+    /// - File sharing violations
+    /// - Timeout conditions
+    ///
+    /// Non-transient errors include:
+    /// - Database corruption (unless on network drive)
+    /// - Constraint violations
+    /// - Syntax errors
+    /// - Permission denied (permanent)
+    /// - File not found
+    /// </remarks>
     public static class SQLiteTransientErrorDetector
     {
         // SQLite base result codes
@@ -27,6 +59,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private const int SQLITE_CANTOPEN = 14;
         private const int SQLITE_PROTOCOL = 17;
         private const int SQLITE_CONSTRAINT = 19;
+
+        // SQLITE_CONSTRAINT extended result codes
+        private const int SQLITE_CONSTRAINT_CHECK = 275;        // 19 | (1<<8)
+        private const int SQLITE_CONSTRAINT_COMMITHOOK = 531;   // 19 | (2<<8)
+        private const int SQLITE_CONSTRAINT_FOREIGNKEY = 787;   // 19 | (3<<8)
+        private const int SQLITE_CONSTRAINT_FUNCTION = 1043;    // 19 | (4<<8)
+        private const int SQLITE_CONSTRAINT_NOTNULL = 1299;     // 19 | (5<<8)
+        private const int SQLITE_CONSTRAINT_PRIMARYKEY = 1555;  // 19 | (6<<8)
+        private const int SQLITE_CONSTRAINT_TRIGGER = 1811;     // 19 | (7<<8)
+        private const int SQLITE_CONSTRAINT_UNIQUE = 2067;      // 19 | (8<<8)
+        private const int SQLITE_CONSTRAINT_VTAB = 2323;        // 19 | (9<<8)
+        private const int SQLITE_CONSTRAINT_ROWID = 2579;       // 19 | (10<<8)
 
         // Extended result codes
         private const int SQLITE_BUSY_RECOVERY = 261; // 5 | (1<<8)

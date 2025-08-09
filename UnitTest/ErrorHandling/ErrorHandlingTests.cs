@@ -14,8 +14,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Errors;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using FluentAssertions;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Helpers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using ErrorTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ErrorHandling.ErrorTestEntity;
     using ParentEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.ErrorHandling.ParentEntity;
@@ -141,7 +143,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             await childProvider.InitializeAsync();
 
             // check foreign key should exist on ChildEntity
-
+            var sqliteHelper = new SQLiteHelper(this.connectionString);
+            var foreignKeys = await sqliteHelper.GetTableForeignKeysAsync(nameof(ChildEntity));
+            foreignKeys.Should().NotBeNullOrEmpty();
+            foreignKeys.Should().Contain(fk =>
+                fk.ToTable == nameof(ParentEntity) &&
+                fk.ToColumn == "CacheKey" &&
+                fk.FromColumn == "ParentId");
 
             var child = new ChildEntity
             {
@@ -151,7 +159,26 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             };
 
             Func<Task> createChild = async () => await childProvider.CreateAsync(child, this.callerInfo);
-            await createChild.Should().ThrowAsync<SQLiteException>();
+            
+            // Verify SQLite error code for constraint failure
+            // SQLite returns ResultCode 19 (SQLITE_CONSTRAINT) for base error
+            // ExtendedResultCode 787 (SQLITE_CONSTRAINT_FOREIGNKEY) might be available
+            // The specific foreign key violation is always indicated in the message
+            var exception = await createChild.Should().ThrowAsync<SQLiteException>()
+                .WithMessage("*FOREIGN KEY constraint failed*");
+            
+            // Verify error codes
+            // Base code should be SQLITE_CONSTRAINT (19)
+            // Extended code might be SQLITE_CONSTRAINT_FOREIGNKEY (787) but SQLite.NET doesn't always provide it
+            exception.Where(ex => 
+                (int)ex.ResultCode == 19 || ex.ErrorCode == 787, 
+                "SQLite should return CONSTRAINT error code (19) or CONSTRAINT_FOREIGNKEY (787)");
+            
+            // Verify that SQLiteTransientErrorDetector correctly identifies this as non-transient
+            var (isTransient, errorDescription) = SQLiteTransientErrorDetector.IsTransientError(exception.Which);
+            isTransient.Should().BeFalse("Foreign key constraint violations are not transient errors");
+            errorDescription.Should().Contain("NON-TRANSIENT ERROR", 
+                "Error detector should classify foreign key violations as non-transient");
 
             await parentProvider.DisposeAsync();
             await childProvider.DisposeAsync();

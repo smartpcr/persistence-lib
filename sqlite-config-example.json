@@ -1,0 +1,20 @@
+{
+  "SqliteConfiguration": {
+    "DbFile": "data/myapp.db",
+    "CacheSize": -2000,
+    "PageSize": 4096,
+    "JournalMode": "WAL",
+    "SynchronousMode": "Normal",
+    "BusyTimeout": 5000,
+    "EnableForeignKeys": true,
+    "CommandTimeout": 30,
+    
+    "RetryPolicy": {
+      "Enabled": true,
+      "MaxAttempts": 3,
+      "InitialDelayMs": 100,
+      "MaxDelayMs": 5000,
+      "BackoffMultiplier": 2.0
+    }
+  }
+}

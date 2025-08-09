@@ -145,7 +145,7 @@ INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});";
 
                                 await using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
-                                this.Mapper.AddParameters(insertCommand, entity);
+                                this.Mapper.AddParameters(insertCommand.Command, entity);
                                 await insertCommand.ExecuteNonQueryAsync(cancellationToken);
 
                                 // Retrieve the inserted entity
@@ -449,8 +449,8 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
       AND Version = @originalVersion;
 SELECT changes();";
 
-                                    using var updateCommand = this.CreateCommand(updateSql, connection, transaction);
-                                    this.Mapper.AddParameters(updateCommand, updatedEntity);
+                                    await using var updateCommand = this.CreateCommand(updateSql, connection, transaction);
+                                    this.Mapper.AddParameters(updateCommand.Command, updatedEntity);
                                     updateCommand.Parameters.AddWithValue("@key", keyString);
                                     updateCommand.Parameters.AddWithValue("@originalVersion", originalVersion);
                                     rowsAffected = Convert.ToInt32(await updateCommand.ExecuteScalarAsync(cancellationToken));
@@ -465,8 +465,8 @@ INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});
 SELECT changes();";
 
-                                    using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
-                                    this.Mapper.AddParameters(insertCommand, updatedEntity);
+                                    await using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
+                                    this.Mapper.AddParameters(insertCommand.Command, updatedEntity);
                                     rowsAffected = Convert.ToInt32(await insertCommand.ExecuteScalarAsync(cancellationToken));
                                 }
 
@@ -656,8 +656,8 @@ LIMIT 1";
 INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});";
 
-                                    using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
-                                    this.Mapper.AddParameters(insertCommand, deletedEntity);
+                                    await using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
+                                    this.Mapper.AddParameters(insertCommand.Command, deletedEntity);
                                     await insertCommand.ExecuteNonQueryAsync(cancellationToken);
                                     batchDeleted++;
                                 }

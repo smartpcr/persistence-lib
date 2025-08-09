@@ -62,7 +62,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     {
                         var createVersionTableSql = this.versionMapper.GenerateCreateTableSql(includeIfNotExists: true);
                         using var createVersionCmd = this.CreateCommand(createVersionTableSql, connection);
-                        createVersionCmd.ExecuteNonQuery(); // Use synchronous inside lock
+                        createVersionCmd.ExecuteNonQuery(); // Use synchronous inside lock with retry
                         SQLiteProviderSharedState.VersionTableCreated = true;
                     }
                 }
@@ -77,7 +77,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     {
                         var createEntryListMappingTableSql = this.entryListMappingMapper.GenerateCreateTableSql();
                         using var createListMappingCmd = this.CreateCommand(createEntryListMappingTableSql, connection);
-                        createListMappingCmd.ExecuteNonQuery(); // Use synchronous inside lock
+                        createListMappingCmd.ExecuteNonQuery(); // Use synchronous inside lock with retry
                         SQLiteProviderSharedState.EntryListMappingCreated = true;
                     }
                 }
@@ -92,7 +92,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     {
                         var createAuditTableSql = this.auditMapper.GenerateCreateTableSql();
                         using var createAuditCmd = this.CreateCommand(createAuditTableSql, connection);
-                        createAuditCmd.ExecuteNonQuery(); // Use synchronous inside lock
+                        createAuditCmd.ExecuteNonQuery(); // Use synchronous inside lock with retry
                         SQLiteProviderSharedState.AuditTableCreated = true;
                     }
                 }
@@ -145,7 +145,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             foreach (var pragma in connectionPragmas)
             {
-                await using var command = this.CreateCommand($"PRAGMA {pragma.Key} = {pragma.Value}", connection);
+                using var command = this.CreateCommand($"PRAGMA {pragma.Key} = {pragma.Value}", connection);
                 await command.ExecuteNonQueryAsync(cancellationToken);
             }
         }
@@ -167,16 +167,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 connection.Dispose();
                 throw;
             }
-        }
-
-        /// <summary>
-        /// Creates a new SQLiteCommand with the configured command timeout.
-        /// </summary>
-        internal SQLiteCommand CreateCommand(string commandText, SQLiteConnection connection, SQLiteTransaction transaction = null)
-        {
-            var command = new SQLiteCommand(commandText, connection, transaction);
-            command.CommandTimeout = this.configuration.CommandTimeout;
-            return command;
         }
 
         /// <summary>
@@ -204,7 +194,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             var indexSqls = this.Mapper.GenerateCreateIndexSql();
             foreach (var indexSql in indexSqls)
             {
-                using var command = this.CreateCommand(indexSql, connection);
+                await using var command = this.CreateCommand(indexSql, connection);
                 await command.ExecuteNonQueryAsync(cancellationToken);
             }
         }

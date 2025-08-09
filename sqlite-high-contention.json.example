@@ -1,0 +1,13 @@
+{
+  "DbFile": "data/high-traffic.db",
+  "BusyTimeout": 30000,
+  "JournalMode": "WAL",
+  "SynchronousMode": "Normal",
+  "RetryPolicy": {
+    "Enabled": true,
+    "MaxAttempts": 10,
+    "InitialDelayMs": 50,
+    "MaxDelayMs": 2000,
+    "BackoffMultiplier": 1.5
+  }
+}

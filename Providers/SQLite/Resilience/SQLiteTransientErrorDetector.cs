@@ -5,7 +5,7 @@
 // -----------------------------------------------------------------------
 
 // ReSharper disable InconsistentNaming
-namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config
+namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience
 {
     using System;
     using System.Collections.Generic;
@@ -82,7 +82,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             "being used by another process",
             "sharing violation",
             "lock violation",
-            "access is denied",
             "temporarily unavailable",
             "resource temporarily unavailable",
             "insufficient system resources",
@@ -115,14 +114,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Check for SQLiteException
             if (exception is SQLiteException sqliteEx)
             {
-                var (sqliteTransient, sqliteDetails) = AnalyzeSQLiteException(sqliteEx);
+                var (sqliteTransient, sqliteDetails) = SQLiteTransientErrorDetector.AnalyzeSQLiteException(sqliteEx);
                 isTransient = sqliteTransient;
                 errorDetails.AddRange(sqliteDetails);
             }
             // Check for IOException
             else if (exception is IOException ioEx)
             {
-                var (ioTransient, ioDetails) = AnalyzeIOException(ioEx);
+                var (ioTransient, ioDetails) = SQLiteTransientErrorDetector.AnalyzeIOException(ioEx);
                 isTransient = ioTransient;
                 errorDetails.AddRange(ioDetails);
             }
@@ -146,7 +145,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Check for OperationCanceledException
             else if (exception is OperationCanceledException opCancelEx)
             {
-                var isUserCancellation = IsUserCancellation(opCancelEx);
+                var isUserCancellation = SQLiteTransientErrorDetector.IsUserCancellation(opCancelEx);
                 if (!isUserCancellation)
                 {
                     isTransient = true;
@@ -161,7 +160,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             else if (exception is UnauthorizedAccessException)
             {
                 var message = exception.Message?.ToLowerInvariant() ?? "";
-                if (TransientErrorPatterns.Any(pattern => message.Contains(pattern)))
+                if (SQLiteTransientErrorDetector.TransientErrorPatterns.Any(pattern => message.Contains(pattern)))
                 {
                     isTransient = true;
                     errorDetails.Add("Temporary permission issue detected");
@@ -174,7 +173,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Check for Win32Exception
             else if (exception is System.ComponentModel.Win32Exception win32Ex)
             {
-                var (win32Transient, win32Details) = AnalyzeWin32Exception(win32Ex);
+                var (win32Transient, win32Details) = SQLiteTransientErrorDetector.AnalyzeWin32Exception(win32Ex);
                 isTransient = win32Transient;
                 errorDetails.AddRange(win32Details);
             }
@@ -184,7 +183,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 errorDetails.Add($"AggregateException with {aggEx.InnerExceptions.Count} inner exception(s)");
                 foreach (var innerEx in aggEx.InnerExceptions)
                 {
-                    var (innerTransient, innerDescription) = IsTransientError(innerEx);
+                    var (innerTransient, innerDescription) = SQLiteTransientErrorDetector.IsTransientError(innerEx);
                     if (innerTransient)
                     {
                         isTransient = true;
@@ -197,7 +196,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             if (!isTransient)
             {
                 var message = exception.Message?.ToLowerInvariant() ?? "";
-                var matchedPattern = TransientErrorPatterns.FirstOrDefault(pattern => message.Contains(pattern.ToLowerInvariant()));
+                var matchedPattern = SQLiteTransientErrorDetector.TransientErrorPatterns.FirstOrDefault(pattern => message.Contains(pattern.ToLowerInvariant()));
                 if (matchedPattern != null)
                 {
                     isTransient = true;
@@ -208,7 +207,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Check inner exception recursively
             if (exception.InnerException != null)
             {
-                var (innerTransient, innerDescription) = IsTransientError(exception.InnerException);
+                var (innerTransient, innerDescription) = SQLiteTransientErrorDetector.IsTransientError(exception.InnerException);
                 if (innerTransient)
                 {
                     isTransient = true;
@@ -221,7 +220,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
 
             // Build final error description
-            var errorDescription = BuildErrorDescription(exceptionType, exception.Message, errorDetails, isTransient);
+            var errorDescription = SQLiteTransientErrorDetector.BuildErrorDescription(exceptionType, exception.Message, errorDetails, isTransient);
 
             return (isTransient, errorDescription);
         }
@@ -238,32 +237,32 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Check specific result codes
             switch (resultCode)
             {
-                case SQLITE_BUSY:
+                case SQLiteTransientErrorDetector.SQLITE_BUSY:
                     isTransient = true;
                     details.Add("Database is busy - another process has locked the database");
                     break;
 
-                case SQLITE_LOCKED:
+                case SQLiteTransientErrorDetector.SQLITE_LOCKED:
                     isTransient = true;
                     details.Add("Database table is locked - waiting for lock to be released");
                     break;
 
-                case SQLITE_IOERR:
+                case SQLiteTransientErrorDetector.SQLITE_IOERR:
                     isTransient = true;
                     details.Add("I/O error occurred - temporary disk or network issue");
                     break;
 
-                case SQLITE_CANTOPEN:
+                case SQLiteTransientErrorDetector.SQLITE_CANTOPEN:
                     isTransient = true;
                     details.Add("Cannot open database file - file may be temporarily inaccessible");
                     break;
 
-                case SQLITE_PROTOCOL:
+                case SQLiteTransientErrorDetector.SQLITE_PROTOCOL:
                     isTransient = true;
                     details.Add("Database lock protocol error - synchronization issue");
                     break;
 
-                case SQLITE_CORRUPT:
+                case SQLiteTransientErrorDetector.SQLITE_CORRUPT:
                     var message = sqliteEx.Message?.ToLowerInvariant() ?? "";
                     if (message.Contains("malformed") || message.Contains("network"))
                     {
@@ -281,26 +280,26 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Check extended error codes
             switch (errorCode)
             {
-                case SQLITE_BUSY_RECOVERY:
+                case SQLiteTransientErrorDetector.SQLITE_BUSY_RECOVERY:
                     isTransient = true;
                     details.Add("Another process is recovering a WAL mode database");
                     break;
-                case SQLITE_BUSY_SNAPSHOT:
+                case SQLiteTransientErrorDetector.SQLITE_BUSY_SNAPSHOT:
                     isTransient = true;
                     details.Add("Database is busy with a snapshot");
                     break;
-                case SQLITE_BUSY_TIMEOUT:
+                case SQLiteTransientErrorDetector.SQLITE_BUSY_TIMEOUT:
                     isTransient = true;
                     details.Add("Busy timeout exceeded");
                     break;
-                case SQLITE_LOCKED_SHAREDCACHE:
+                case SQLiteTransientErrorDetector.SQLITE_LOCKED_SHAREDCACHE:
                     isTransient = true;
                     details.Add("Shared cache lock conflict");
                     break;
             }
 
             // Check if any IOERR variant
-            if ((resultCode & 0xFF) == SQLITE_IOERR)
+            if ((resultCode & 0xFF) == SQLiteTransientErrorDetector.SQLITE_IOERR)
             {
                 isTransient = true;
                 var ioErrSubcode = (errorCode >> 8);
@@ -318,7 +317,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             if (!isTransient)
             {
                 var message = sqliteEx.Message?.ToLowerInvariant() ?? "";
-                if (TransientErrorPatterns.Any(pattern => message.Contains(pattern.ToLowerInvariant())))
+                if (SQLiteTransientErrorDetector.TransientErrorPatterns.Any(pattern => message.Contains(pattern.ToLowerInvariant())))
                 {
                     isTransient = true;
                 }
@@ -330,46 +329,90 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private static (bool isTransient, List<string> details) AnalyzeIOException(IOException ioEx)
         {
             var details = new List<string>();
-            var isTransient = true; // Most IOExceptions are transient
+            var isTransient = false; // Start with false, set to true for known transient patterns
 
             details.Add($"IOException - HResult: 0x{ioEx.HResult:X8}");
 
             var message = ioEx.Message?.ToLowerInvariant() ?? "";
 
-            // Analyze specific patterns
+            // Analyze specific patterns - only mark transient for known transient errors
             if (message.Contains("being used by another process"))
+            {
+                isTransient = true;
                 details.Add("File locked by another process (possibly antivirus/backup)");
+            }
             else if (message.Contains("network"))
+            {
+                isTransient = true;
                 details.Add("Network-related I/O error");
+            }
             else if (message.Contains("sharing violation"))
+            {
+                isTransient = true;
                 details.Add("File sharing violation");
-            else if (message.Contains("access is denied"))
-                details.Add("Access denied - temporary permission or lock issue");
-            else if (message.Contains("insufficient"))
+            }
+            else if (message.Contains("lock violation"))
+            {
+                isTransient = true;
+                details.Add("File lock violation");
+            }
+            else if (message.Contains("temporarily unavailable"))
+            {
+                isTransient = true;
+                details.Add("Resource temporarily unavailable");
+            }
+            else if (message.Contains("insufficient system resources"))
+            {
+                isTransient = true;
                 details.Add("Insufficient system resources");
+            }
+            else if (message.Contains("semaphore timeout"))
+            {
+                isTransient = true;
+                details.Add("Semaphore timeout");
+            }
+            else if (message.Contains("access denied") || message.Contains("access is denied"))
+            {
+                // Access denied is NOT transient
+                isTransient = false;
+                details.Add("Access denied - permanent permission issue");
+            }
+            else if (message.Contains("file not found"))
+            {
+                // File not found is NOT transient
+                isTransient = false;
+                details.Add("File not found - permanent error");
+            }
             else
+            {
+                // For other patterns, check TransientErrorPatterns
+                if (TransientErrorPatterns.Any(pattern => message.Contains(pattern.ToLowerInvariant())))
+                {
+                    isTransient = true;
+                }
                 details.Add("File system or network I/O error");
+            }
 
             // Check Windows error codes
             var errorCode = ioEx.HResult & 0xFFFF;
             switch (errorCode)
             {
-                case ERROR_SHARING_VIOLATION:
+                case SQLiteTransientErrorDetector.ERROR_SHARING_VIOLATION:
                     details.Add("Windows: Sharing violation (ERROR_SHARING_VIOLATION)");
                     break;
-                case ERROR_LOCK_VIOLATION:
+                case SQLiteTransientErrorDetector.ERROR_LOCK_VIOLATION:
                     details.Add("Windows: Lock violation (ERROR_LOCK_VIOLATION)");
                     break;
-                case ERROR_NETNAME_DELETED:
+                case SQLiteTransientErrorDetector.ERROR_NETNAME_DELETED:
                     details.Add("Windows: Network name deleted (ERROR_NETNAME_DELETED)");
                     break;
-                case ERROR_SEM_TIMEOUT:
+                case SQLiteTransientErrorDetector.ERROR_SEM_TIMEOUT:
                     details.Add("Windows: Semaphore timeout (ERROR_SEM_TIMEOUT)");
                     break;
-                case ERROR_NETWORK_UNREACHABLE:
+                case SQLiteTransientErrorDetector.ERROR_NETWORK_UNREACHABLE:
                     details.Add("Windows: Network unreachable (ERROR_NETWORK_UNREACHABLE)");
                     break;
-                case ERROR_CONNECTION_ABORTED:
+                case SQLiteTransientErrorDetector.ERROR_CONNECTION_ABORTED:
                     details.Add("Windows: Connection aborted (ERROR_CONNECTION_ABORTED)");
                     break;
             }
@@ -387,12 +430,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Check for transient Windows error codes
             switch (win32Ex.NativeErrorCode)
             {
-                case ERROR_SHARING_VIOLATION:
-                case ERROR_LOCK_VIOLATION:
-                case ERROR_NETNAME_DELETED:
-                case ERROR_SEM_TIMEOUT:
-                case ERROR_NETWORK_UNREACHABLE:
-                case ERROR_CONNECTION_ABORTED:
+                case SQLiteTransientErrorDetector.ERROR_SHARING_VIOLATION:
+                case SQLiteTransientErrorDetector.ERROR_LOCK_VIOLATION:
+                case SQLiteTransientErrorDetector.ERROR_NETNAME_DELETED:
+                case SQLiteTransientErrorDetector.ERROR_SEM_TIMEOUT:
+                case SQLiteTransientErrorDetector.ERROR_NETWORK_UNREACHABLE:
+                case SQLiteTransientErrorDetector.ERROR_CONNECTION_ABORTED:
                     isTransient = true;
                     details.Add("Transient Windows system error");
                     break;
@@ -400,7 +443,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             // Check message patterns
             var message = win32Ex.Message?.ToLowerInvariant() ?? "";
-            if (TransientErrorPatterns.Any(pattern => message.Contains(pattern.ToLowerInvariant())))
+            if (SQLiteTransientErrorDetector.TransientErrorPatterns.Any(pattern => message.Contains(pattern.ToLowerInvariant())))
             {
                 isTransient = true;
             }
@@ -447,16 +490,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
 
             return sb.ToString();
-        }
-
-        /// <summary>
-        /// Gets recommended retry delay in milliseconds for the given attempt number.
-        /// </summary>
-        public static int GetRecommendedRetryDelay(int attemptNumber)
-        {
-            var baseDelay = Math.Min(100 * Math.Pow(2, attemptNumber), 5000);
-            var jitter = new Random().Next(0, 100);
-            return (int)baseDelay + jitter;
         }
     }
 }

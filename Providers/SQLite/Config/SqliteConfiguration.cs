@@ -87,6 +87,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public int CommandTimeout { get; set; } = 30;
 
         /// <summary>
+        /// Configuration for retry policy behavior.
+        /// Default configuration provides 3 retries with exponential backoff.
+        /// </summary>
+        public RetryConfiguration RetryPolicy { get; set; } = new RetryConfiguration();
+
+        /// <summary>
         /// Creates a SqliteConfiguration instance from a JSON file.
         /// </summary>
         /// <param name="jsonFilePath">Path to the JSON configuration file. If null, looks for 'sqlite.json' in current directory.</param>
@@ -98,7 +104,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Determine the config file path
             var configPath = jsonFilePath ?? Path.Combine(Directory.GetCurrentDirectory(), "sqlite.json");
 
-            // If file doesn't exist, return default configuration
+            // If file doesn't exist, return default configuration (with retry enabled)
             if (!File.Exists(configPath))
             {
                 return config;
@@ -124,6 +130,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     // If no section, try binding from root
                     configuration.Bind(config);
                 }
+
+                // Ensure RetryPolicy is not null and has proper defaults
+                // If RetryPolicy section doesn't exist in JSON, the default new RetryConfiguration() will be used
+                if (config.RetryPolicy == null)
+                {
+                    config.RetryPolicy = new RetryConfiguration();
+                }
+
+                // Validate the retry configuration
+                config.RetryPolicy.Validate();
 
                 return config;
             }

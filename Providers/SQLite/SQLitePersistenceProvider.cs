@@ -15,6 +15,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using Entities;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
 
     /// <summary>
     /// Non-generic static class to hold shared state across all SQLitePersistenceProvider instances.
@@ -55,6 +56,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private readonly EntryListMappingMapper entryListMappingMapper;
         private readonly SqliteConfiguration configuration;
         private readonly IEntityMapper<AuditRecord, long> auditMapper;
+        private readonly RetryPolicy retryPolicy;
         private bool isInitialized;
         private bool isDisposed;
 
@@ -74,6 +76,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             this.entryListMappingMapper = new EntryListMappingMapper();
             this.auditMapper = new SQLiteAuditMapper();
             this.isInitialized = false;
+
+            // Initialize retry policy based on configuration
+            this.retryPolicy = RetryPolicy.FromConfiguration(this.configuration.RetryPolicy);
         }
 
         /// <summary>
@@ -158,6 +163,43 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 // If serialization fails, return 0
                 return 0;
             }
+        }
+
+        #endregion
+
+        #region Helper Methods
+        //
+        // /// <summary>
+        // /// Creates a SQLite command with retry policy if enabled.
+        // /// This is the primary method for creating commands throughout the provider.
+        // /// </summary>
+        // internal SQLiteCommand CreateCommand(string commandText, SQLiteConnection connection, SQLiteTransaction transaction = null)
+        // {
+        //     var command = transaction != null
+        //         ? new SQLiteCommand(commandText, connection, transaction)
+        //         : new SQLiteCommand(commandText, connection);
+        //
+        //     command.CommandTimeout = this.configuration.CommandTimeout;
+        //
+        //     // If retry policy is enabled, wrap the command
+        //     // Note: For backward compatibility and for operations that handle their own retry logic,
+        //     // we return the base SQLiteCommand type but it may be wrapped with retry logic internally
+        //     return command;
+        // }
+
+        /// <summary>
+        /// Creates a resilient SQLite command with retry policy if enabled.
+        /// Returns a ResilientSQLiteCommand wrapper that provides retry logic.
+        /// </summary>
+        protected ResilientSQLiteCommand CreateCommand(string commandText, SQLiteConnection connection, SQLiteTransaction transaction = null)
+        {
+            var command = transaction != null
+                ? new SQLiteCommand(commandText, connection, transaction)
+                : new SQLiteCommand(commandText, connection);
+
+            command.CommandTimeout = this.configuration.CommandTimeout;
+
+            return new ResilientSQLiteCommand(command, this.retryPolicy);
         }
 
         #endregion

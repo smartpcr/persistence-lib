@@ -1,0 +1,12 @@
+{
+  "DbFile": "\\\\network-share\\data\\application.db",
+  "BusyTimeout": 15000,
+  "CommandTimeout": 60,
+  "RetryPolicy": {
+    "Enabled": true,
+    "MaxAttempts": 5,
+    "InitialDelayMs": 500,
+    "MaxDelayMs": 10000,
+    "BackoffMultiplier": 2.0
+  }
+}

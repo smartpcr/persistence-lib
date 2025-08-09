@@ -562,7 +562,7 @@ INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});";
 
                     await using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
-                    this.Mapper.AddParameters(insertCommand, deletedEntity);
+                    this.Mapper.AddParameters(insertCommand.Command, deletedEntity);
                     await insertCommand.ExecuteNonQueryAsync(cancellationToken);
                 }
                 else

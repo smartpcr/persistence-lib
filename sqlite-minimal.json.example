@@ -1,0 +1,4 @@
+{
+  "DbFile": "data/application.db",
+  "BusyTimeout": 10000
+}

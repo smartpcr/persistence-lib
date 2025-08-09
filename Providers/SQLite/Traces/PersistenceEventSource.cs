@@ -36,6 +36,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             public const EventKeywords Batch = (EventKeywords)0x0020;
             public const EventKeywords Bulk = (EventKeywords)0x0040;
             public const EventKeywords Cache = (EventKeywords)0x0080;
+            public const EventKeywords Resilience = (EventKeywords)0x0100;
         }
 
         /// <summary>
@@ -52,6 +53,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             public const EventTask Batch = (EventTask)7;
             public const EventTask Bulk = (EventTask)8;
             public const EventTask Maintenance = (EventTask)9;
+            public const EventTask Retry = (EventTask)10;
         }
 
         #region Create Operations
@@ -339,6 +341,45 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public void SlowQuery(string tableName, long elapsedMilliseconds, string callerFile, string callerMember, int callerLine)
         {
             this.WriteEvent(35, tableName, elapsedMilliseconds, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        #endregion
+
+        #region Resilience Operations
+
+        [Event(36, Level = EventLevel.Warning, Keywords = Keywords.Resilience | Keywords.Error, Task = Tasks.Retry,
+            Message = "Transient error detected: {0} - {1}. Attempt {2}/{3}. Error details: {4} [Called from {5}.{6}:{7}]")]
+        public void TransientErrorDetected(string exceptionType, string exceptionMessage, int attemptNumber, int maxAttempts, string errorDetails, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(36, exceptionType, exceptionMessage, attemptNumber, maxAttempts, errorDetails, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        [Event(37, Level = EventLevel.Informational, Keywords = Keywords.Resilience, Task = Tasks.Retry,
+            Message = "Retrying operation after transient error. Attempt {0}/{1}. Delay: {2}ms [Called from {3}.{4}:{5}]")]
+        public void RetryingOperation(int attemptNumber, int maxAttempts, long delayMilliseconds, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(37, attemptNumber, maxAttempts, delayMilliseconds, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        [Event(38, Level = EventLevel.Informational, Keywords = Keywords.Resilience | Keywords.Performance, Task = Tasks.Retry,
+            Message = "Operation succeeded after {0} retry attempts in {1}ms [Called from {2}.{3}:{4}]")]
+        public void RetrySucceeded(int attemptCount, long totalElapsedMilliseconds, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(38, attemptCount, totalElapsedMilliseconds, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        [Event(39, Level = EventLevel.Error, Keywords = Keywords.Resilience | Keywords.Error, Task = Tasks.Retry,
+            Message = "Operation failed after {0} retry attempts in {1}ms. Final exception: {2} - {3}. Error details: {4} [Called from {5}.{6}:{7}]")]
+        public void RetryExhausted(int attemptCount, long totalElapsedMilliseconds, string exceptionType, string exceptionMessage, string errorDetails, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(39, attemptCount, totalElapsedMilliseconds, exceptionType, exceptionMessage, errorDetails, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        [Event(40, Level = EventLevel.Verbose, Keywords = Keywords.Resilience, Task = Tasks.Retry,
+            Message = "Non-transient error detected (no retry): {0} - {1}. Error details: {2} [Called from {3}.{4}:{5}]")]
+        public void NonTransientErrorDetected(string exceptionType, string exceptionMessage, string errorDetails, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(40, exceptionType, exceptionMessage, errorDetails, callerFile ?? "", callerMember ?? "", callerLine);
         }
 
         #endregion

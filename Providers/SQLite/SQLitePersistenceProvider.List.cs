@@ -164,7 +164,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                 VALUES ({string.Join(", ", parameters)});";
 
                         await using var insertCmd = this.CreateCommand(insertEntitySql, connection, transaction);
-                        this.Mapper.AddParameters(insertCmd, entity);
+                        this.Mapper.AddParameters(insertCmd.Command, entity);
                         await insertCmd.ExecuteNonQueryAsync(cancellationToken);
 
                         // Step 4: Add to EntryListMapping
@@ -510,7 +510,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                 VALUES ({string.Join(", ", parameters)});";
 
                             await using var insertCmd = this.CreateCommand(insertSql, connection, transaction);
-                            this.Mapper.AddParameters(insertCmd, entity);
+                            this.Mapper.AddParameters(insertCmd.Command, entity);
                             await insertCmd.ExecuteNonQueryAsync(cancellationToken);
 
                             entityVersion = entity.Version;
@@ -539,7 +539,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                         VALUES ({string.Join(", ", parameters)});";
 
                                     await using var insertCmd = this.CreateCommand(insertSql, connection, transaction);
-                                    this.Mapper.AddParameters(insertCmd, entity);
+                                    this.Mapper.AddParameters(insertCmd.Command, entity);
                                     await insertCmd.ExecuteNonQueryAsync(cancellationToken);
 
                                     entityVersion = batchVersion;
@@ -560,7 +560,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                         WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;";
 
                                     await using var updateCmd = this.CreateCommand(updateSql, connection, transaction);
-                                    this.Mapper.AddParameters(updateCmd, entity);
+                                    this.Mapper.AddParameters(updateCmd.Command, entity);
                                     updateCmd.Parameters.AddWithValue("@key", keyString);
                                     await updateCmd.ExecuteNonQueryAsync(cancellationToken);
 

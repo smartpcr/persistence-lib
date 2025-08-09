@@ -131,31 +131,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
         public async Task ConstraintViolation_ForeignKey_HandledGracefully()
         {
             // Arrange
-            var parentProvider = new SQLitePersistenceProvider<ParentEntity, Guid>(this.connectionString);
-            var childProvider = new SQLitePersistenceProvider<ChildEntity, Guid>(this.connectionString);
+            var config = new SqliteConfiguration()
+            {
+                EnableForeignKeys = true,
+            };
+            var parentProvider = new SQLitePersistenceProvider<ParentEntity, Guid>(this.connectionString, config);
+            var childProvider = new SQLitePersistenceProvider<ChildEntity, Guid>(this.connectionString, config);
             await parentProvider.InitializeAsync();
             await childProvider.InitializeAsync();
 
-            // Enable foreign keys
-            await using var connection = new SQLiteConnection(this.connectionString);
-            await connection.OpenAsync();
-            await using var cmd = new SQLiteCommand("PRAGMA foreign_keys = ON", connection);
-            await cmd.ExecuteNonQueryAsync();
+            // check foreign key should exist on ChildEntity
 
-            // Add foreign key constraint
-            await using var fkCmd = new SQLiteCommand(
-                @"
-CREATE TABLE IF NOT EXISTS ChildEntityFK (
-    Id VARCHAR(36) PRIMARY KEY,
-    ParentId VARCHAR(36) NOT NULL,
-    Name NVARCHAR(MAX),
-    Version INTEGER,
-    CreatedTime DATETIME,
-    LastWriteTime DATETIME,
-    FOREIGN KEY (ParentId) REFERENCES ParentEntity(Id)
-)",
-                connection);
-            await fkCmd.ExecuteNonQueryAsync();
 
             var child = new ChildEntity
             {
@@ -164,17 +150,8 @@ CREATE TABLE IF NOT EXISTS ChildEntityFK (
                 Name = "Orphan Child"
             };
 
-            // Act & Assert
-            try
-            {
-                await childProvider.CreateAsync(child, this.callerInfo);
-                Assert.Fail("Should have thrown foreign key constraint exception");
-            }
-            catch (EntityWriteException ex)
-            {
-                ex.Message.Should().ContainAny(new[] { "constraint", "foreign" },
-                    "Exception should mention constraint violation");
-            }
+            Func<Task> createChild = async () => await childProvider.CreateAsync(child, this.callerInfo);
+            await createChild.Should().ThrowAsync<SQLiteException>();
 
             await parentProvider.DisposeAsync();
             await childProvider.DisposeAsync();

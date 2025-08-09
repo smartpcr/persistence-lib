@@ -61,7 +61,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             File.Exists(this.tempDbPath).Should().BeTrue();
-            
+
             // Verify table was created
             using var connection = new SQLiteConnection(connectionString);
             await connection.OpenAsync();
@@ -152,7 +152,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             // In-memory database should work without creating files
             var callerInfo = new CallerInfo();
             var entity = new TestEntity { Id = "test-1", Name = "Test" };
-            
+
             // Should be able to perform operations
             var created = await provider.CreateAsync(entity, callerInfo);
             created.Should().NotBeNull();
@@ -172,7 +172,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             File.Exists(this.tempDbPath).Should().BeTrue();
-            
+
             // Should still work correctly
             var callerInfo = new CallerInfo();
             var entity = new TestEntity { Id = "test-1", Name = "Test" };
@@ -191,18 +191,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             await provider.InitializeAsync();
 
             // Assert
-            using var connection = new SQLiteConnection(connectionString);
+            await using var connection = new SQLiteConnection(connectionString);
             await connection.OpenAsync();
-            
+
             // Check main table
-            using (var command = new SQLiteCommand("SELECT name FROM sqlite_master WHERE type='table' AND name='VersionedTestEntity'", connection))
+            await using (var command = new SQLiteCommand("SELECT name FROM sqlite_master WHERE type='table' AND name='VersionedTestEntity'", connection))
             {
                 var tableName = await command.ExecuteScalarAsync();
                 tableName.Should().NotBeNull();
             }
 
             // Check version table
-            using (var command = new SQLiteCommand("SELECT name FROM sqlite_master WHERE type='table' AND name='Version'", connection))
+            await using (var command = new SQLiteCommand("SELECT name FROM sqlite_master WHERE type='table' AND name='Version'", connection))
             {
                 var tableName = await command.ExecuteScalarAsync();
                 tableName.Should().NotBeNull();
@@ -277,7 +277,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             public bool IsDeleted { get; set; }
         }
 
-        [Table("VersionedTestEntity")]
+        [Table("VersionedTestEntity", SoftDeleteEnabled = true)]
         // ReSharper disable once ClassNeverInstantiated.Local
         private class VersionedTestEntity : BaseEntity<string>, IVersionedEntity<string>
         {

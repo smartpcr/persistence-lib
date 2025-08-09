@@ -7,6 +7,7 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.SQLite
 {
     using System;
+    using System.Globalization;
     using System.Linq.Expressions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities;
@@ -20,7 +21,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.SQLit
         public void VerifyDateTimeTranslation()
         {
             // Test the exact predicate mentioned in the issue
-            Expression<Func<TestEntity, bool>> expression = e => e.CreatedTime < DateTime.UtcNow.AddDays(-90);
+            // Note: Using CreatedDate since TestEntity doesn't have CreatedTime property
+            var testDateTime = DateTime.UtcNow;
+            Expression<Func<TestEntity, bool>> expression = e => e.CreatedDate < testDateTime.AddDays(-90);
             
             var translator = new SQLiteExpressionTranslator<TestEntity>();
             var result = translator.Translate(expression);
@@ -32,7 +35,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.SQLit
             }
             
             // Verify the SQL is correct
-            Assert.AreEqual("(datetime(CreatedTime) < datetime(@p0))", result.Sql);
+            Assert.AreEqual("(datetime(CreatedDate) < datetime(@p0))", result.Sql);
             
             // Verify the parameter is an ISO 8601 string
             Assert.IsTrue(result.Parameters.ContainsKey("@p0"));
@@ -44,9 +47,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.SQLit
             Assert.IsTrue(dateString.Contains("T"));
             Assert.IsTrue(dateString.Contains("-"));
             
-            // Parse it to ensure it's valid
-            var parsedDate = DateTime.Parse(dateString);
-            var expectedDate = DateTime.UtcNow.AddDays(-90);
+            // Parse it as UTC to ensure it's valid
+            // Use DateTime.ParseExact with DateTimeStyles.RoundtripKind to preserve UTC
+            var parsedDate = DateTime.Parse(dateString, null, System.Globalization.DateTimeStyles.RoundtripKind);
+            var expectedDate = testDateTime.AddDays(-90);
             var diff = Math.Abs((parsedDate - expectedDate).TotalSeconds);
             Assert.IsTrue(diff < 2, $"Date difference too large: {diff} seconds");
         }

@@ -35,6 +35,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     public class ChildEntity : BaseEntity<Guid>
     {
         [Column("ParentId", SqlDbType.NVarChar, Size = 36)]
+        [ForeignKey("ParentEntity", "CacheKey")] // Reference the actual column name in ParentEntity table
         public Guid ParentId { get; set; }
 
         [Column("Name", SqlDbType.NVarChar, Size = 100)]

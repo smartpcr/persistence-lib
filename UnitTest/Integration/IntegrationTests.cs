@@ -25,6 +25,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
     public class IntegrationTests : SQLiteTestBase
     {
         private string testDbPath;
+        private string altTestDbPath;
 
         private string connectionString;
         private SQLitePersistenceProvider<Order, Guid> orderProvider;
@@ -37,6 +38,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
         {
             this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
             this.connectionString = $"Data Source={this.testDbPath};Version=3;";
+            this.altTestDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"alt_test_{Guid.NewGuid()}.db");
             var config = new SqliteConfiguration
             {
                 JournalMode = JournalMode.WAL,
@@ -71,6 +73,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             if (this.productProvider != null) await this.productProvider.DisposeAsync();
 
             this.SafeDeleteDatabase(this.testDbPath);
+            this.SafeDeleteDatabase(this.altTestDbPath);
         }
 
         private async Task SeedProducts()
@@ -322,25 +325,25 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             // In real scenario, SQL Server provider would be used
 
             // Step 1: Export from SQLite
-            var sqliteData = await this.productProvider.GetAllAsync(this.callerInfo);
+            var products = await this.productProvider.GetAllAsync(this.callerInfo);
 
             // Step 2: Simulate SQL Server provider (using another SQLite instance)
-            var sqlServerConnectionString = "Data Source=:memory:";
+            var sqlServerConnectionString = $"Data Source={this.altTestDbPath};Version=3;";
 
             var sqlServerProvider = new SQLitePersistenceProvider<Product, Guid>(sqlServerConnectionString);
             await sqlServerProvider.InitializeAsync();
 
             // Step 3: Import to "SQL Server"
-            var importResult = await sqlServerProvider.CreateAsync(sqliteData, this.callerInfo);
+            var importResult = await sqlServerProvider.CreateAsync(products, this.callerInfo);
 
             // Step 4: Verify data integrity
-            importResult.Count().Should().Be(sqliteData.Count());
+            importResult.Count().Should().Be(products.Count());
 
             var sqlServerData = await sqlServerProvider.GetAllAsync(this.callerInfo);
-            sqlServerData.Count().Should().Be(sqliteData.Count());
+            sqlServerData.Count().Should().Be(products.Count());
 
             // Verify each product
-            foreach (var sqliteProduct in sqliteData)
+            foreach (var sqliteProduct in products)
             {
                 var sqlServerProduct = sqlServerData.FirstOrDefault(p => p.Id == sqliteProduct.Id);
                 sqlServerProduct.Should().NotBeNull();

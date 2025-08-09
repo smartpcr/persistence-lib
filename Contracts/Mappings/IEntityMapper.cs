@@ -29,6 +29,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         IReadOnlyDictionary<PropertyInfo, PropertyMapping> GetPropertyMappings();
         string GetPrimaryKeyColumn();
         List<string> GetPrimaryKeyColumns();
+        
+        /// <summary>
+        /// Gets the fully qualified table name including schema, properly escaped for SQL.
+        /// </summary>
+        string GetFullTableName();
 
         List<string> GetSelectColumns();
         List<string> GetInsertColumns();

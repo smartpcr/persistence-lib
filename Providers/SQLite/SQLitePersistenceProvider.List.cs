@@ -100,7 +100,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         // Check if entity already exists
                         var checkEntitySql = $@"
                             SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-                            FROM {this.Mapper.TableName}
+                            FROM {this.EscapedTableName}
                             WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
 
                         if (this.Mapper.EnableSoftDelete || versionedEntity != null)
@@ -160,7 +160,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         var columns = this.Mapper.GetInsertColumns();
                         var parameters = columns.Select(c => $"@{c}").ToList();
                         var insertEntitySql = $@"
-                                INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
+                                INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
                                 VALUES ({string.Join(", ", parameters)});";
 
                         await using var insertCmd = this.CreateCommand(insertEntitySql, connection, transaction);
@@ -283,7 +283,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                     var sql = $@"
                         SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-                        FROM {this.Mapper.TableName}
+                        FROM {this.EscapedTableName}
                         WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
 
                     if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
@@ -462,7 +462,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         // Read existing entity
                         var existingSql = $@"
                             SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-                            FROM {this.Mapper.TableName}
+                            FROM {this.EscapedTableName}
                             WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
 
                         if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
@@ -506,7 +506,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                             var columns = this.Mapper.GetInsertColumns();
                             var parameters = columns.Select(c => $"@{c}").ToList();
                             var insertSql = $@"
-                                INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
+                                INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
                                 VALUES ({string.Join(", ", parameters)});";
 
                             await using var insertCmd = this.CreateCommand(insertSql, connection, transaction);
@@ -535,7 +535,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                     var columns = this.Mapper.GetInsertColumns();
                                     var parameters = columns.Select(c => $"@{c}").ToList();
                                     var insertSql = $@"
-                                        INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
+                                        INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
                                         VALUES ({string.Join(", ", parameters)});";
 
                                     await using var insertCmd = this.CreateCommand(insertSql, connection, transaction);
@@ -555,7 +555,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                         .ToList();
 
                                     var updateSql = $@"
-                                        UPDATE {this.Mapper.TableName}
+                                        UPDATE {this.EscapedTableName}
                                         SET {string.Join(", ", updateColumns)}
                                         WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;";
 

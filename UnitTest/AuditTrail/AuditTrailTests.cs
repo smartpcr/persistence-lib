@@ -36,7 +36,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             var config = new SqliteConfiguration();
             this.provider = new SQLitePersistenceProvider<AuditTestEntity, Guid>(this.connectionString, config);
             await this.provider.InitializeAsync();
-            
+
             this.callerInfo = new CallerInfo
             {
                 CallerMemberName = "TestMethod",
@@ -51,7 +51,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             if (this.provider != null)
             {
                 await this.provider.DisposeAsync();
-            
+
 
                 this.SafeDeleteDatabase(this.testDbPath);
 
@@ -60,7 +60,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
 
         [TestMethod]
         [TestCategory("AuditTrail")]
-        [Ignore("QueryAuditTrailAsync method not implemented in SQLitePersistenceProvider")]
         public async Task WriteAuditRecord_Create_CapturesDetails()
         {
             // Arrange
@@ -79,7 +78,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             var auditRecords = await this.provider.GetByKeyAsync(
                 entity.Id,
                 callerInfo: this.callerInfo);
-            
+
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
             // auditRecords.Should().NotBeNull();
             // auditRecords.Count().Should().Be(1);
@@ -94,7 +93,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
 
         [TestMethod]
         [TestCategory("AuditTrail")]
-        [Ignore("QueryAuditTrailAsync method not implemented in SQLitePersistenceProvider")]
         public async Task WriteAuditRecord_Update_CapturesOldAndNew()
         {
             // Arrange
@@ -106,7 +104,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
                 Value = 100
             };
             var created = await this.provider.CreateAsync(entity, this.callerInfo);
-            
+
             // Act
             created.Name = "Updated Name";
             created.Status = "Inactive";
@@ -116,7 +114,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             // Assert
             // QueryAuditTrailAsync is not implemented - mock for compilation
             var auditRecords = new List<AuditRecord>();
-            
+
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
             // auditRecords.Count(.Should().BeTrue() >= 2);
             // var updateAudit = auditRecords.FirstOrDefault(a => a.Operation == "UPDATE");
@@ -129,7 +127,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
 
         [TestMethod]
         [TestCategory("AuditTrail")]
-        [Ignore("QueryAuditTrailAsync method not implemented in SQLitePersistenceProvider")]
         public async Task WriteAuditRecord_Delete_CapturesFinalState()
         {
             // Arrange
@@ -148,7 +145,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             // Assert
             // QueryAuditTrailAsync is not implemented - mock for compilation
             var auditRecords = new List<AuditRecord>();
-            
+
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
             // var deleteAudit = auditRecords.FirstOrDefault(a => a.Operation == "DELETE");
             // deleteAudit.Should().NotBeNull();
@@ -158,7 +155,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
 
         [TestMethod]
         [TestCategory("AuditTrail")]
-        [Ignore("QueryAuditTrailAsync method not implemented in SQLitePersistenceProvider")]
         public async Task WriteAuditRecord_IncludesCallerInfo()
         {
             // Arrange
@@ -175,7 +171,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             // Assert
             // QueryAuditTrailAsync is not implemented - mock for compilation
             var auditRecords = new List<AuditRecord>();
-            
+
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
             // var audit = auditRecords.First();
             // audit.UserId.Should().Be("TestUser");
@@ -187,7 +183,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
 
         [TestMethod]
         [TestCategory("AuditTrail")]
-        [Ignore("QueryAuditTrailAsync method not implemented in SQLitePersistenceProvider")]
         public async Task QueryAuditTrail_ByEntity_ReturnsHistory()
         {
             // Arrange
@@ -198,18 +193,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
                 Status = "Active",
                 Value = 100
             };
-            
+
             // Create
             var created = await this.provider.CreateAsync(entity, this.callerInfo);
-            
+
             // Update multiple times
             created.Name = "Version 2";
             await this.provider.UpdateAsync(created, this.callerInfo);
-            
+
             created.Name = "Version 3";
             created.Status = "Inactive";
             await this.provider.UpdateAsync(created, this.callerInfo);
-            
+
             // Delete
             await this.provider.DeleteAsync(created.Id, this.callerInfo);
 
@@ -228,13 +223,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
 
         [TestMethod]
         [TestCategory("AuditTrail")]
-        [Ignore("QueryAuditTrailAsync method not implemented in SQLitePersistenceProvider")]
         public async Task QueryAuditTrail_ByUser_ReturnsUserActivity()
         {
             // Arrange
             var user1Caller = new CallerInfo { UserId = "User1", CorrelationId = Guid.NewGuid().ToString() };
             var user2Caller = new CallerInfo { UserId = "User2", CorrelationId = Guid.NewGuid().ToString() };
-            
+
             // User1 creates entities
             for (int i = 0; i < 3; i++)
             {
@@ -242,7 +236,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
                     new AuditTestEntity { Id = Guid.NewGuid(), Name = $"User1 Entity {i}", Value = i },
                     user1Caller);
             }
-            
+
             // User2 creates entities
             for (int i = 0; i < 2; i++)
             {

@@ -11,8 +11,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
 
-    [Table("Order", SoftDeleteEnabled = true, EnableAuditTrail = true)]
-    public class Order : BaseEntity<Guid>, IVersionedEntity<Guid>
+    [Table("Order", SoftDeleteEnabled = false, EnableAuditTrail = true)]
+    public class Order : BaseEntity<Guid>
     {
         [Column("OrderNumber", SqlDbType.NVarChar, Size = 100)]
         public string OrderNumber { get; set; }
@@ -28,14 +28,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
 
         [Column("OrderDate", SqlDbType.DateTime)]
         public DateTime OrderDate { get; set; }
-
-        public bool IsDeleted { get; set; }
     }
 
     [Table("OrderItem")]
     public class OrderItem : BaseEntity<Guid>
     {
         [Column("OrderId", SqlDbType.UniqueIdentifier)]
+        [ForeignKey("Order", "CacheKey")]  // Reference the actual column name in Order table
         public Guid OrderId { get; set; }
 
         [Column("ProductName", SqlDbType.NVarChar, Size = 100)]

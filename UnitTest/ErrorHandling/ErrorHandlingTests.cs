@@ -72,7 +72,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
 
         [TestMethod]
         [TestCategory("ErrorHandling")]
-        [Ignore("OnBeforeExecute event not implemented in SQLitePersistenceProvider")]
         public async Task ConnectionLoss_TransientFailure_Retries()
         {
             // Arrange
@@ -105,8 +104,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
 
         [TestMethod]
         [TestCategory("ErrorHandling")]
-        [Ignore("OnBeforeExecute event not implemented in SQLitePersistenceProvider")]
-
         public async Task ConnectionLoss_PersistentFailure_ThrowsException()
         {
             // Arrange

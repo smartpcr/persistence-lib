@@ -615,12 +615,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 ? $@"
                     WITH LatestVersions AS (
                         SELECT *, ROW_NUMBER() OVER (PARTITION BY {this.Mapper.GetPrimaryKeyColumn()} ORDER BY Version DESC) as rn
-                        FROM {this.Mapper.TableName}
+                        FROM {this.EscapedTableName}
                     )
                     SELECT {string.Join(", ", this.Mapper.GetSelectColumns().Select(c => $"lv.{c}"))}
                     FROM LatestVersions lv
                     WHERE lv.rn = 1"
-                : $"SELECT {string.Join(", ", this.Mapper.GetSelectColumns())} FROM {this.Mapper.TableName}";
+                : $"SELECT {string.Join(", ", this.Mapper.GetSelectColumns())} FROM {this.EscapedTableName}";
 
             using var cmd = this.CreateCommand(sql, connection);
             using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
@@ -642,7 +642,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             SQLiteConnection connection,
             CancellationToken cancellationToken)
         {
-            var sql = $"DELETE FROM {this.Mapper.TableName}";
+            var sql = $"DELETE FROM {this.EscapedTableName}";
             using var cmd = this.CreateCommand(sql, connection);
             await cmd.ExecuteNonQueryAsync(cancellationToken);
         }
@@ -1058,7 +1058,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             if (this.Mapper.EnableSoftDelete && options.IncludeAllVersions)
             {
                 // Count all versions
-                countSql = $"SELECT COUNT(*) FROM {this.Mapper.TableName} WHERE {whereClause}";
+                countSql = $"SELECT COUNT(*) FROM {this.EscapedTableName} WHERE {whereClause}";
             }
             else
             {
@@ -1066,7 +1066,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 countSql = $@"
 WITH LatestVersions AS (
     SELECT {this.Mapper.GetPrimaryKeyColumn()}, MAX(Version) as MaxVersion
-    FROM {this.Mapper.TableName}
+    FROM {this.EscapedTableName}
     WHERE {whereClause}
     GROUP BY {this.Mapper.GetPrimaryKeyColumn()}
 )
@@ -1100,7 +1100,7 @@ SELECT COUNT(*) FROM LatestVersions";
                 // Export all versions
                 sql = $@"
                 SELECT {string.Join(", ", this.Mapper.GetSelectColumns())}
-                FROM {this.Mapper.TableName}
+                FROM {this.EscapedTableName}
                 WHERE {whereClause}
                 ORDER BY {this.Mapper.GetPrimaryKeyColumn()}, Version";
             }
@@ -1110,7 +1110,7 @@ SELECT COUNT(*) FROM LatestVersions";
                 sql = $@"
                 WITH LatestVersions AS (
                     SELECT *, ROW_NUMBER() OVER (PARTITION BY {this.Mapper.GetPrimaryKeyColumn()} ORDER BY Version DESC) as rn
-                    FROM {this.Mapper.TableName}
+                    FROM {this.EscapedTableName}
                     WHERE {whereClause}
                 )
                 SELECT {string.Join(", ", this.Mapper.GetSelectColumns().Select(c => $"lv.{c}"))}
@@ -1358,7 +1358,7 @@ SELECT COUNT(*) FROM LatestVersions";
             // Add ExportedDate column if it doesn't exist
             var checkColumnSql = $@"
                 SELECT COUNT(*)
-                FROM pragma_table_info('{this.Mapper.TableName}')
+                FROM pragma_table_info('{this.EscapedTableName}')
                 WHERE name = 'ExportedDate'";
 
             using var checkCmd = this.CreateCommand(checkColumnSql, connection);
@@ -1366,14 +1366,14 @@ SELECT COUNT(*) FROM LatestVersions";
 
             if (!columnExists)
             {
-                var addColumnSql = $"ALTER TABLE {this.Mapper.TableName} ADD COLUMN ExportedDate TEXT";
+                var addColumnSql = $"ALTER TABLE {this.EscapedTableName} ADD COLUMN ExportedDate TEXT";
                 using var addCmd = this.CreateCommand(addColumnSql, connection);
                 await addCmd.ExecuteNonQueryAsync(cancellationToken);
             }
 
             // Update entities with export date
             var updateSql = $@"
-                UPDATE {this.Mapper.TableName}
+                UPDATE {this.EscapedTableName}
                 SET ExportedDate = @exportDate
                 WHERE {whereClause}";
 
@@ -1463,12 +1463,12 @@ SELECT COUNT(*) FROM LatestVersions";
                 var countSql = $@"
                     WITH AffectedEntities AS (
                         SELECT DISTINCT {this.Mapper.GetPrimaryKeyColumn()}
-                        FROM {this.Mapper.TableName}
+                        FROM {this.EscapedTableName}
                         WHERE {whereClause}
                     )
                     SELECT
                         (SELECT COUNT(*) FROM AffectedEntities) as EntityCount,
-                        (SELECT COUNT(*) FROM {this.Mapper.TableName} t
+                        (SELECT COUNT(*) FROM {this.EscapedTableName} t
                          WHERE EXISTS (SELECT 1 FROM AffectedEntities a
                                       WHERE a.{this.Mapper.GetPrimaryKeyColumn()} = t.{this.Mapper.GetPrimaryKeyColumn()})) as VersionCount";
 
@@ -1488,7 +1488,7 @@ SELECT COUNT(*) FROM LatestVersions";
             else
             {
                 // Simple count for non-versioned
-                var countSql = $"SELECT COUNT(*) FROM {this.Mapper.TableName} WHERE {whereClause}";
+                var countSql = $"SELECT COUNT(*) FROM {this.EscapedTableName} WHERE {whereClause}";
                 using var countCmd = this.CreateCommand(countSql, connection);
                 foreach (var param in parameters)
                 {
@@ -1504,7 +1504,7 @@ SELECT COUNT(*) FROM LatestVersions";
             {
                 var sampleSql = $@"
                     SELECT {string.Join(", ", this.Mapper.GetSelectColumns())}
-                    FROM {this.Mapper.TableName}
+                    FROM {this.EscapedTableName}
                     WHERE {whereClause}
                     LIMIT {options.MaxPreviewSamples}";
 
@@ -1661,7 +1661,7 @@ SELECT COUNT(*) FROM LatestVersions";
             if (options.Strategy == PurgeStrategy.PurgeExpired)
             {
                 // For expired entities, delete all versions regardless of soft delete
-                var deleteSql = $"DELETE FROM {this.Mapper.TableName} WHERE {whereClause}";
+                var deleteSql = $"DELETE FROM {this.EscapedTableName} WHERE {whereClause}";
                 using var deleteCmd = this.CreateCommand(deleteSql, connection, transaction);
 
                 foreach (var param in parameters)
@@ -1691,7 +1691,7 @@ SELECT COUNT(*) FROM LatestVersions";
             else
             {
                 // Simple delete for non-versioned entities
-                var deleteSql = $"DELETE FROM {this.Mapper.TableName} WHERE {whereClause}";
+                var deleteSql = $"DELETE FROM {this.EscapedTableName} WHERE {whereClause}";
                 using var deleteCmd = this.CreateCommand(deleteSql, connection, transaction);
 
                 foreach (var param in parameters)
@@ -1711,7 +1711,7 @@ SELECT COUNT(*) FROM LatestVersions";
                     DELETE FROM EntryListMapping
                     WHERE EntityKey NOT IN (
                         SELECT DISTINCT {this.Mapper.GetPrimaryKeyColumn()}
-                        FROM {this.Mapper.TableName}
+                        FROM {this.EscapedTableName}
                     )";
 
                 using var listCmd = this.CreateCommand(listCleanupSql, connection, transaction);
@@ -1746,15 +1746,15 @@ SELECT COUNT(*) FROM LatestVersions";
                 case PurgeStrategy.PreserveActiveVersions:
                     // Delete all versions if newest is deleted, preserve if active
                     deleteSql = $@"
-                        DELETE FROM {this.Mapper.TableName} t1
+                        DELETE FROM {this.EscapedTableName} t1
                         WHERE {whereClause}
                         AND (
                             -- Entity's newest version is deleted
                             EXISTS (
-                                SELECT 1 FROM {this.Mapper.TableName} t2
+                                SELECT 1 FROM {this.EscapedTableName} t2
                                 WHERE t2.{this.Mapper.GetPrimaryKeyColumn()} = t1.{this.Mapper.GetPrimaryKeyColumn()}
                                 AND t2.Version = (
-                                    SELECT MAX(Version) FROM {this.Mapper.TableName} t3
+                                    SELECT MAX(Version) FROM {this.EscapedTableName} t3
                                     WHERE t3.{this.Mapper.GetPrimaryKeyColumn()} = t1.{this.Mapper.GetPrimaryKeyColumn()}
                                 )
                                 AND t2.IsDeleted = 1
@@ -1763,14 +1763,14 @@ SELECT COUNT(*) FROM LatestVersions";
                             -- Old versions of active entities
                             (
                                 t1.Version < (
-                                    SELECT MAX(Version) FROM {this.Mapper.TableName} t4
+                                    SELECT MAX(Version) FROM {this.EscapedTableName} t4
                                     WHERE t4.{this.Mapper.GetPrimaryKeyColumn()} = t1.{this.Mapper.GetPrimaryKeyColumn()}
                                 )
                                 AND NOT EXISTS (
-                                    SELECT 1 FROM {this.Mapper.TableName} t5
+                                    SELECT 1 FROM {this.EscapedTableName} t5
                                     WHERE t5.{this.Mapper.GetPrimaryKeyColumn()} = t1.{this.Mapper.GetPrimaryKeyColumn()}
                                     AND t5.Version = (
-                                        SELECT MAX(Version) FROM {this.Mapper.TableName} t6
+                                        SELECT MAX(Version) FROM {this.EscapedTableName} t6
                                         WHERE t6.{this.Mapper.GetPrimaryKeyColumn()} = t1.{this.Mapper.GetPrimaryKeyColumn()}
                                     )
                                     AND t5.IsDeleted = 1
@@ -1781,18 +1781,18 @@ SELECT COUNT(*) FROM LatestVersions";
 
                 case PurgeStrategy.PurgeAllOldVersions:
                     // Delete all matching versions
-                    deleteSql = $"DELETE FROM {this.Mapper.TableName} WHERE {whereClause}";
+                    deleteSql = $"DELETE FROM {this.EscapedTableName} WHERE {whereClause}";
                     break;
 
                 case PurgeStrategy.PurgeDeletedOnly:
                     // Already handled in where clause
-                    deleteSql = $"DELETE FROM {this.Mapper.TableName} WHERE {whereClause}";
+                    deleteSql = $"DELETE FROM {this.EscapedTableName} WHERE {whereClause}";
                     break;
 
                 case PurgeStrategy.PurgeExpired:
                     // Delete all expired entities regardless of version
                     // The where clause already contains the expiry condition
-                    deleteSql = $"DELETE FROM {this.Mapper.TableName} WHERE {whereClause}";
+                    deleteSql = $"DELETE FROM {this.EscapedTableName} WHERE {whereClause}";
                     break;
 
                 default:
@@ -1810,7 +1810,7 @@ SELECT COUNT(*) FROM LatestVersions";
             // Count unique entities purged
             var entityCountSql = $@"
                 SELECT COUNT(DISTINCT {this.Mapper.GetPrimaryKeyColumn()})
-                FROM {this.Mapper.TableName}
+                FROM {this.EscapedTableName}
                 WHERE {whereClause}";
 
             using var countCmd = this.CreateCommand(entityCountSql, connection, transaction);
@@ -1829,7 +1829,7 @@ SELECT COUNT(*) FROM LatestVersions";
         private async Task OptimizeStorageAsync(SQLiteConnection connection, CancellationToken cancellationToken)
         {
             // Rebuild indexes
-            using var rebuildCmd = this.CreateCommand($"REINDEX {this.Mapper.TableName}", connection);
+            using var rebuildCmd = this.CreateCommand($"REINDEX {this.EscapedTableName}", connection);
             await rebuildCmd.ExecuteNonQueryAsync(cancellationToken);
 
             // Reclaim space

@@ -176,8 +176,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         /// Gets the fully qualified table name including schema.
         /// </summary>
         public virtual string GetFullTableName() => !string.IsNullOrEmpty(this.SchemaName)
-            ? $"{this.SchemaName}.{this.TableName}"
-            : this.TableName;
+            ? $"{this.EscapeIdentifier(this.SchemaName)}.{this.EscapeIdentifier(this.TableName)}"
+            : this.EscapeIdentifier(this.TableName);
 
         /// <summary>
         /// Gets the table name without schema.
@@ -1812,7 +1812,7 @@ FROM {fromClause}{joinClause}
         /// </summary>
         protected string GenerateInsertStatement()
         {
-            var tableName = this.GetTableName();
+            var tableName = this.GetFullTableName();
             var insertColumns = this.GetInsertColumns();
             var escapedColumnNames = string.Join(", ", insertColumns.Select(col => this.EscapeIdentifier(col)));
             var parameterNames = string.Join(", ", insertColumns.Select(col => $"@{col}"));
@@ -1825,7 +1825,7 @@ FROM {fromClause}{joinClause}
         /// </summary>
         protected string GenerateUpdateStatement()
         {
-            var tableName = this.GetTableName();
+            var tableName = this.GetFullTableName();
             var updateColumns = this.GetUpdateColumns();
             var primaryKeyColumns = this.GetPrimaryKeyColumns();
 
@@ -1840,7 +1840,7 @@ FROM {fromClause}{joinClause}
         /// </summary>
         protected string GenerateDeleteStatement()
         {
-            var tableName = this.GetTableName();
+            var tableName = this.GetFullTableName();
             var primaryKeyColumns = this.GetPrimaryKeyColumns();
             var whereClause = string.Join(" AND ", primaryKeyColumns.Select(col => $"{this.EscapeIdentifier(col)} = @{col}"));
 
@@ -2304,12 +2304,12 @@ FROM {fromClause}{joinClause}
                 var columns = string.Join(", ", fk.ColumnNames.Select(c => this.EscapeIdentifier(c)));
                 var referencedColumns = string.Join(", ", fk.ReferencedColumns.Select(c => this.EscapeIdentifier(c)));
                 sql.Append($"FOREIGN KEY ({columns}) ");
-                sql.Append($"REFERENCES {fk.ReferencedTable}({referencedColumns})");
+                sql.Append($"REFERENCES {this.EscapeIdentifier(fk.ReferencedTable)}({referencedColumns})");
             }
             else
             {
                 sql.Append($"FOREIGN KEY ({this.EscapeIdentifier(fk.ColumnName)}) ");
-                sql.Append($"REFERENCES {fk.ReferencedTable}({this.EscapeIdentifier(fk.ReferencedColumn)})");
+                sql.Append($"REFERENCES {this.EscapeIdentifier(fk.ReferencedTable)}({this.EscapeIdentifier(fk.ReferencedColumn)})");
             }
 
             if (fk.OnDelete != ForeignKeyAction.NoAction)

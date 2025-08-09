@@ -38,7 +38,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             var versionEntity = this.Mapper.EnableSoftDelete ? entity as IVersionedEntity<TKey> : null;
             long newVersion = 1; // initial version for new entity when soft-delete is disabled
 
-            PersistenceLogger.CreateStart(keyString, this.Mapper.TableName);
+            PersistenceLogger.CreateStart(keyString, this.EscapedTableName);
 
             try
             {
@@ -62,7 +62,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     // Step 2: Check if entity already exists, if soft-delete enabled, read the latest version
                     var checkExistsSql = $@"
 SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-FROM {this.Mapper.TableName}
+FROM {this.EscapedTableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
                     if (this.Mapper.EnableSoftDelete || versionEntity != null)
                     {
@@ -120,7 +120,7 @@ LIMIT 1";
                     // Step 5: ensure the entity is inserted before commit
                     var selectSql = $@"
 SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-FROM {this.Mapper.TableName}
+FROM {this.EscapedTableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
   AND Version = @version;";
 
@@ -155,14 +155,14 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                     }
 
                     stopwatch.Stop();
-                    PersistenceLogger.CreateStop(keyString, this.Mapper.TableName, stopwatch);
+                    PersistenceLogger.CreateStop(keyString, this.EscapedTableName, stopwatch);
 
                     return result;
                 }
                 catch (EntityAlreadyExistsException)
                 {
                     stopwatch.Stop();
-                    PersistenceLogger.CreateFailed(keyString, this.Mapper.TableName, stopwatch, new InvalidOperationException($"Entity with key '{keyString}' already exists"));
+                    PersistenceLogger.CreateFailed(keyString, this.EscapedTableName, stopwatch, new InvalidOperationException($"Entity with key '{keyString}' already exists"));
                     // Transaction rollback will undo both Version and entity inserts
                     transaction.Rollback();
                     throw;
@@ -170,7 +170,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                 catch (Exception ex)
                 {
                     stopwatch.Stop();
-                    PersistenceLogger.CreateFailed(keyString, this.Mapper.TableName, stopwatch, ex);
+                    PersistenceLogger.CreateFailed(keyString, this.EscapedTableName, stopwatch, ex);
                     // Transaction rollback will undo both Version and entity inserts
                     transaction.Rollback();
                     throw;
@@ -179,7 +179,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.CreateFailed(keyString, this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.CreateFailed(keyString, this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }
@@ -194,7 +194,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
         {
             var stopwatch = Stopwatch.StartNew();
             var keyString = this.Mapper.SerializeKey(key);
-            PersistenceLogger.GetStart(keyString, this.Mapper.TableName);
+            PersistenceLogger.GetStart(keyString, this.EscapedTableName);
 
             try
             {
@@ -227,11 +227,11 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
 
                 if (result == null)
                 {
-                    PersistenceLogger.GetNotFound(keyString, this.Mapper.TableName);
+                    PersistenceLogger.GetNotFound(keyString, this.EscapedTableName);
                 }
                 else
                 {
-                    PersistenceLogger.GetStop(keyString, this.Mapper.TableName, stopwatch);
+                    PersistenceLogger.GetStop(keyString, this.EscapedTableName, stopwatch);
                 }
 
                 // Write to audit trail if enabled
@@ -252,7 +252,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.GetFailed(keyString, this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.GetFailed(keyString, this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }
@@ -267,7 +267,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
         {
             var stopwatch = Stopwatch.StartNew();
             var keyString = this.Mapper.SerializeKey(key);
-            PersistenceLogger.GetStart(keyString, this.Mapper.TableName);
+            PersistenceLogger.GetStart(keyString, this.EscapedTableName);
 
             try
             {
@@ -299,7 +299,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
 
                 stopwatch.Stop();
 
-                PersistenceLogger.GetStop(keyString, this.Mapper.TableName, stopwatch);
+                PersistenceLogger.GetStop(keyString, this.EscapedTableName, stopwatch);
 
                 // Write to audit trail if enabled
                 if (this.Mapper.EnableAuditTrail && results.Any())
@@ -319,7 +319,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.GetFailed(keyString, this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.GetFailed(keyString, this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }
@@ -333,7 +333,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
             var keyString = this.Mapper.SerializeKey(entity.Id);
             var versionedEntity = this.Mapper.EnableSoftDelete ? entity as IVersionedEntity<TKey> : null;
 
-            PersistenceLogger.UpdateStart(keyString, this.Mapper.TableName);
+            PersistenceLogger.UpdateStart(keyString, this.EscapedTableName);
 
             try
             {
@@ -351,7 +351,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                     // the entity exists and matches the expected version for update
                     var selectOldSql = $@"
 SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-FROM {this.Mapper.TableName}
+FROM {this.EscapedTableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
                     if (versionedEntity != null)
                     {
@@ -449,20 +449,20 @@ LIMIT 1";
                     }
 
                     stopwatch.Stop();
-                    PersistenceLogger.UpdateStop(keyString, this.Mapper.TableName, stopwatch);
+                    PersistenceLogger.UpdateStop(keyString, this.EscapedTableName, stopwatch);
                     return entity;
                 }
                 catch (ConcurrencyException)
                 {
                     stopwatch.Stop();
-                    PersistenceLogger.UpdateConcurrencyConflict(keyString, this.Mapper.TableName);
+                    PersistenceLogger.UpdateConcurrencyConflict(keyString, this.EscapedTableName);
                     transaction.Rollback();
                     throw;
                 }
                 catch (Exception ex)
                 {
                     stopwatch.Stop();
-                    PersistenceLogger.UpdateFailed(keyString, this.Mapper.TableName, stopwatch, ex);
+                    PersistenceLogger.UpdateFailed(keyString, this.EscapedTableName, stopwatch, ex);
                     transaction.Rollback();
                     throw;
                 }
@@ -470,7 +470,7 @@ LIMIT 1";
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.UpdateFailed(keyString, this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.UpdateFailed(keyString, this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }
@@ -483,7 +483,7 @@ LIMIT 1";
             var stopwatch = Stopwatch.StartNew();
             var keyString = this.Mapper.SerializeKey(key);
 
-            PersistenceLogger.DeleteStart(keyString, this.Mapper.TableName);
+            PersistenceLogger.DeleteStart(keyString, this.EscapedTableName);
 
             try
             {
@@ -494,7 +494,7 @@ LIMIT 1";
                 T oldValue = null;
                 var selectOldSql = $@"
                         SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-                        FROM {this.Mapper.TableName}
+                        FROM {this.EscapedTableName}
                         WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
                 if (this.Mapper.EnableSoftDelete)
                 {
@@ -558,7 +558,7 @@ LIMIT 1";
                     var columns = this.Mapper.GetInsertColumns();
                     var parameters = columns.Select(c => $"@{c}").ToList();
                     var insertEntitySql = $@"
-INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
+INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});";
 
                     await using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
@@ -568,7 +568,7 @@ VALUES ({string.Join(", ", parameters)});";
                 else
                 {
                     sql = $@"
-DELETE FROM {this.Mapper.TableName}
+DELETE FROM {this.EscapedTableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;
 SELECT changes();";
                     await using var command = this.CreateCommand(sql, connection, transaction);
@@ -592,13 +592,13 @@ SELECT changes();";
                 }
 
                 stopwatch.Stop();
-                PersistenceLogger.DeleteStop(keyString, this.Mapper.TableName, stopwatch);
+                PersistenceLogger.DeleteStop(keyString, this.EscapedTableName, stopwatch);
                 return true;
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.DeleteFailed(keyString, this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.DeleteFailed(keyString, this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }

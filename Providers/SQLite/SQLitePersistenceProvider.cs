@@ -57,6 +57,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private bool isDisposed;
 
         public IEntityMapper<T, TKey> Mapper { get; private set; }
+        
+        /// <summary>
+        /// Gets the properly escaped table name for use in SQL statements.
+        /// </summary>
+        private string EscapedTableName => this.Mapper.GetFullTableName();
 
         public SQLitePersistenceProvider(string connectionString, SqliteConfiguration configuration = null)
         {

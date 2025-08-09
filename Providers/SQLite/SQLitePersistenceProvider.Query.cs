@@ -32,7 +32,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
-            PersistenceLogger.QueryStart(this.Mapper.TableName);
+            PersistenceLogger.QueryStart(this.EscapedTableName);
 
             try
             {
@@ -76,7 +76,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 // Build the query
                 var sql = $@"
 SELECT {string.Join(", ", this.Mapper.GetSelectColumns())}
-FROM {this.Mapper.TableName}
+FROM {this.EscapedTableName}
 {whereClause}
 {orderByClause}";
 
@@ -136,12 +136,12 @@ FROM {this.Mapper.TableName}
                 }
 
                 stopwatch.Stop();
-                PersistenceLogger.QueryStop(this.Mapper.TableName, entities.Count, stopwatch);
+                PersistenceLogger.QueryStop(this.EscapedTableName, entities.Count, stopwatch);
 
                 // Check for slow queries (> 1 second)
                 if (stopwatch.ElapsedMilliseconds > 1000)
                 {
-                    PersistenceLogger.SlowQuery(this.Mapper.TableName, stopwatch.ElapsedMilliseconds);
+                    PersistenceLogger.SlowQuery(this.EscapedTableName, stopwatch.ElapsedMilliseconds);
                 }
 
                 return entities;
@@ -149,7 +149,7 @@ FROM {this.Mapper.TableName}
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.QueryFailed(this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.QueryFailed(this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }
@@ -168,7 +168,7 @@ FROM {this.Mapper.TableName}
                 throw new ArgumentException("Page number must be greater than 0", nameof(pageNumber));
 
             var stopwatch = Stopwatch.StartNew();
-            PersistenceLogger.QueryStart(this.Mapper.TableName);
+            PersistenceLogger.QueryStart(this.EscapedTableName);
 
             try
             {
@@ -203,7 +203,7 @@ FROM {this.Mapper.TableName}
                 var countSql = $@"
 WITH LatestVersions AS (
     SELECT {this.Mapper.GetPrimaryKeyColumn()}, MAX(Version) as MaxVersion
-    FROM {this.Mapper.TableName}
+    FROM {this.EscapedTableName}
     {whereClause}
     GROUP BY {this.Mapper.GetPrimaryKeyColumn()}
 )
@@ -246,7 +246,7 @@ SELECT COUNT(*) FROM LatestVersions;";
                 var sql = $@"
 WITH LatestVersions AS (
     SELECT *, ROW_NUMBER() OVER (PARTITION BY {this.Mapper.GetPrimaryKeyColumn()} ORDER BY Version DESC) as rn
-    FROM {this.Mapper.TableName}
+    FROM {this.EscapedTableName}
     {whereClause}
 )
 SELECT {string.Join(", ", this.Mapper.GetSelectColumns().Select(c => $"lv.{c}"))}
@@ -280,12 +280,12 @@ LIMIT @pageSize OFFSET @offset";
                 }
 
                 stopwatch.Stop();
-                PersistenceLogger.QueryStop(this.Mapper.TableName, items.Count, stopwatch);
+                PersistenceLogger.QueryStop(this.EscapedTableName, items.Count, stopwatch);
 
                 // Check for slow queries (> 1 second)
                 if (stopwatch.ElapsedMilliseconds > 1000)
                 {
-                    PersistenceLogger.SlowQuery(this.Mapper.TableName, stopwatch.ElapsedMilliseconds);
+                    PersistenceLogger.SlowQuery(this.EscapedTableName, stopwatch.ElapsedMilliseconds);
                 }
 
                 return new PagedResult<T>
@@ -299,7 +299,7 @@ LIMIT @pageSize OFFSET @offset";
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.QueryFailed(this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.QueryFailed(this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }
@@ -307,7 +307,7 @@ LIMIT @pageSize OFFSET @offset";
         public async Task<long> CountAsync(Expression<Func<T, bool>> predicate = null, CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
-            PersistenceLogger.QueryStart(this.Mapper.TableName);
+            PersistenceLogger.QueryStart(this.EscapedTableName);
 
             try
             {
@@ -337,7 +337,7 @@ LIMIT @pageSize OFFSET @offset";
                 var sql = $@"
 WITH LatestVersions AS (
     SELECT {this.Mapper.GetPrimaryKeyColumn()}, MAX(Version) as MaxVersion
-    FROM {this.Mapper.TableName}
+    FROM {this.EscapedTableName}
     {whereClause}
     GROUP BY {this.Mapper.GetPrimaryKeyColumn()}
 )
@@ -354,13 +354,13 @@ SELECT COUNT(*) FROM LatestVersions";
 
                 var result = await command.ExecuteScalarAsync(cancellationToken);
                 stopwatch.Stop();
-                PersistenceLogger.QueryStop(this.Mapper.TableName, 1, stopwatch); // Count queries return single value
+                PersistenceLogger.QueryStop(this.EscapedTableName, 1, stopwatch); // Count queries return single value
                 return Convert.ToInt64(result);
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.QueryFailed(this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.QueryFailed(this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }
@@ -371,7 +371,7 @@ SELECT COUNT(*) FROM LatestVersions";
                 throw new ArgumentNullException(nameof(predicate));
 
             var stopwatch = Stopwatch.StartNew();
-            PersistenceLogger.QueryStart(this.Mapper.TableName);
+            PersistenceLogger.QueryStart(this.EscapedTableName);
 
             try
             {
@@ -395,13 +395,13 @@ SELECT EXISTS (
 
                 var result = await command.ExecuteScalarAsync(cancellationToken);
                 stopwatch.Stop();
-                PersistenceLogger.QueryStop(this.Mapper.TableName, 1, stopwatch); // Exists queries return single value
+                PersistenceLogger.QueryStop(this.EscapedTableName, 1, stopwatch); // Exists queries return single value
                 return Convert.ToBoolean(result);
             }
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.QueryFailed(this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.QueryFailed(this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }

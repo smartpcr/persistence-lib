@@ -86,7 +86,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                 // Step 1: Check if entity already exists
                                 var checkExistsSql = $@"
 SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-FROM {this.Mapper.TableName}
+FROM {this.EscapedTableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
                                 if (this.Mapper.EnableSoftDelete || versionEntity != null)
                                 {
@@ -141,7 +141,7 @@ LIMIT 1";
                                 var columns = this.Mapper.GetInsertColumns();
                                 var parameters = columns.Select(c => $"@{c}").ToList();
                                 var insertEntitySql = $@"
-INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
+INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});";
 
                                 await using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
@@ -151,7 +151,7 @@ VALUES ({string.Join(", ", parameters)});";
                                 // Retrieve the inserted entity
                                 var selectSql = $@"
 SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-FROM {this.Mapper.TableName}
+FROM {this.EscapedTableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
   AND Version = @version;";
 
@@ -238,7 +238,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
             CancellationToken cancellationToken = default)
         {
             var stopwatch = Stopwatch.StartNew();
-            PersistenceLogger.GetStart("all", this.Mapper.TableName);
+            PersistenceLogger.GetStart("all", this.EscapedTableName);
 
             try
             {
@@ -274,7 +274,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                 }
 
                 stopwatch.Stop();
-                PersistenceLogger.GetStop("all", this.Mapper.TableName, stopwatch);
+                PersistenceLogger.GetStop("all", this.EscapedTableName, stopwatch);
 
                 // Write to audit trail if enabled (batch read operation)
                 if (this.Mapper.EnableAuditTrail && results.Any())
@@ -296,7 +296,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
             catch (Exception ex)
             {
                 stopwatch.Stop();
-                PersistenceLogger.GetFailed("all", this.Mapper.TableName, stopwatch, ex);
+                PersistenceLogger.GetFailed("all", this.EscapedTableName, stopwatch, ex);
                 throw;
             }
         }
@@ -371,7 +371,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                                 T oldValue = null;
                                 var selectOldSql = $@"
 SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-FROM {this.Mapper.TableName}
+FROM {this.EscapedTableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
                                 if (versionedEntity != null)
                                 {
@@ -443,7 +443,7 @@ LIMIT 1";
                                         .ToList();
 
                                     var updateSql = $@"
-UPDATE {this.Mapper.TableName}
+UPDATE {this.EscapedTableName}
 SET {string.Join(", ", updateColumns)}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
       AND Version = @originalVersion;
@@ -461,7 +461,7 @@ SELECT changes();";
                                     var columns = this.Mapper.GetInsertColumns();
                                     var parameters = columns.Select(c => $"@{c}").ToList();
                                     var insertEntitySql = $@"
-INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
+INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});
 SELECT changes();";
 
@@ -513,7 +513,7 @@ SELECT changes();";
                         // Rollback the current batch transaction
                         transaction.Rollback();
                         stopwatch.Stop();
-                        PersistenceLogger.UpdateConcurrencyConflict(ex.Message, this.Mapper.TableName);
+                        PersistenceLogger.UpdateConcurrencyConflict(ex.Message, this.EscapedTableName);
                         errors.Add(ex);
                     }
                     catch (Exception ex)
@@ -606,7 +606,7 @@ SELECT changes();";
                                 T oldValue = null;
                                 var selectOldSql = $@"
                                     SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-                                    FROM {this.Mapper.TableName}
+                                    FROM {this.EscapedTableName}
                                     WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
                                 if (this.Mapper.EnableSoftDelete)
                                 {
@@ -653,7 +653,7 @@ LIMIT 1";
                                     var columns = this.Mapper.GetInsertColumns();
                                     var parameters = columns.Select(c => $"@{c}").ToList();
                                     var insertEntitySql = $@"
-INSERT INTO {this.Mapper.TableName} ({string.Join(", ", columns)})
+INSERT INTO {this.EscapedTableName} ({string.Join(", ", columns)})
 VALUES ({string.Join(", ", parameters)});";
 
                                     using var insertCommand = this.CreateCommand(insertEntitySql, connection, transaction);
@@ -671,7 +671,7 @@ VALUES ({string.Join(", ", parameters)});";
                                     }
 
                                     var sql = $@"
-DELETE FROM {this.Mapper.TableName}
+DELETE FROM {this.EscapedTableName}
 WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;
 SELECT changes();";
                                     using var command = this.CreateCommand(sql, connection, transaction);

@@ -86,7 +86,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
 
         [TestMethod]
         [TestCategory("Integration")]
-        [Ignore("Transaction scope interface does not support direct persistence methods - needs redesign")]
         public async Task EndToEnd_OrderProcessingWorkflow()
         {
             // Step 1: Create order (transaction)

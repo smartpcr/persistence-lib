@@ -67,5 +67,21 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         /// Gets or sets whether to mark entities as exported (for archive mode).
         /// </summary>
         public bool MarkAsExported { get; set; } = false;
+
+        /// <summary>
+        /// Gets or sets the file format for export operations.
+        /// </summary>
+        public FileFormat FileFormat { get; set; } = FileFormat.Json;
+
+        /// <summary>
+        /// Gets or sets CSV-specific options.
+        /// </summary>
+        public CsvOptions CsvOptions { get; set; } = new CsvOptions();
+
+        /// <summary>
+        /// Gets or sets the filename prefix for exported files.
+        /// If not specified, the entity type name will be used.
+        /// </summary>
+        public string FileNamePrefix { get; set; }
     }
 }

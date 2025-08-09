@@ -29,10 +29,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
         private string testDbPath;
         private SQLitePersistenceProvider<BulkTestEntity, Guid> provider;
         private CallerInfo callerInfo;
+        private string exportDir;
 
         [TestInitialize]
         public async Task Setup()
         {
+            this.exportDir = Path.Combine(Directory.GetCurrentDirectory(), "export");
+            if (Directory.Exists(this.exportDir))
+            {
+                Directory.Delete(this.exportDir, true);
+            }
+
             this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
             this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.provider = new SQLitePersistenceProvider<BulkTestEntity, Guid>(this.connectionString);
@@ -51,6 +58,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             if (this.provider != null)
             {
                 await this.provider.DisposeAsync();
+            }
+
+            if (Directory.Exists(this.exportDir))
+            {
+                Directory.Delete(this.exportDir, true);
             }
 
             SQLiteProviderSharedState.ClearState();
@@ -154,7 +166,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
         {
             // Arrange
             var entities = new List<BulkTestEntity>();
-            for (int i = 0; i < 1000; i++)
+            for (var i = 0; i < 1000; i++)
             {
                 entities.Add(new BulkTestEntity
                 {
@@ -191,7 +203,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             };
 
             var tempFile = Path.GetTempFileName();
-            await File.WriteAllTextAsync(tempFile, JsonConvert.SerializeObject(entities));
+            var json = JsonConvert.SerializeObject(entities);
+            Console.WriteLine($"Serialized JSON: {json}");
+            await File.WriteAllTextAsync(tempFile, json);
 
             try
             {
@@ -271,7 +285,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             var entity = new BulkTestEntity { Id = Guid.NewGuid(), Name = "ToExport", Value = 1 };
             await this.provider.CreateAsync(entity, this.callerInfo);
 
-            (await ColumnExistsAsync("ExportedDate")).Should().BeFalse();
+            (await this.ColumnExistsAsync("ExportedDate")).Should().BeFalse();
 
             // Act
             var result = await this.provider.BulkExportAsync(
@@ -279,7 +293,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
 
             // Assert
             result.ExportedCount.Should().Be(1);
-            (await ColumnExistsAsync("ExportedDate")).Should().BeTrue();
+            (await this.ColumnExistsAsync("ExportedDate")).Should().BeTrue();
         }
 
         [TestMethod]
@@ -287,39 +301,42 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
         public async Task BulkExportAsync_ChunkedFiles_CreatesMultiple()
         {
             // Arrange
-            for (int i = 0; i < 250; i++)
+            var entities = new List<BulkTestEntity>();
+            for (var i = 0; i < 250; i++)
             {
-                await this.provider.CreateAsync(
-                    new BulkTestEntity { Id = Guid.NewGuid(), Name = $"Chunked {i}", Value = i },
-                    this.callerInfo);
+                entities.Add(new BulkTestEntity { Id = Guid.NewGuid(), Name = $"Chunked {i}", Value = i });
             }
+            await this.provider.CreateAsync(
+                entities,
+                this.callerInfo);
 
-            var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-            Directory.CreateDirectory(tempDir);
+            var result = await this.provider.BulkExportAsync(
+                null,
+                new  BulkExportOptions
+                {
+                    Mode = ExportMode.Archive,
+                    MarkAsExported = true,
+                    BatchSize = 100,
+                    FileFormat = FileFormat.Csv,
+                    CompressOutput = true,
+                    ExportFolder = this.exportDir,
+                    CsvOptions = new CsvOptions()
+                    {
+                        HasHeaders = true
+                    }
+                },
+                new Progress<BulkOperationProgress>(progress =>
+                {
+                    Console.WriteLine($"Export progress: {progress.PercentComplete}%");
+                }),
+                CancellationToken.None);
 
-            try
-            {
-                // Act - BulkExportToFilesAsync is not implemented
-                // var result = await this.provider.BulkExportToFilesAsync(
-                //     tempDir,
-                //     ExportFormat.Json,
-                //     new BulkExportOptions { ChunkSize = 100 },
-                //     this.callerInfo);
+            // Assert - commented out since method is not implemented
+            result.Should().NotBeNull();
+            result.ExportedCount.Should().Be(250);
 
-                // Mock result for compilation
-                var result = new { Success = true, ExportedCount = 250 };
-
-                // Assert - commented out since method is not implemented
-                // result.Success.Should().BeTrue();
-                // result.ExportedCount.Should().Be(250);
-
-                var files = Directory.GetFiles(tempDir, "*.json");
-                files.Length.Should().Be(3); // 250 items / 100 per chunk = 3 files
-            }
-            finally
-            {
-                Directory.Delete(tempDir, true);
-            }
+            var files = Directory.GetFiles(this.exportDir, $"{nameof(BulkTestEntity)}*.csv.gz");
+            files.Length.Should().Be(3); // 250 items / 100 per chunk = 3 files
         }
 
         [TestMethod]
@@ -327,27 +344,72 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
         public async Task BulkExportAsync_Compression_ReducesSize()
         {
             // Arrange
-            for (int i = 0; i < 100; i++)
+            var entities = new List<BulkTestEntity>();
+            for (var i = 0; i < 100; i++)
             {
-                await this.provider.CreateAsync(
-                    new BulkTestEntity
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = $"This is a long name for entity number {i} to ensure compression is effective",
-                        Value = i
-                    },
-                    this.callerInfo);
+                entities.Add(new BulkTestEntity
+                {
+                    Id = Guid.NewGuid(),
+                    Name = $"This is a long name for entity number {i} to ensure compression is effective",
+                    Value = i
+                });
             }
+            await this.provider.CreateAsync(
+                entities,
+                this.callerInfo);
 
-            using var uncompressedStream = new MemoryStream();
-            using var compressedStream = new MemoryStream();
+            var unCompressedResult = await this.provider.BulkExportAsync(
+                null,
+                new  BulkExportOptions
+                {
+                    Mode = ExportMode.Archive,
+                    MarkAsExported = true,
+                    FileFormat = FileFormat.Csv,
+                    CompressOutput = false,
+                    ExportFolder = this.exportDir,
+                    CsvOptions = new CsvOptions()
+                    {
+                        HasHeaders = true
+                    },
+                    FileNamePrefix = $"{nameof(BulkTestEntity)}_Uncompressed"
+                },
+                new Progress<BulkOperationProgress>(progress =>
+                {
+                    Console.WriteLine($"Export progress: {progress.PercentComplete}%");
+                }),
+                CancellationToken.None);
+            unCompressedResult.ExportedCount.Should().Be(100);
 
-            // Act
-            var result1 = await this.provider.BulkExportAsync();
-            var result2 = await this.provider.BulkExportAsync();
+            var uncompressedFiles = Directory.GetFiles(this.exportDir, $"{nameof(BulkTestEntity)}_Uncompressed*.csv");
+            uncompressedFiles.Length.Should().Be(1);
+            var uncompressedFileSize = new FileInfo(uncompressedFiles[0]).Length;
 
-            // Assert - Note: cannot test compression without stream support
-            result2.ExportedCount.Should().Be(result1.ExportedCount);
+            var compressedResult = await this.provider.BulkExportAsync(
+                null,
+                new  BulkExportOptions
+                {
+                    Mode = ExportMode.Archive,
+                    MarkAsExported = true,
+                    FileFormat = FileFormat.Csv,
+                    CompressOutput = true,
+                    ExportFolder = this.exportDir,
+                    CsvOptions = new CsvOptions()
+                    {
+                        HasHeaders = true
+                    },
+                    FileNamePrefix = $"{nameof(BulkTestEntity)}_Compressed"
+                },
+                new Progress<BulkOperationProgress>(progress =>
+                {
+                    Console.WriteLine($"Export progress: {progress.PercentComplete}%");
+                }),
+                CancellationToken.None);
+            compressedResult.ExportedCount.Should().Be(100);
+            var compressedFiles = Directory.GetFiles(this.exportDir, $"{nameof(BulkTestEntity)}_Compressed*.csv.gz");
+            compressedFiles.Length.Should().Be(1);
+            var compressedFileSize = new FileInfo(compressedFiles[0]).Length;
+
+            compressedFileSize.Should().BeLessThan(uncompressedFileSize, "Compressed file should be smaller than uncompressed file");
         }
 
         [TestMethod]
@@ -355,45 +417,64 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
         public async Task PurgeAsync_AgeBasedRetention_RemovesOld()
         {
             // Arrange
-            var oldDate = DateTime.UtcNow.AddDays(-100);
-            var recentDate = DateTime.UtcNow.AddDays(-10);
+            var oldDate = DateTimeOffset.UtcNow.AddDays(-100);
+            var recentDate = DateTimeOffset.UtcNow.AddDays(-10);
+            var entities = new List<BulkTestEntity>();
 
-            // Create old entities
-            for (int i = 0; i < 5; i++)
+            // Create old entities (100 days old, which is older than 90 days threshold)
+            for (var i = 0; i < 5; i++)
             {
-                var entity = new BulkTestEntity
+                entities.Add(new BulkTestEntity
                 {
                     Id = Guid.NewGuid(),
                     Name = $"Old {i}",
                     Value = i,
-                    CreatedTime = oldDate
-                };
-                await this.provider.CreateAsync(entity, this.callerInfo);
+                    CreatedTime = oldDate,
+                    LastWriteTime = oldDate
+                });
             }
 
-            // Create recent entities
-            for (int i = 0; i < 3; i++)
+            // Create recent entities (10 days old, which is newer than 90 days threshold)
+            for (var i = 0; i < 3; i++)
             {
-                var entity = new BulkTestEntity
+                entities.Add(new BulkTestEntity
                 {
                     Id = Guid.NewGuid(),
                     Name = $"Recent {i}",
                     Value = i,
-                    CreatedTime = recentDate
-                };
-                await this.provider.CreateAsync(entity, this.callerInfo);
+                    CreatedTime = recentDate,
+                    LastWriteTime = recentDate
+                });
             }
 
-            // Act
+            await this.provider.CreateAsync(entities, this.callerInfo);
+
+            // Act - Purge entities older than 90 days
+            var cutoffDate = DateTimeOffset.UtcNow.AddDays(-90);
             var result = await this.provider.PurgeAsync(
-                e => e.CreatedTime < DateTime.UtcNow.AddDays(-90));
+                e => e.CreatedTime < cutoffDate);
 
             // Assert
-            result.EntitiesPurged.Should().Be(5);
+            result.IsPreview.Should().BeTrue();
+            result.Preview.AffectedEntityCount.Should().Be(5, "5 entities are older than 90 days");
+            result.EntitiesPurged.Should().Be(0, "Preview mode should not actually purge");
 
-            var remaining = await this.provider.GetAllAsync(this.callerInfo);
-            remaining.Count().Should().Be(3);
-            remaining.All(e => e.Name.StartsWith("Recent")).Should().BeTrue();
+            var remaining = (await this.provider.GetAllAsync(this.callerInfo))?.ToList();
+            remaining.Should().NotBeNull();
+            remaining!.Count.Should().Be(8, "All 8 entities should still exist in preview mode");
+
+            // Now do actual purge
+            var actualResult = await this.provider.PurgeAsync(
+                e => e.CreatedTime < cutoffDate,
+                new PurgeOptions { SafeMode = false });
+
+            actualResult.EntitiesPurged.Should().Be(5, "Should have purged 5 old entities");
+
+            // Verify remaining entities
+            var afterPurge = (await this.provider.GetAllAsync(this.callerInfo))?.ToList();
+            afterPurge.Should().NotBeNull();
+            afterPurge!.Count.Should().Be(3, "Only 3 recent entities should remain");
+            afterPurge.All(e => e.Name.StartsWith("Recent")).Should().BeTrue();
         }
 
         [TestMethod]
@@ -428,17 +509,23 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
         public async Task PurgeAsync_VacuumAfter_ReclaimsSpace()
         {
             // Arrange
-            for (int i = 0; i < 1000; i++)
+            var entities = new List<BulkTestEntity>();
+            for (var i = 0; i < 1000; i++)
             {
-                await this.provider.CreateAsync(
-                    new BulkTestEntity { Id = Guid.NewGuid(), Name = $"ToDelete {i}", Value = i },
-                    this.callerInfo);
+                entities.Add(new BulkTestEntity { Id = Guid.NewGuid(), Name = $"ToDelete {i}", Value = i });
             }
+            await this.provider.CreateAsync(
+                entities,
+                this.callerInfo);
 
             // Act
             var result = await this.provider.PurgeAsync(
                 e => e.Value < 500,
-                new PurgeOptions { OptimizeStorage = true });
+                new PurgeOptions
+                {
+                    SafeMode = false,
+                    OptimizeStorage = true
+                });
 
             // Assert
             result.EntitiesPurged.Should().Be(500);

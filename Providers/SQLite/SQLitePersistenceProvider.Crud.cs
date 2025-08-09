@@ -92,8 +92,12 @@ LIMIT 1";
                     }
 
                     // Set tracking fields before insert
-                    entity.CreatedTime = DateTimeOffset.UtcNow;
-                    entity.LastWriteTime = entity.CreatedTime;
+                    // Only set CreatedTime if not already set
+                    if (entity.CreatedTime == default(DateTimeOffset))
+                    {
+                        entity.CreatedTime = DateTimeOffset.UtcNow;
+                    }
+                    entity.LastWriteTime = entity.LastWriteTime == default(DateTimeOffset) ? entity.CreatedTime : entity.LastWriteTime;
                     entity.Version = newVersion;
                     if (this.Mapper.EnableExpiry && entity is IExpirableEntity<TKey> expirable && this.Mapper.ExpirySpan.HasValue)
                     {

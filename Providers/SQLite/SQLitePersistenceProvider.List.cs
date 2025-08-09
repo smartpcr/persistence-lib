@@ -141,8 +141,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                         // Set tracking fields
                         entity.Version = version;
-                        entity.CreatedTime = DateTimeOffset.UtcNow;
-                        entity.LastWriteTime = entity.CreatedTime;
+                        // Only set CreatedTime if not already set
+                        if (entity.CreatedTime == default(DateTimeOffset))
+                        {
+                            entity.CreatedTime = DateTimeOffset.UtcNow;
+                        }
+                        entity.LastWriteTime = entity.LastWriteTime == default(DateTimeOffset) ? entity.CreatedTime : entity.LastWriteTime;
                         if (this.Mapper.EnableExpiry && entity is IExpirableEntity<TKey> expirable)
                         {
                             // Only set AbsoluteExpiration if it's null or default
@@ -492,8 +496,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                             {
                                 entity.Version = 1;
                             }
-                            entity.CreatedTime = DateTimeOffset.UtcNow;
-                            entity.LastWriteTime = entity.CreatedTime;
+                            // Only set CreatedTime if not already set
+                            if (entity.CreatedTime == default(DateTimeOffset))
+                            {
+                                entity.CreatedTime = DateTimeOffset.UtcNow;
+                            }
+                            entity.LastWriteTime = entity.LastWriteTime == default(DateTimeOffset) ? entity.CreatedTime : entity.LastWriteTime;
 
                             var columns = this.Mapper.GetInsertColumns();
                             var parameters = columns.Select(c => $"@{c}").ToList();

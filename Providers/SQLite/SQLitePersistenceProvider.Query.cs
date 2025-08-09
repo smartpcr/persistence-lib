@@ -38,10 +38,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             {
                 var results = new List<T>();
 
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Translate the expression to SQL
-                var translator = new ExpressionTranslator<T>(
+                var translator = new SQLiteExpressionTranslator<T>(
                     this.Mapper.GetPropertyMappings(),
                     () => this.Mapper.GetPrimaryKeyColumn());
 
@@ -175,7 +175,7 @@ FROM {this.Mapper.TableName}
                 await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Translate the predicate expression to SQL
-                var translator = new ExpressionTranslator<T>(
+                var translator = new SQLiteExpressionTranslator<T>(
                     this.Mapper.GetPropertyMappings(),
                     () => this.Mapper.GetPrimaryKeyColumn());
                 var whereClause = "";
@@ -319,7 +319,7 @@ LIMIT @pageSize OFFSET @offset";
                 // If predicate is provided, translate it to SQL
                 if (predicate != null)
                 {
-                    var translator = new ExpressionTranslator<T>(
+                    var translator = new SQLiteExpressionTranslator<T>(
                         this.Mapper.GetPropertyMappings(),
                         () => this.Mapper.GetPrimaryKeyColumn());
                     var translationResult = translator.Translate(predicate);

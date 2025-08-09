@@ -69,6 +69,52 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         /// Gets or sets custom field merge priorities for merge conflict resolution.
         /// </summary>
         public string[] FieldMergePriorities { get; set; }
+
+        /// <summary>
+        /// Gets or sets the file format for import operations.
+        /// </summary>
+        public FileFormat FileFormat { get; set; } = FileFormat.Auto;
+
+        /// <summary>
+        /// Gets or sets CSV-specific options.
+        /// </summary>
+        public CsvOptions CsvOptions { get; set; } = new CsvOptions();
+    }
+
+    /// <summary>
+    /// CSV-specific import/export options.
+    /// </summary>
+    public class CsvOptions
+    {
+        /// <summary>
+        /// Gets or sets the delimiter character for CSV files.
+        /// </summary>
+        public char Delimiter { get; set; } = ',';
+
+        /// <summary>
+        /// Gets or sets whether the first row contains headers.
+        /// </summary>
+        public bool HasHeaders { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the quote character for CSV fields.
+        /// </summary>
+        public char QuoteCharacter { get; set; } = '"';
+
+        /// <summary>
+        /// Gets or sets whether to skip empty rows.
+        /// </summary>
+        public bool SkipEmptyRows { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the date format for parsing date fields.
+        /// </summary>
+        public string DateFormat { get; set; } = "yyyy-MM-dd HH:mm:ss";
+
+        /// <summary>
+        /// Gets or sets whether to trim whitespace from fields.
+        /// </summary>
+        public bool TrimFields { get; set; } = true;
     }
 
     /// <summary>
@@ -109,6 +155,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
 
         /// <summary>
         /// Merge changes by field priority.
+        /// Default to Version when soft-delete is enabled, and LastWriteTime when not.
         /// </summary>
         Merge,
 

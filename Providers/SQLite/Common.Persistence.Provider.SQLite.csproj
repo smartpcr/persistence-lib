@@ -15,6 +15,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Contracts\Common.Persistence.Contracts.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CsvHelper" />
+  </ItemGroup>
   <ItemGroup>
     <Reference Include="System.ComponentModel.DataAnnotations" />
   </ItemGroup>

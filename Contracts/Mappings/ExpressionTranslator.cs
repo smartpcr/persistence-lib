@@ -18,11 +18,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
     /// </summary>
     public class ExpressionTranslator<T> : ExpressionVisitor
     {
-        private readonly StringBuilder sql = new StringBuilder();
-        private readonly Dictionary<string, object> parameters = new Dictionary<string, object>();
+        protected readonly StringBuilder sql = new StringBuilder();
+        protected readonly Dictionary<string, object> parameters = new Dictionary<string, object>();
         private readonly IReadOnlyDictionary<System.Reflection.PropertyInfo, PropertyMapping> propertyMappings;
         private readonly Func<string> getPrimaryKeyColumn;
-        private int parameterIndex = 0;
+        protected int parameterIndex;
 
         public ExpressionTranslator() : this(null, null)
         {
@@ -84,7 +84,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         {
             this.sql.Append("(");
 
-            this.Visit(node.Left);
+            // Check if we need special handling for DateTime comparisons
+            bool isDateTimeComparison = this.IsDateTimeExpression(node.Left) || this.IsDateTimeExpression(node.Right);
+
+            if (isDateTimeComparison && this.RequiresDateTimeConversion())
+            {
+                // Handle DateTime comparisons with conversion
+                this.VisitWithDateTimeConversion(node.Left);
+            }
+            else
+            {
+                this.Visit(node.Left);
+            }
 
             switch (node.NodeType)
             {
@@ -116,7 +127,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                     throw new NotSupportedException($"Binary operator {node.NodeType} is not supported");
             }
 
-            this.Visit(node.Right);
+            if (isDateTimeComparison && this.RequiresDateTimeConversion())
+            {
+                // Handle DateTime comparisons with conversion
+                this.VisitWithDateTimeConversion(node.Right);
+            }
+            else
+            {
+                this.Visit(node.Right);
+            }
 
             this.sql.Append(")");
             return node;
@@ -127,15 +146,35 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             if (node.Expression != null && node.Expression.NodeType == ExpressionType.Parameter)
             {
                 // This is a property access on the parameter (e.g., x.UpdateName)
-                this.sql.Append(this.GetColumnName(node.Member.Name));
+                var columnName = this.GetColumnName(node.Member.Name);
+
+                // Check if this is a DateTime column that needs special handling
+                if (this.IsDateTimeProperty(node) && this.RequiresDateTimeConversion())
+                {
+                    this.sql.Append(this.FormatDateTimeColumn(columnName));
+                }
+                else
+                {
+                    this.sql.Append(columnName);
+                }
             }
             else
             {
                 // This is a constant value access
                 var value = this.GetValue(node);
                 var paramName = $"@p{this.parameterIndex++}";
-                this.parameters[paramName] = value;
-                this.sql.Append(paramName);
+                
+                // Check if this is a DateTime value that needs special handling
+                if ((value is DateTime || value is DateTimeOffset) && this.RequiresDateTimeConversion())
+                {
+                    this.StoreParameterValue(paramName, value);
+                    this.sql.Append(this.FormatDateTimeParameter(paramName));
+                }
+                else
+                {
+                    this.parameters[paramName] = value;
+                    this.sql.Append(paramName);
+                }
             }
 
             return node;
@@ -144,13 +183,57 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         protected override Expression VisitConstant(ConstantExpression node)
         {
             var paramName = $"@p{this.parameterIndex++}";
-            this.parameters[paramName] = node.Value;
-            this.sql.Append(paramName);
+            
+            // Check if this is a DateTime constant that needs special handling
+            if ((node.Value is DateTime || node.Value is DateTimeOffset) && this.RequiresDateTimeConversion())
+            {
+                this.StoreParameterValue(paramName, node.Value);
+                this.sql.Append(this.FormatDateTimeParameter(paramName));
+            }
+            else
+            {
+                this.parameters[paramName] = node.Value;
+                this.sql.Append(paramName);
+            }
+            
             return node;
         }
 
         protected override Expression VisitMethodCall(MethodCallExpression node)
         {
+            // Handle DateTime methods
+            if (node.Object != null && (node.Object.Type == typeof(DateTime) || node.Object.Type == typeof(DateTimeOffset)))
+            {
+                // For DateTime methods like AddDays, AddMonths, etc., evaluate the expression and use the result as a constant
+                if (node.Method.Name.StartsWith("Add"))
+                {
+                    try
+                    {
+                        // Evaluate the DateTime method call to get the actual DateTime value
+                        var value = this.GetValue(node);
+                        var paramName = $"@p{this.parameterIndex++}";
+                        
+                        if (this.RequiresDateTimeConversion())
+                        {
+                            this.StoreParameterValue(paramName, value);
+                            this.sql.Append(this.FormatDateTimeParameter(paramName));
+                        }
+                        else
+                        {
+                            this.parameters[paramName] = value;
+                            this.sql.Append(paramName);
+                        }
+                        
+                        return node;
+                    }
+                    catch
+                    {
+                        // If we can't evaluate it (e.g., it references a property), fall through to error
+                        throw new NotSupportedException($"DateTime method {node.Method.Name} with non-constant arguments is not supported in SQL translation");
+                    }
+                }
+            }
+
             if (node.Method.Name == "Contains")
             {
                 if (node.Object != null)
@@ -206,7 +289,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             return node;
         }
 
-        internal string GetColumnName(string propertyName)
+        protected internal string GetColumnName(string propertyName)
         {
             return this.GetColumnNameFromMapper(propertyName);
         }
@@ -249,11 +332,104 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             return "Id";
         }
 
-        private object GetValue(Expression expression)
+        protected object GetValue(Expression expression)
         {
             var lambda = Expression.Lambda(expression);
             var compiled = lambda.Compile();
             return compiled.DynamicInvoke();
+        }
+
+        /// <summary>
+        /// Determines if DateTime columns/values require special conversion (e.g., for SQLite).
+        /// </summary>
+        protected virtual bool RequiresDateTimeConversion()
+        {
+            return false; // Default: no conversion needed
+        }
+
+        /// <summary>
+        /// Stores a parameter value, allowing derived classes to convert the value if needed.
+        /// </summary>
+        protected virtual void StoreParameterValue(string parameterName, object value)
+        {
+            this.parameters[parameterName] = value; // Default: store as-is
+        }
+
+        /// <summary>
+        /// Formats a DateTime column name for database-specific comparison.
+        /// </summary>
+        protected virtual string FormatDateTimeColumn(string columnName)
+        {
+            return columnName; // Default: no formatting
+        }
+
+        /// <summary>
+        /// Formats a DateTime parameter for database-specific comparison.
+        /// </summary>
+        protected virtual string FormatDateTimeParameter(string parameterName)
+        {
+            return parameterName; // Default: no formatting
+        }
+
+        /// <summary>
+        /// Checks if an expression represents a DateTime value or property.
+        /// </summary>
+        protected bool IsDateTimeExpression(Expression expression)
+        {
+            if (expression.Type == typeof(DateTime) || expression.Type == typeof(DateTime?))
+                return true;
+
+            if (expression.Type == typeof(DateTimeOffset) || expression.Type == typeof(DateTimeOffset?))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a member expression is a DateTime property.
+        /// </summary>
+        protected bool IsDateTimeProperty(MemberExpression node)
+        {
+            return node.Type == typeof(DateTime) || node.Type == typeof(DateTime?) ||
+                   node.Type == typeof(DateTimeOffset) || node.Type == typeof(DateTimeOffset?);
+        }
+
+        /// <summary>
+        /// Visits an expression with DateTime conversion applied.
+        /// </summary>
+        protected virtual void VisitWithDateTimeConversion(Expression expression)
+        {
+            if (expression is MemberExpression memberExpr &&
+                memberExpr.Expression != null &&
+                memberExpr.Expression.NodeType == ExpressionType.Parameter && this.IsDateTimeProperty(memberExpr))
+            {
+                // This is a DateTime property access on the parameter
+                var columnName = this.GetColumnName(memberExpr.Member.Name);
+                this.sql.Append(this.FormatDateTimeColumn(columnName));
+            }
+            else if (expression is MethodCallExpression methodCall &&
+                     methodCall.Object != null &&
+                     (methodCall.Object.Type == typeof(DateTime) || methodCall.Object.Type == typeof(DateTimeOffset)))
+            {
+                // DateTime method call - evaluate and format
+                var value = this.GetValue(expression);
+                var paramName = $"@p{this.parameterIndex++}";
+                this.parameters[paramName] = value;
+                this.sql.Append(this.FormatDateTimeParameter(paramName));
+            }
+            else if (expression is ConstantExpression constantExpr &&
+                     (constantExpr.Value is DateTime || constantExpr.Value is DateTimeOffset))
+            {
+                // DateTime constant
+                var paramName = $"@p{this.parameterIndex++}";
+                this.parameters[paramName] = constantExpr.Value;
+                this.sql.Append(this.FormatDateTimeParameter(paramName));
+            }
+            else
+            {
+                // Default visit
+                this.Visit(expression);
+            }
         }
 
     }

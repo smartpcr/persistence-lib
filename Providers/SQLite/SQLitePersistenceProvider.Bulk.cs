@@ -10,15 +10,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using System.Collections.Generic;
     using System.Data.SQLite;
     using System.Diagnostics;
+    using System.Globalization;
     using System.IO;
     using System.IO.Compression;
     using System.Linq;
     using System.Linq.Expressions;
     using System.Text;
-    using System.Text.Json;
     using System.Threading;
     using System.Threading.Tasks;
+    using CsvHelper;
+    using CsvHelper.Configuration;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
+    using SystemJson = System.Text.Json;
+    using SystemJsonSerializer = System.Text.Json.JsonSerializer;
+    using Newtonsoft.Json;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Traces;
 
@@ -64,7 +69,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Handle Replace strategy - clear existing data
                 if (options.Strategy == ImportStrategy.Replace)
@@ -76,7 +81,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 long nextVersion = 1;
                 if (this.Mapper.EnableSoftDelete)
                 {
-                    using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
+                    await using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
                     versionCmd.Connection = connection;
                     var versionResult = await versionCmd.ExecuteScalarAsync(cancellationToken);
                     nextVersion = Convert.ToInt64(versionResult);
@@ -194,7 +199,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         }
 
         public async Task<BulkImportResult> BulkImportFromFileAsync(
-            string manifestPath,
+            string filePath,
             BulkImportOptions options = null,
             IProgress<BulkOperationProgress> progress = null,
             CancellationToken cancellationToken = default)
@@ -203,51 +208,76 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             try
             {
-                // Read and validate manifest
-                var manifestJson = await manifestPath.ReadAllTextAsync(cancellationToken);
-                var manifest = JsonSerializer.Deserialize<ExportManifest>(manifestJson);
+                // Determine file format
+                var detectedFormat = options.FileFormat;
+                if (detectedFormat == FileFormat.Auto)
+                {
+                    detectedFormat = this.DetermineFileFormat(filePath);
+                }
+
+                // Check if this is a manifest file (JSON with specific structure)
+                bool isManifest = false;
+                if (detectedFormat == FileFormat.Json && filePath.Contains("manifest"))
+                {
+                    isManifest = true;
+                }
 
                 var result = new BulkImportResult
                 {
                     Metadata = new ImportMetadata
                     {
                         ImportTimestamp = DateTime.UtcNow,
-                        SourceManifestPath = manifestPath,
-                        SourceSchemaVersion = manifest.Metadata.SchemaVersion,
+                        SourceManifestPath = filePath,
                         Strategy = options.Strategy
                     }
                 };
 
-                // Validate schema if requested
-                if (options.ValidateSchema)
-                {
-                    if (!string.IsNullOrEmpty(options.ExpectedSchemaVersion) &&
-                        manifest.Metadata.SchemaVersion != options.ExpectedSchemaVersion)
-                    {
-                        result.Errors.Add($"Schema version mismatch. Expected: {options.ExpectedSchemaVersion}, Found: {manifest.Metadata.SchemaVersion}");
-                        result.Metadata.SchemaValidationPassed = false;
-                        return result;
-                    }
-                    result.Metadata.SchemaValidationPassed = true;
-                }
-
-                // Read entities from data files
                 var allEntities = new List<T>();
-                var manifestDir = Path.GetDirectoryName(manifestPath);
 
-                foreach (var dataFile in manifest.DataFiles)
+                if (isManifest)
                 {
-                    var dataPath = Path.Combine(manifestDir!, dataFile.FileName);
-                    var checksum = await dataPath.GetFileHashAsync();
-                    if (checksum != dataFile.Checksum)
+                    // Read and validate manifest
+                    var manifestJson = await filePath.ReadAllTextAsync(cancellationToken);
+                    var manifest = SystemJsonSerializer.Deserialize<ExportManifest>(manifestJson);
+
+                    result.Metadata.SourceSchemaVersion = manifest.Metadata.SchemaVersion;
+
+                    // Validate schema if requested
+                    if (options.ValidateSchema)
                     {
-                        result.Errors.Add($"Checksum mismatch for file {dataFile.FileName}");
-                        continue;
+                        if (!string.IsNullOrEmpty(options.ExpectedSchemaVersion) &&
+                            manifest.Metadata.SchemaVersion != options.ExpectedSchemaVersion)
+                        {
+                            result.Errors.Add($"Schema version mismatch. Expected: {options.ExpectedSchemaVersion}, Found: {manifest.Metadata.SchemaVersion}");
+                            result.Metadata.SchemaValidationPassed = false;
+                            return result;
+                        }
+                        result.Metadata.SchemaValidationPassed = true;
                     }
 
-                    // Read entities
-                    var entities = await this.ReadDataFileAsync(dataPath, dataFile.IsCompressed, cancellationToken);
-                    allEntities.AddRange(entities);
+                    // Read entities from data files
+                    var manifestDir = Path.GetDirectoryName(filePath);
+
+                    foreach (var dataFile in manifest.DataFiles)
+                    {
+                        var dataPath = Path.Combine(manifestDir!, dataFile.FileName);
+                        var checksum = await dataPath.GetFileHashAsync();
+                        if (checksum != dataFile.Checksum)
+                        {
+                            result.Errors.Add($"Checksum mismatch for file {dataFile.FileName}");
+                            continue;
+                        }
+
+                        // Read entities with format detection
+                        var entities = await this.ReadDataFileWithFormat(dataPath, dataFile.IsCompressed, options, cancellationToken);
+                        allEntities.AddRange(entities);
+                    }
+                }
+                else
+                {
+                    // Direct file import (single CSV or JSON file)
+                    var isCompressed = Path.GetExtension(filePath).ToLowerInvariant() == ".gz";
+                    allEntities = await this.ReadDataFileWithFormat(filePath, isCompressed, options, cancellationToken);
                 }
 
                 // Import entities using the main import method
@@ -258,6 +288,65 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 var result = new BulkImportResult();
                 result.Errors.Add($"Failed to import from file: {ex.Message}");
                 return result;
+            }
+        }
+
+        private async Task<List<T>> ReadDataFileWithFormat(
+            string filePath,
+            bool isCompressed,
+            BulkImportOptions options,
+            CancellationToken cancellationToken)
+        {
+            // Determine format
+            var format = options.FileFormat;
+            if (format == FileFormat.Auto)
+            {
+                format = this.DetermineFileFormat(filePath);
+            }
+
+            string content;
+
+            if (isCompressed)
+            {
+                await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                await using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
+                using var reader = new StreamReader(gzipStream);
+                content = await reader.ReadToEndAsync(cancellationToken);
+            }
+            else
+            {
+                content = await filePath.ReadAllTextAsync(cancellationToken);
+            }
+
+            if (format == FileFormat.Csv)
+            {
+                return this.ParseCsvContent(content, options.CsvOptions);
+            }
+            else
+            {
+                // Try Newtonsoft.Json first since our entities use JsonProperty attributes
+                // This ensures compatibility with existing code and tests
+                try
+                {
+                    var result = JsonConvert.DeserializeObject<List<T>>(content);
+                    if (result != null && result.Count > 0)
+                    {
+                        return result;
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Fall through to try System.Text.Json
+                }
+                
+                // If Newtonsoft fails or returns empty, try System.Text.Json
+                // with case-insensitive property matching
+                var jsonOptions = new SystemJson.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                
+                return SystemJsonSerializer.Deserialize<List<T>>(content, jsonOptions);
             }
         }
 
@@ -300,7 +389,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                 if (predicate != null)
                 {
-                    var translator = new ExpressionTranslator<T>(
+                    var translator = new SQLiteExpressionTranslator<T>(
                         this.Mapper.GetPropertyMappings(),
                         () => this.Mapper.GetPrimaryKeyColumn());
                     var translationResult = translator.Translate(predicate);
@@ -340,15 +429,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     startTime,
                     cancellationToken);
 
+                // Always populate ExportedEntities for both in-memory and file exports
+                result.ExportedEntities = exportedEntities;
+                
                 // Write to files if export path is specified
                 if (!string.IsNullOrEmpty(options.ExportFolder))
                 {
                     await this.WriteExportFilesAsync(exportedEntities, options, result, cancellationToken);
-                }
-                else
-                {
-                    // In-memory export
-                    result.ExportedEntities = exportedEntities;
                 }
 
                 // Mark entities as exported if in archive mode
@@ -406,7 +493,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                 if (predicate != null)
                 {
-                    var translator = new ExpressionTranslator<T>(
+                    var translator = new SQLiteExpressionTranslator<T>(
                         this.Mapper.GetPropertyMappings(),
                         () => this.Mapper.GetPrimaryKeyColumn());
                     var translationResult = translator.Translate(predicate);
@@ -620,7 +707,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         else
                         {
                             // No conflict - update
-                            await this.UpdateEntityAsync(entity, connection, nextVersion, cancellationToken);
+                            await this.UpdateEntityAsync(entity, existingEntity, connection, nextVersion, cancellationToken);
                             result.Action = ImportAction.Updated;
                         }
                         break;
@@ -645,8 +732,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
 
             // Check data conflicts (simplified - could be enhanced with field-by-field comparison)
-            var sourceJson = JsonSerializer.Serialize(sourceEntity);
-            var targetJson = JsonSerializer.Serialize(targetEntity);
+            var sourceJson = SystemJsonSerializer.Serialize(sourceEntity);
+            var targetJson = SystemJsonSerializer.Serialize(targetEntity);
 
             if (sourceJson != targetJson)
             {
@@ -674,7 +761,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             switch (resolution)
             {
                 case ConflictResolution.UseSource:
-                    await this.UpdateEntityAsync(sourceEntity, connection, nextVersion, cancellationToken);
+                    if (this.Mapper.EnableSoftDelete)
+                    {
+                        await this.InsertEntityAsync(sourceEntity, connection, nextVersion, cancellationToken);
+                    }
+                    else
+                    {
+                        await this.UpdateEntityAsync(sourceEntity, targetEntity, connection, nextVersion, cancellationToken);
+                    }
+
                     return true;
 
                 case ConflictResolution.UseTarget:
@@ -684,7 +779,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 case ConflictResolution.Merge:
                     // Simple merge - could be enhanced with field-level merging
                     var mergedEntity = this.MergeEntities(sourceEntity, targetEntity, fieldPriorities);
-                    await this.UpdateEntityAsync(mergedEntity, connection, nextVersion, cancellationToken);
+                    await this.UpdateEntityAsync(mergedEntity, targetEntity, connection, nextVersion, cancellationToken);
                     return true;
 
                 case ConflictResolution.Manual:
@@ -743,6 +838,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
         private Task UpdateEntityAsync(
             T entity,
+            T oldEntity,
             SQLiteConnection connection,
             long version,
             CancellationToken cancellationToken)
@@ -750,9 +846,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             entity.Version = version;
             entity.LastWriteTime = DateTime.UtcNow;
 
-            var context = CommandContext<T, TKey>.ForInsert(entity);
+            var context = CommandContext<T, TKey>.ForUpdate(entity, oldEntity);
             context.CommandTimeout = this.configuration.CommandTimeout;
-            using var cmd = this.Mapper.CreateCommand(DbOperationType.Insert, context);
+            using var cmd = this.Mapper.CreateCommand(DbOperationType.Update, context);
             cmd.Connection = connection;
             cmd.ExecuteNonQuery();
 
@@ -764,21 +860,159 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             bool isCompressed,
             CancellationToken cancellationToken)
         {
-            string json;
+            // Determine format from file extension
+            var format = this.DetermineFileFormat(filePath);
+            string content;
 
             if (isCompressed)
             {
                 using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
                 using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
                 using var reader = new StreamReader(gzipStream);
-                json = await reader.ReadToEndAsync();
+                content = await reader.ReadToEndAsync();
             }
             else
             {
-                json = await filePath.ReadAllTextAsync(cancellationToken);
+                content = await filePath.ReadAllTextAsync(cancellationToken);
             }
 
-            return JsonSerializer.Deserialize<List<T>>(json);
+            if (format == FileFormat.Csv)
+            {
+                return this.ParseCsvContent(content, new CsvOptions());
+            }
+            else
+            {
+                // Try Newtonsoft.Json first since our entities use JsonProperty attributes
+                // This ensures compatibility with existing code and tests
+                try
+                {
+                    var result = JsonConvert.DeserializeObject<List<T>>(content);
+                    if (result != null && result.Count > 0)
+                    {
+                        return result;
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Fall through to try System.Text.Json
+                }
+                
+                // If Newtonsoft fails or returns empty, try System.Text.Json
+                // with case-insensitive property matching
+                var jsonOptions = new SystemJson.JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                
+                return SystemJsonSerializer.Deserialize<List<T>>(content, jsonOptions);
+            }
+        }
+
+        private FileFormat DetermineFileFormat(string filePath)
+        {
+            // First try to determine from file extension
+            var extension = Path.GetExtension(filePath).ToLowerInvariant();
+
+            // Remove compression extension if present
+            if (extension == ".gz")
+            {
+                var uncompressedPath = Path.GetFileNameWithoutExtension(filePath);
+                extension = Path.GetExtension(uncompressedPath).ToLowerInvariant();
+            }
+
+            // If we have a clear extension, use it
+            if (extension == ".csv")
+                return FileFormat.Csv;
+            if (extension == ".json")
+                return FileFormat.Json;
+
+            // Otherwise, peek at the file content to determine format
+            try
+            {
+                string firstLine = null;
+                
+                // Check if file is compressed
+                if (Path.GetExtension(filePath).ToLowerInvariant() == ".gz")
+                {
+                    using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+                    using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
+                    using var reader = new StreamReader(gzipStream);
+                    
+                    // Read first non-empty line
+                    while ((firstLine = reader.ReadLine()) != null)
+                    {
+                        firstLine = firstLine.Trim();
+                        if (!string.IsNullOrWhiteSpace(firstLine))
+                            break;
+                    }
+                }
+                else
+                {
+                    using var reader = new StreamReader(filePath);
+                    
+                    // Read first non-empty line
+                    while ((firstLine = reader.ReadLine()) != null)
+                    {
+                        firstLine = firstLine.Trim();
+                        if (!string.IsNullOrWhiteSpace(firstLine))
+                            break;
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(firstLine))
+                    return FileFormat.Json; // Default for empty files
+
+                // Check if it's JSON by looking for JSON markers
+                if (firstLine.StartsWith("{") || firstLine.StartsWith("["))
+                    return FileFormat.Json;
+
+                // Check if it looks like CSV (contains commas or is a header row)
+                if (firstLine.Contains(",") || firstLine.Contains("\t"))
+                    return FileFormat.Csv;
+
+                // Default to JSON if we can't determine
+                return FileFormat.Json;
+            }
+            catch
+            {
+                // If we can't read the file, default to JSON
+                return FileFormat.Json;
+            }
+        }
+
+        private List<T> ParseCsvContent(string csvContent, CsvOptions options)
+        {
+            var result = new List<T>();
+
+            using (var reader = new StringReader(csvContent))
+            using (var csv = new CsvReader(reader, this.GetCsvConfiguration(options)))
+            {
+                // Configure date format
+                csv.Context.TypeConverterOptionsCache.GetOptions<DateTime>().Formats = new[] { options.DateFormat };
+                csv.Context.TypeConverterOptionsCache.GetOptions<DateTime?>().Formats = new[] { options.DateFormat };
+
+                // Read all records
+                result = csv.GetRecords<T>().ToList();
+            }
+
+            return result;
+        }
+
+        private CsvConfiguration GetCsvConfiguration(CsvOptions options)
+        {
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                Delimiter = options.Delimiter.ToString(),
+                HasHeaderRecord = options.HasHeaders,
+                Quote = options.QuoteCharacter,
+                TrimOptions = options.TrimFields ? TrimOptions.Trim : TrimOptions.None,
+                IgnoreBlankLines = options.SkipEmptyRows,
+                MissingFieldFound = null, // Don't throw on missing fields
+                HeaderValidated = null,   // Don't validate headers
+                BadDataFound = null       // Don't throw on bad data
+            };
+
+            return config;
         }
 
         private async Task WriteImportAuditAsync(BulkImportResult result, CancellationToken cancellationToken)
@@ -885,13 +1119,13 @@ SELECT COUNT(*) FROM LatestVersions";
                 ORDER BY lv.{this.Mapper.GetPrimaryKeyColumn()}";
             }
 
-            using var command = this.CreateCommand(sql, connection);
+            await using var command = this.CreateCommand(sql, connection);
             foreach (var param in parameters)
             {
                 command.Parameters.AddWithValue($"{param.Key}", param.Value ?? DBNull.Value);
             }
 
-            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
 
             var processedCount = 0;
             var batch = new List<T>();
@@ -933,6 +1167,20 @@ SELECT COUNT(*) FROM LatestVersions";
             if (batch.Count > 0)
             {
                 exportedEntities.AddRange(batch);
+
+                // Report progress
+                if (progress != null)
+                {
+                    var progressInfo = new BulkOperationProgress
+                    {
+                        ProcessedCount = processedCount,
+                        TotalCount = totalCount,
+                        ElapsedTime = DateTime.UtcNow - startTime,
+                        CurrentOperation = $"Exporting entities ({processedCount}/{totalCount})"
+                    };
+                    progress.Report(progressInfo);
+                    PersistenceLogger.BulkOperationProgress((int)progressInfo.PercentComplete, processedCount, totalCount);
+                }
             }
 
             return exportedEntities;
@@ -944,12 +1192,16 @@ SELECT COUNT(*) FROM LatestVersions";
             BulkExportResult<T> result,
             CancellationToken cancellationToken)
         {
+            // Use provided prefix or default to entity type name
+            var filePrefix = !string.IsNullOrEmpty(options.FileNamePrefix)
+                ? options.FileNamePrefix
+                : typeof(T).Name;
             var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-            var baseFileName = $"{typeof(T).Name}_export_{timestamp}";
 
-            // Write metadata file
-            var metadataPath = Path.Combine(options.ExportFolder, $"{baseFileName}_metadata.json");
-            await metadataPath.WriteAllTextAsync(JsonSerializer.Serialize(result.Metadata), cancellationToken);
+            // Write metadata file - use consistent naming pattern
+            var metadataFileName = $"{filePrefix}_{timestamp}_metadata.json";
+            var metadataPath = Path.Combine(options.ExportFolder, metadataFileName);
+            await metadataPath.WriteAllTextAsync(SystemJsonSerializer.Serialize(result.Metadata), cancellationToken);
             result.ExportedFiles.Add(metadataPath);
 
             // Calculate statistics
@@ -987,7 +1239,7 @@ SELECT COUNT(*) FROM LatestVersions";
 
                 if (currentBatch.Count >= options.BatchSize)
                 {
-                    var fileInfo = await this.WriteDataFileAsync(currentBatch, options, baseFileName, fileIndex++, cancellationToken);
+                    var fileInfo = await this.WriteDataFileAsync(currentBatch, options, filePrefix, timestamp, fileIndex++, cancellationToken);
                     manifest.DataFiles.Add(fileInfo);
                     result.ExportedFiles.Add(Path.Combine(options.ExportFolder, fileInfo.FileName));
                     statistics.TotalFileSizeBytes += fileInfo.FileSizeBytes;
@@ -998,7 +1250,7 @@ SELECT COUNT(*) FROM LatestVersions";
             // Write remaining entities
             if (currentBatch.Count > 0)
             {
-                var fileInfo = await this.WriteDataFileAsync(currentBatch, options, baseFileName, fileIndex, cancellationToken);
+                var fileInfo = await this.WriteDataFileAsync(currentBatch, options, filePrefix, timestamp, fileIndex, cancellationToken);
                 manifest.DataFiles.Add(fileInfo);
                 result.ExportedFiles.Add(Path.Combine(options.ExportFolder, fileInfo.FileName));
                 statistics.TotalFileSizeBytes += fileInfo.FileSizeBytes;
@@ -1014,37 +1266,54 @@ SELECT COUNT(*) FROM LatestVersions";
             }
 
             // Write manifest file
-            var manifestPath = Path.Combine(options.ExportFolder, $"{baseFileName}_manifest.json");
-            await manifestPath.WriteAllTextAsync(JsonSerializer.Serialize(manifest), cancellationToken);
+            var manifestPath = Path.Combine(options.ExportFolder, $"{filePrefix}_{timestamp}_manifest.json");
+            await manifestPath.WriteAllTextAsync(SystemJsonSerializer.Serialize(manifest), cancellationToken);
             result.ManifestPath = manifestPath;
         }
 
         private async Task<ExportFileInfo> WriteDataFileAsync(
             List<T> entities,
             BulkExportOptions options,
-            string baseFileName,
+            string filePrefix,
+            string timestamp,
             int fileIndex,
             CancellationToken cancellationToken)
         {
-            var fileName = $"{baseFileName}_data_{fileIndex:D4}.json";
+            // Determine file extension based on format
+            var extension = options.FileFormat == FileFormat.Csv ? ".csv" : ".json";
+            var fileName = $"{filePrefix}_{timestamp}_{fileIndex:D4}{extension}";
+
             if (options.CompressOutput)
             {
                 fileName += ".gz";
             }
 
             var filePath = Path.Combine(options.ExportFolder, fileName);
-            var json = JsonSerializer.Serialize(entities, new JsonSerializerOptions { WriteIndented = true });
-            var jsonBytes = Encoding.UTF8.GetBytes(json);
+
+            // Serialize based on format
+            string content;
+            byte[] contentBytes;
+
+            if (options.FileFormat == FileFormat.Csv)
+            {
+                content = this.SerializeEntitiesToCsv(entities, options.CsvOptions);
+            }
+            else
+            {
+                content = SystemJsonSerializer.Serialize(entities, new SystemJson.JsonSerializerOptions { WriteIndented = true });
+            }
+
+            contentBytes = Encoding.UTF8.GetBytes(content);
 
             if (options.CompressOutput)
             {
                 using var fileStream = new FileStream(filePath, FileMode.Create);
                 using var gzipStream = new GZipStream(fileStream, CompressionLevel.Optimal);
-                await gzipStream.WriteAsync(jsonBytes, 0, jsonBytes.Length, cancellationToken);
+                await gzipStream.WriteAsync(contentBytes, 0, contentBytes.Length, cancellationToken);
             }
             else
             {
-                await filePath.WriteAllTextAsync(json, cancellationToken);
+                await filePath.WriteAllTextAsync(content, cancellationToken);
             }
 
             var fileInfo = new FileInfo(filePath);
@@ -1058,6 +1327,26 @@ SELECT COUNT(*) FROM LatestVersions";
                 Checksum = checksum,
                 IsCompressed = options.CompressOutput
             };
+        }
+
+        private string SerializeEntitiesToCsv<TEntity>(List<TEntity> entities, CsvOptions options) where TEntity : class
+        {
+            if (entities == null || entities.Count == 0)
+                return string.Empty;
+
+            using (var writer = new StringWriter())
+            using (var csv = new CsvWriter(writer, this.GetCsvConfiguration(options)))
+            {
+                // Configure date format
+                csv.Context.TypeConverterOptionsCache.GetOptions<DateTime>().Formats = new[] { options.DateFormat };
+                csv.Context.TypeConverterOptionsCache.GetOptions<DateTime?>().Formats = new[] { options.DateFormat };
+
+                // Write all records
+                csv.WriteRecords(entities);
+                csv.Flush();
+
+                return writer.ToString();
+            }
         }
 
         private async Task MarkEntitiesAsExportedAsync(

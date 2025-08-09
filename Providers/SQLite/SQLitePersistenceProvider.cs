@@ -23,6 +23,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     /// </summary>
     internal static class SQLiteProviderSharedState
     {
+        public static readonly TimeSpan DefaultCacheExpiration = TimeSpan.FromHours(1);
+
         internal static readonly object VersionTableLock = new object();
         internal static bool VersionTableCreated;
 
@@ -47,7 +49,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         where T : class, IEntity<TKey>
         where TKey : IEquatable<TKey>
     {
-        private static readonly TimeSpan DefaultCacheExpiration = TimeSpan.FromHours(1);
+
         private readonly string connectionString;
         private readonly VersionMapper versionMapper;
         private readonly EntryListMappingMapper entryListMappingMapper;
@@ -57,7 +59,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private bool isDisposed;
 
         public IEntityMapper<T, TKey> Mapper { get; private set; }
-        
+
         /// <summary>
         /// Gets the properly escaped table name for use in SQL statements.
         /// </summary>
@@ -106,9 +108,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
         #endregion
 
-        public ITransactionScope<T, TKey> BeginTransaction(CancellationToken cancellationToken = default)
+        public ITransactionScope BeginTransaction(CancellationToken cancellationToken = default)
         {
-            return new TransactionScope<T, TKey>(this.connectionString);
+            return new TransactionScope(this.connectionString);
         }
 
         public ValueTask DisposeAsync()

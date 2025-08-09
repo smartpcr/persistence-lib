@@ -14,7 +14,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     /// <summary>
     /// Concrete implementation of a transactional operation
     /// </summary>
-    public class TransactionalOperation<TInput, TOutput> : ITransactionalOperation<TInput, TOutput>
+    public sealed class TransactionalOperation<TInput, TOutput> : ITransactionalOperation<TInput, TOutput>
     {
         public string OperationId { get; private set; }
         public string Description { get; private set; }
@@ -23,17 +23,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public TOutput Output { get; set; }
         public IDbCommand CommitCommand { get; private set; }
 
-        public event BeforeCommitEventHandler<TInput, TOutput> BeforeCommit;
-        public event AfterCommitEventHandler<TInput, TOutput> AfterCommit;
-        public event BeforeRollbackEventHandler<TInput, TOutput> BeforeRollback;
-        public event AfterRollbackEventHandler<TInput, TOutput> AfterRollback;
+        public event AfterReadEventHandler<TInput, TOutput> AfterRead;
 
         private TransactionalOperation()
         {
         }
 
         public static TransactionalOperation<T, T> Create<T, TKey>(
-            IPersistenceProvider<T, TKey> persistenceProvider,
+            IEntityMapper<T, TKey> entityMapper,
             DbOperationType opType,
             T fromValue,
             T toValue = null)
@@ -43,7 +40,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             var transactionalOperation = new TransactionalOperation<T, T>();
             transactionalOperation.Input = fromValue;
             transactionalOperation.Output = toValue;
-            var mapper = persistenceProvider.Mapper;
+            var mapper = entityMapper;
 
             transactionalOperation.OperationId = Guid.NewGuid().ToString();
             transactionalOperation.Description = $"{opType} operation for entity type {typeof(T).Name}";
@@ -54,9 +51,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     transactionalOperation.CommitCommand = mapper.CreateCommand(
                         DbOperationType.Select,
                         CommandContext<T, TKey>.ForSelect(fromValue.Id));
-                    transactionalOperation.AfterCommit += (_, output) =>
+                    transactionalOperation.AfterRead += (_, reader) =>
                     {
-                        transactionalOperation.Output = output;
+                        if (reader.Read())
+                        {
+                            var output = mapper.MapFromReader(reader);
+                            transactionalOperation.Output = output;
+                        }
+                        else
+                        {
+                            transactionalOperation.Output = null; // No results found
+                        }
                     };
                     break;
                 case DbOperationType.Insert:
@@ -83,35 +88,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         }
 
         /// <summary>
-        /// Raises the BeforeCommit event.
-        /// </summary>
-        public virtual void OnBeforeCommit()
-        {
-            this.BeforeCommit?.Invoke(this, this.Input);
-        }
-
-        /// <summary>
         /// Raises the AfterCommit event.
         /// </summary>
-        public virtual void OnAfterCommit()
+        public void OnAfterRead(IDataReader reader)
         {
-            this.AfterCommit?.Invoke(this, this.Output);
-        }
-
-        /// <summary>
-        /// Raises the BeforeRollback event.
-        /// </summary>
-        public virtual void OnBeforeRollback()
-        {
-            this.BeforeRollback?.Invoke(this, this.Output);
-        }
-
-        /// <summary>
-        /// Raises the AfterRollback event.
-        /// </summary>
-        public virtual void OnAfterRollback()
-        {
-            this.AfterRollback?.Invoke(this, this.Input);
+            this.AfterRead?.Invoke(this, reader);
         }
     }
 }

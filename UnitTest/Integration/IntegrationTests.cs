@@ -16,6 +16,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Integration;
     using FluentAssertions;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -182,6 +183,99 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             //     entityId: order.Id.ToString(),
             //     callerInfo: this.callerInfo);
             // auditTrail.Count(.Should().BeTrue() >= 3); // CREATE, UPDATE (total), UPDATE (status)
+        }
+
+        [TestMethod]
+        [TestCategory("Integration")]
+        public async Task EndToEnd_OrderProcessingTransaction()
+        {
+            var order = new Order
+            {
+                Id = Guid.NewGuid(),
+                OrderNumber = "ORD-2024-001",
+                CustomerName = "John Doe",
+                Status = "Pending",
+                OrderDate = DateTime.UtcNow,
+                Version = 1,
+                TotalAmount = 0 // Will update later
+            };
+
+            // Get products for order
+            var laptop = (await this.productProvider.QueryAsync(p => p.Name == "Laptop", null, this.callerInfo)).First();
+            var mouse = (await this.productProvider.QueryAsync(p => p.Name == "Mouse", null, this.callerInfo)).First();
+
+            // transaction cmd does not support concurrency check
+            await using (var transactionScope = new TransactionScope(this.connectionString))
+            {
+                // Step 1: Create order first (must be committed before creating items due to foreign key)
+                transactionScope.AddOperation<Order, Guid>(TransactionalOperation<Order, Guid>.Create(
+                    new SQLiteEntityMapper<Order, Guid>(),
+                    DbOperationType.Insert,
+                    order));
+
+                // Step 2: Add items (after order is committed)
+                var orderItems = new List<OrderItem>
+                {
+                    new OrderItem
+                    {
+                        Id = Guid.NewGuid(),
+                        OrderId = order.Id,
+                        ProductName = laptop.Name,
+                        Quantity = 2,
+                        UnitPrice = laptop.Price
+                    },
+                    new OrderItem
+                    {
+                        Id = Guid.NewGuid(),
+                        OrderId = order.Id,
+                        ProductName = mouse.Name,
+                        Quantity = 4,
+                        UnitPrice = mouse.Price
+                    }
+                };
+                foreach (var orderItem in orderItems)
+                {
+                    transactionScope.AddOperation<OrderItem, Guid>(TransactionalOperation<OrderItem, Guid>.Create(
+                        new SQLiteEntityMapper<OrderItem, Guid>(),
+                        DbOperationType.Insert,
+                        orderItem));
+                }
+
+                // Calculate and update total
+                order.TotalAmount = orderItems.Sum(i => i.Quantity * i.UnitPrice);
+                order.Version += 1;
+                order.LastWriteTime = DateTimeOffset.UtcNow;
+                transactionScope.AddOperation<Order, Guid>(TransactionalOperation<Order, Guid>.Create(
+                    new SQLiteEntityMapper<Order, Guid>(),
+                    DbOperationType.Update,
+                    order,
+                    order));
+
+                // Step 3: Update status (optimistic lock)
+                order.Status = "Processing";
+                order.Version += 1;
+                order.LastWriteTime = DateTimeOffset.UtcNow;
+                transactionScope.AddOperation<Order, Guid>(TransactionalOperation<Order, Guid>.Create(
+                    new SQLiteEntityMapper<Order, Guid>(),
+                    DbOperationType.Update,
+                    order,
+                    order));
+
+                transactionScope.Commit();
+            }
+
+            order = await this.orderProvider.GetAsync(order.Id, this.callerInfo);
+            order.Should().NotBeNull();
+            order.Version.Should().Be(3); // starting at value 1, updated twice, once for total, once for status
+
+            // Step 4: Query orders (pagination)
+            var pendingOrders = await this.orderProvider.QueryPagedAsync(
+                o => o.Status == "Processing",
+                10,
+                1);
+
+            pendingOrders.TotalCount.Should().Be(1);
+            pendingOrders.Items.First().Id.Should().Be(order.Id);
         }
 
         [TestMethod]

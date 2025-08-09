@@ -53,8 +53,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
                 await this.provider.DisposeAsync();
             }
 
-            SQLiteProviderSharedState.ClearState();
-
             this.SafeDeleteDatabase(this.testDbPath);
 
             if (Directory.Exists(this.exportFolder))
@@ -99,10 +97,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
 
             var csvContent = await File.ReadAllTextAsync(csvFile);
             var lines = csvContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-            
+
             // Should have header + 10 data rows
             lines.Length.Should().BeGreaterOrEqualTo(11);
-            
+
             // Check header contains expected columns
             lines[0].Should().Contain("Id");
             lines[0].Should().Contain("Name");
@@ -171,7 +169,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             // Assert
             var csvFile = result.ExportedFiles.First(f => f.EndsWith(".csv"));
             var csvContent = await File.ReadAllTextAsync(csvFile);
-            
+
             // Should properly escape fields with commas and quotes
             csvContent.Should().Contain("\"Test, with comma\"");
             csvContent.Should().Contain("\"Contains \"\"quotes\"\" and\nnewlines\"");
@@ -223,7 +221,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             var compressedFile = result.ExportedFiles.FirstOrDefault(f => f.EndsWith(".csv.gz"));
             compressedFile.Should().NotBeNull();
             File.Exists(compressedFile).Should().BeTrue();
-            
+
             // File should be smaller than uncompressed
             var fileInfo = new FileInfo(compressedFile);
             fileInfo.Length.Should().BeGreaterThan(0);
@@ -253,27 +251,27 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
             // Assert
             result.Should().NotBeNull();
             result.ExportedFiles.Should().NotBeEmpty();
-            
+
             // Check that files follow the pattern: {FileNamePrefix}_{timestamp}_{####}.csv.gz
             var exportedDataFiles = result.ExportedFiles
                 .Where(f => f.Contains("_0000.csv.gz") || f.Contains("_0001.csv.gz") || f.Contains("_0002.csv.gz"))
                 .ToList();
-            
+
             exportedDataFiles.Should().NotBeEmpty();
-            
+
             foreach (var file in exportedDataFiles)
             {
                 var fileName = Path.GetFileName(file);
-                
+
                 // Should start with custom prefix
                 fileName.Should().StartWith(customPrefix + "_");
-                
+
                 // Should match pattern: prefix_YYYYMMddHHmmss_####.csv.gz
                 fileName.Should().MatchRegex(@"^" + customPrefix + @"_\d{14}_\d{4}\.csv\.gz$");
-                
+
                 File.Exists(file).Should().BeTrue();
             }
-            
+
             // Also check metadata file follows the pattern
             var metadataFile = result.ExportedFiles.FirstOrDefault(f => f.Contains("_metadata.json"));
             metadataFile.Should().NotBeNull();
@@ -301,17 +299,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.BulkO
         private string GenerateCsvContent(List<BulkTestEntity> entities)
         {
             var lines = new List<string>();
-            
+
             // Header
             lines.Add("Id,Name,Category,Value,CreatedTime,LastWriteTime,Version");
-            
+
             // Data rows
             foreach (var entity in entities)
             {
                 lines.Add($"{entity.Id},{entity.Name},{entity.Category},{entity.Value}," +
                          $"{entity.CreatedTime:yyyy-MM-dd HH:mm:ss},{entity.LastWriteTime:yyyy-MM-dd HH:mm:ss},{entity.Version}");
             }
-            
+
             return string.Join("\n", lines);
         }
     }

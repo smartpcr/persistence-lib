@@ -62,11 +62,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.CoreP
             await this.provider.InitializeAsync();
 
             // Assert
-            using var connection = new SQLiteConnection(this.connectionString);
+            await using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync();
 
             // Check if main table exists
-            using var command = new SQLiteCommand(
+            await using var command = new SQLiteCommand(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='TestEntity'",
                 connection);
             var tableName = await command.ExecuteScalarAsync();

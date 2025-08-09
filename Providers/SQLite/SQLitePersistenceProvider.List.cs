@@ -152,7 +152,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                             // Only set AbsoluteExpiration if it's null or default
                             if (expirable.AbsoluteExpiration == default(DateTimeOffset))
                             {
-                                expirable.AbsoluteExpiration = entity.CreatedTime + (this.Mapper.ExpirySpan ?? DefaultCacheExpiration);
+                                expirable.AbsoluteExpiration = entity.CreatedTime + (this.Mapper.ExpirySpan ?? SQLiteProviderSharedState.DefaultCacheExpiration);
                             }
                         }
 

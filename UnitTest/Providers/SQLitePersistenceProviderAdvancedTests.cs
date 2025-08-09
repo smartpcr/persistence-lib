@@ -106,10 +106,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
                 await this.provider.DisposeAsync();
             }
 
-            if (File.Exists(this.testDbPath))
-            {
-                this.SafeDeleteDatabase(this.testDbPath);
-            }
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         #endregion
@@ -182,18 +179,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var act = async () =>
             {
                 await using var transactionScope = this.provider.BeginTransaction();
-                transactionScope.AddOperation(TransactionalOperation<TestEntity, string>.Create(
-                    this.provider,
+                transactionScope.AddOperation<TestEntity, string>(TransactionalOperation<TestEntity, string>.Create(
+                    this.provider.Mapper,
                     DbOperationType.Insert,
                     entity1,
                     entity1));
-                transactionScope.AddOperation(TransactionalOperation<TestEntity, string>.Create(
-                    this.provider,
+                transactionScope.AddOperation<TestEntity, string>(TransactionalOperation<TestEntity, string>.Create(
+                    this.provider.Mapper,
                     DbOperationType.Insert,
                     entity2,
                     entity2));
-                transactionScope.AddOperation(TransactionalOperation<TestEntity, string>.Create(
-                    this.provider,
+                transactionScope.AddOperation<TestEntity, string>(TransactionalOperation<TestEntity, string>.Create(
+                    this.provider.Mapper,
                     DbOperationType.Insert,
                     invalid,
                     invalid));
@@ -247,34 +244,34 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
         public async Task Transaction_NestedTransactions_BehaviorTest()
         {
             using var connection = await this.provider.CreateAndOpenConnectionAsync(CancellationToken.None);
-            
+
             // Act
             using var transaction1 = connection.BeginTransaction();
             transaction1.Should().NotBeNull();
-            
+
             // System.Data.SQLite allows calling BeginTransaction again
             // This creates a new transaction object, but the behavior is undefined
             // since SQLite doesn't support true nested transactions
             using var transaction2 = connection.BeginTransaction();
             transaction2.Should().NotBeNull();
-            
+
             // Verify they are different objects
             transaction2.Should().NotBeSameAs(transaction1);
-            
+
             // Create a test table and insert data using transaction2
             using (var command = connection.CreateCommand())
             {
                 command.CommandText = "CREATE TABLE IF NOT EXISTS TestNestedTx (Id INTEGER PRIMARY KEY, Value TEXT)";
                 command.Transaction = transaction2;
                 command.ExecuteNonQuery();
-                
+
                 command.CommandText = "INSERT INTO TestNestedTx (Value) VALUES ('test')";
                 command.ExecuteNonQuery();
             }
-            
+
             // Commit transaction2
             transaction2.Commit();
-            
+
             // After committing transaction2, transaction1 may still be valid or not
             // The behavior is implementation-specific. Let's test what happens:
             try
@@ -286,14 +283,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             {
                 // If exception, transaction1 was invalidated - this is another possible behavior
             }
-            
+
             // Verify the data was committed
             using (var command = connection.CreateCommand())
             {
                 command.CommandText = "SELECT COUNT(*) FROM TestNestedTx";
                 var count = Convert.ToInt32(command.ExecuteScalar());
                 count.Should().Be(1, "Data should be committed");
-                
+
                 // Clean up
                 command.CommandText = "DROP TABLE TestNestedTx";
                 command.ExecuteNonQuery();
@@ -591,7 +588,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
 
             // Assert
             stopwatch.ElapsedMilliseconds.Should().BeLessThan(5000, $"Bulk insert took {stopwatch.ElapsedMilliseconds}ms, expected < 5000ms");
-            
+
             var count = await this.provider.CountAsync();
             count.Should().Be(1000);
         }
@@ -665,7 +662,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
             var connectionString = $"Data Source={this.testDbPath};Version=3;Foreign Keys=true;";
             var parentProvider = new SQLitePersistenceProvider<ParentEntity, string>(connectionString);
             var childProvider = new SQLitePersistenceProvider<ChildEntity, string>(connectionString);
-            
+
             await parentProvider.InitializeAsync();
             await childProvider.InitializeAsync();
 

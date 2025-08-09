@@ -7,26 +7,24 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite
 {
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
+    using System.Data;
     using System.Data.SQLite;
+    using System.Linq;
     using System.Threading;
     using System.Threading.Tasks;
     using Contracts;
-    using Mappings;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Traces;
 
     /// <summary>
     /// Implementation of ITransactionScope that manages transactional operations.
     /// Created by persistence provider and handles SQL translation internally.
     /// </summary>
-    public class TransactionScope<T, TKey> : ITransactionScope<T, TKey>
-        where T : class, IEntity<TKey>
-        where TKey : IEquatable<TKey>
+    public class TransactionScope : ITransactionScope
     {
         private readonly string connectionString;
-        private readonly List<ITransactionalOperation<T, T>> operations = new List<ITransactionalOperation<T, T>>();
-        private readonly IEntityMapper<T, TKey> mapper = new SQLiteEntityMapper<T, TKey>();
+        private readonly ConcurrentQueue<(IDbCommand cmd, SqlExecMode execMode, Action<IDataReader> action)> commands;
         private readonly object lockObject = new object();
         private bool disposed;
         private bool shouldCommit = true; // Default to commit unless explicitly rolled back
@@ -41,11 +39,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             this.TransactionId = Guid.NewGuid().ToString();
             this.State = TransactionState.Active;
             this.StartTime = DateTimeOffset.UtcNow;
+            this.commands = new ConcurrentQueue<(IDbCommand cmd, SqlExecMode execMode, Action<IDataReader> action)>();
 
             PersistenceLogger.TransactionStart();
         }
 
-        public void AddOperation(ITransactionalOperation<T, T> operation)
+        public void AddOperation<T, TKey>(ITransactionalOperation<T, T> operation)
+            where T : class, IEntity<TKey>
+            where TKey : IEquatable<TKey>
         {
             if (operation == null)
                 throw new ArgumentNullException(nameof(operation));
@@ -55,21 +56,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             lock (this.lockObject)
             {
-                this.operations.Add(operation);
-            }
-        }
+                Action<IDataReader> action = null;
+                if (operation.ExecMode == SqlExecMode.ExecuteReader)
+                {
+                    action = operation.OnAfterRead;
+                }
 
-        public void AddOperations(IEnumerable<ITransactionalOperation<T, T>> operations)
-        {
-            if (operations == null)
-                throw new ArgumentNullException(nameof(operations));
-
-            if (this.State != TransactionState.Active)
-                throw new InvalidOperationException($"Cannot add operations to a {this.State} transaction.");
-
-            lock (this.lockObject)
-            {
-                this.operations.AddRange(operations);
+                this.commands.Enqueue((operation.CommitCommand, operation.ExecMode, action));
             }
         }
 
@@ -97,56 +90,50 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             PersistenceLogger.TransactionCommit();
         }
 
-        private async Task<bool> ExecuteAsync(CancellationToken cancellationToken = default)
+        private async Task ExecuteAsync(CancellationToken cancellationToken = default)
         {
             if (this.State != TransactionState.Active)
                 throw new InvalidOperationException($"Cannot execute a {this.State} transaction.");
 
             this.State = TransactionState.Committing;
 
-            using var connection = new SQLiteConnection(this.connectionString);
+            await using var connection = new SQLiteConnection(this.connectionString);
             // Always pass cancellation token to OpenAsync for proper cancellation support
             await connection.OpenAsync(cancellationToken);
-            using var transaction = connection.BeginTransaction();
+            await using var transaction = connection.BeginTransaction();
 
             try
             {
                 // Execute forward operations in sequence, chaining outputs to inputs
                 lock (this.lockObject)
                 {
-                    foreach (var transactionalOperation in this.operations)
+                    foreach (var (command, execMode, action) in this.commands)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
 
-                        // Fire BeforeCommit event using the proper method
-                        transactionalOperation.OnBeforeCommit();
+                        command.Connection = connection;
+                        command.Transaction = transaction;
 
-                        var cmd = transactionalOperation.CommitCommand;
-                        cmd.Connection = connection;
-                        
-                        switch (transactionalOperation.ExecMode)
+                        switch (execMode)
                         {
-                            case SqlExecMode.ExecuteReader:
-                                var reader = cmd.ExecuteReader();
-                                var result = this.mapper.MapFromReader(reader);
-                                transactionalOperation.Output = result;
-                                break;
                             case SqlExecMode.ExecuteNonQuery:
-                                cmd.ExecuteNonQuery();
+                                command.ExecuteNonQuery();
+                                break;
+                            case SqlExecMode.ExecuteReader:
+                                using (var reader = command.ExecuteReader())
+                                {
+                                    action?.Invoke(reader);
+                                }
                                 break;
                             case SqlExecMode.ExecuteScalar:
-                                cmd.ExecuteScalar();
+                                command.ExecuteScalar();
                                 break;
                         }
-
-                        // Fire AfterCommit event using the proper method
-                        transactionalOperation.OnAfterCommit();
                     }
                 }
 
                 transaction.Commit();
                 this.State = TransactionState.Committed;
-                return true;
             }
             catch (Exception ex)
             {
@@ -162,10 +149,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             if (this.disposed)
                 return;
 
-            var operationList = new List<ITransactionalOperation<T, T>>();
+            var operationList = new List<IDbCommand>();
             lock (this.lockObject)
             {
-                operationList.AddRange(this.operations);
+                operationList.AddRange(this.commands.Select(c => c.cmd));
             }
 
             if (this.State == TransactionState.Active && operationList.Count > 0)

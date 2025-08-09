@@ -7,9 +7,6 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
 {
     using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using System.Linq.Expressions;
     using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
@@ -18,7 +15,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
     /// Defines the contract for persistence providers that handle entity storage and retrieval.
     /// This is the main interface that aggregates all persistence operations and provides a unified
     /// abstraction layer over different storage backends (SQLite, SQL Server, MongoDB, etc.).
-    /// 
+    ///
     /// Key Features:
     /// - CRUD Operations: Basic Create, Read, Update, Delete operations with optimistic concurrency
     /// - Batch Operations: Efficient bulk operations for multiple entities
@@ -30,14 +27,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
     /// - Expiration: Time-based entity expiration with automatic cleanup
     /// - Audit Trail: Optional tracking of all entity modifications
     /// - Caching: Built-in caching support for improved read performance
-    /// 
+    ///
     /// Implementation Requirements:
     /// - Thread-safe: All operations must be thread-safe for concurrent access
     /// - Async: All operations are async-first for scalability
     /// - Idempotent: Delete operations should be idempotent
     /// - Atomic: Operations within transactions must be atomic
     /// - Consistent: Version tracking ensures consistency across operations
-    /// 
+    ///
     /// Type Constraints:
     /// - T must be a reference type implementing IEntity&lt;TKey&gt;
     /// - TKey must implement IEquatable for efficient key comparisons
@@ -93,7 +90,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         /// 7. Connection pool is cleared on disposal to release file locks
         /// </summary>
         /// <returns>Transaction scope for managing transactional operations</returns>
-        ITransactionScope<T, TKey> BeginTransaction(CancellationToken cancellationToken = default);
+        ITransactionScope BeginTransaction(CancellationToken cancellationToken = default);
 
         #endregion
 

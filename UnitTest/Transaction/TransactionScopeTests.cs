@@ -8,7 +8,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
 {
     using System;
     using System.IO;
-    using System.Threading;
     using System.Threading.Tasks;
     using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
@@ -29,10 +28,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_advanced_{Guid.NewGuid()}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.provider = new SQLitePersistenceProvider<TransactionTestEntity, Guid>(this.connectionString);
             await this.provider.InitializeAsync();
-            
+
             this.callerInfo = new CallerInfo
             {
                 UserId = "TestUser",
@@ -46,23 +46,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             if (this.provider != null)
             {
                 await this.provider.DisposeAsync();
-            
-
-                this.SafeDeleteDatabase(this.testDbPath);
-
             }
+
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         [TestMethod]
         [TestCategory("Transaction")]
-        [Ignore("Transaction scope interface does not support direct persistence methods - needs redesign")]
         public async Task BeginTransaction_CreateUpdateDelete_Atomic()
         {
             // Arrange
             var entity1 = new TransactionTestEntity { Id = Guid.NewGuid(), Name = "Entity 1", Value = 100 };
             var entity2 = new TransactionTestEntity { Id = Guid.NewGuid(), Name = "Entity 2", Value = 200 };
             var entity3 = new TransactionTestEntity { Id = Guid.NewGuid(), Name = "Entity 3", Value = 300 };
-            
+
             // Create entity3 outside transaction
             await this.provider.CreateAsync(entity3, this.callerInfo);
 
@@ -72,12 +69,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
                 // Transaction scope doesn't support direct CRUD operations
                 // These methods would need to be implemented differently
                 // For now, just demonstrate structure
-                
+
                 // The operations would need to be added as ITransactionalOperation
                 // scope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity1));
                 // scope.AddOperation(new UpdateOperation<TransactionTestEntity, Guid>(entity2));
                 // scope.AddOperation(new DeleteOperation<TransactionTestEntity, Guid>(entity3.Id));
-                
+
                 scope.Commit();
             }
 
@@ -85,18 +82,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             var result1 = await this.provider.GetAsync(entity1.Id, this.callerInfo);
             result1.Should().NotBeNull();
             result1.Name.Should().Be("Entity 1");
-            
+
             var result2 = await this.provider.GetAsync(entity2.Id, this.callerInfo);
             result2.Should().NotBeNull();
             result2.Name.Should().Be("Updated Entity 2");
-            
+
             var result3 = await this.provider.GetAsync(entity3.Id, this.callerInfo);
             result3.Should().BeNull();
         }
 
         [TestMethod]
         [TestCategory("Transaction")]
-        [Ignore("Transaction scope interface does not support direct persistence methods - needs redesign")]
         public async Task BeginTransaction_Rollback_NoChanges()
         {
             // Arrange
@@ -109,17 +105,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             {
                 // Transaction scope doesn't support direct CRUD operations
                 // These methods would need to be implemented differently
-                
+
                 // scope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity1));
                 // scope.AddOperation(new UpdateOperation<TransactionTestEntity, Guid>(entity2));
-                
+
                 scope.Rollback();
             }
 
             // Assert
             var result1 = await this.provider.GetAsync(entity1.Id, this.callerInfo);
             result1.Should().BeNull("Entity should not exist after rollback");
-            
+
             var result2 = await this.provider.GetAsync(entity2.Id, this.callerInfo);
             result2.Should().NotBeNull();
             result2.Name.Should().Be("Original", "Entity should not be updated after rollback");
@@ -127,7 +123,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
 
         [TestMethod]
         [TestCategory("Transaction")]
-        [Ignore("Transaction scope interface does not support direct persistence methods - needs redesign")]
         public async Task BeginTransaction_NestedScope_HandlesCorrectly()
         {
             // Arrange
@@ -138,93 +133,85 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             await using (var outerScope = this.provider.BeginTransaction())
             {
                 // outerScope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity1));
-                
+
                 await using (var innerScope = this.provider.BeginTransaction())
                 {
                     // innerScope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity2));
                     innerScope.Commit();
                 }
-                
+
                 outerScope.Commit();
             }
 
             // Assert
             var result1 = await this.provider.GetAsync(entity1.Id, this.callerInfo);
             result1.Should().NotBeNull();
-            
+
             var result2 = await this.provider.GetAsync(entity2.Id, this.callerInfo);
             result2.Should().NotBeNull();
         }
 
         [TestMethod]
         [TestCategory("Transaction")]
-        [Ignore("Transaction scope interface does not support direct persistence methods - needs redesign")]
         [ExpectedException(typeof(TimeoutException))]
         public async Task BeginTransaction_Timeout_RollsBack()
         {
             // Arrange
             var entity = new TransactionTestEntity { Id = Guid.NewGuid(), Name = "Timeout Test", Value = 100 };
-            
+
             // Act
-            await using (var scope = this.provider.BeginTransaction())
-            {
-                // scope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity));
-                
-                // Simulate long-running operation
-                await Task.Delay(200);
-                
-                scope.Commit(); // Should timeout and throw
-            }
+            await using var scope = this.provider.BeginTransaction();
+            // scope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity));
+
+            // Simulate long-running operation
+            await Task.Delay(200);
+
+            scope.Commit(); // Should timeout and throw
         }
 
         [TestMethod]
         [TestCategory("Transaction")]
-        [Ignore("Transaction scope interface does not support direct persistence methods - needs redesign")]
         public async Task BeginTransaction_ConcurrentAccess_Isolated()
         {
             // Arrange
             var entity = new TransactionTestEntity { Id = Guid.NewGuid(), Name = "Initial", Value = 100 };
             await this.provider.CreateAsync(entity, this.callerInfo);
-            
+
             var transaction1Complete = new TaskCompletionSource<bool>();
             var transaction2Start = new TaskCompletionSource<bool>();
 
             // Act - Start two concurrent transactions
             var task1 = Task.Run(async () =>
             {
-                await using (var scope = this.provider.BeginTransaction())
-                {
-                    entity.Name = "Transaction 1";
-                    entity.Value = 200;
-                    // scope.AddOperation(new UpdateOperation<TransactionTestEntity, Guid>(entity));
-                    
-                    // Signal transaction 2 to start
-                    transaction2Start.SetResult(true);
-                    
-                    // Wait a bit to ensure transaction 2 tries to access
-                    await Task.Delay(100);
-                    
-                    scope.Commit();
-                    transaction1Complete.SetResult(true);
-                }
+                await using var scope = this.provider.BeginTransaction();
+                entity.Name = "Transaction 1";
+                entity.Value = 200;
+                // scope.AddOperation(new UpdateOperation<TransactionTestEntity, Guid>(entity));
+
+                // Signal transaction 2 to start
+                transaction2Start.SetResult(true);
+
+                // Wait a bit to ensure transaction 2 tries to access
+                await Task.Delay(100);
+
+                scope.Commit();
+                transaction1Complete.SetResult(true);
             });
-            
+
             var task2 = Task.Run(async () =>
             {
                 await transaction2Start.Task;
-                
-                await using (var scope = this.provider.BeginTransaction())
-                {
-                    // This should wait for transaction 1 to complete
-                    // Transaction scope doesn't support direct Get operations
-                    var current = await this.provider.GetAsync(entity.Id, this.callerInfo);
-                    current.Should().NotBeNull();
-                    
-                    current.Name = "Transaction 2";
-                    current.Value = 300;
-                    // scope.AddOperation(new UpdateOperation<TransactionTestEntity, Guid>(current));
-                    scope.Commit();
-                }
+
+                await using var scope = this.provider.BeginTransaction();
+                // This should wait for transaction 1 to complete
+                // Transaction scope doesn't support direct Get operations
+                var current = await this.provider.GetAsync(entity.Id, this.callerInfo);
+                current.Should().NotBeNull();
+
+                current.Name = "Transaction 2";
+                current.Value = 300;
+                // scope.AddOperation(new UpdateOperation<TransactionTestEntity, Guid>(current));
+                scope.Commit();
             });
 
             // Wait for both transactions

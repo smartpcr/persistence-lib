@@ -10,6 +10,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
     using System.Data.SQLite;
     using System.IO;
     using System.Threading;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
     /// <summary>
@@ -25,6 +26,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Provi
         /// <param name="dbPath">Path to the database file to delete</param>
         protected void SafeDeleteDatabase(string dbPath)
         {
+            SQLiteProviderSharedState.ClearState();
+
             if (string.IsNullOrEmpty(dbPath) || !File.Exists(dbPath))
             {
                 return;

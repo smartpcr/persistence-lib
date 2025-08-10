@@ -10,12 +10,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using System.Data.SQLite;
     using System.Linq;
     using Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
 
     /// <summary>
     /// Mapper for Version entity showing SQL generation.
     /// </summary>
     public class VersionMapper : SQLiteEntityMapper<VersionEntity, long>
     {
+        public VersionMapper(RetryPolicy retryPolicy) : base(retryPolicy)
+        {
+        }
+
         /// <summary>
         /// Override to handle auto-increment version ID.
         /// </summary>

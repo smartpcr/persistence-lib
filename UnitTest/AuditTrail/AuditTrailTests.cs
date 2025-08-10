@@ -24,7 +24,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
     public class AuditTrailTests : SQLiteTestBase
     {
         private string testDbPath;
-
         private string connectionString;
         private SQLitePersistenceProvider<AuditTestEntity, Guid> provider;
         private CallerInfo callerInfo;

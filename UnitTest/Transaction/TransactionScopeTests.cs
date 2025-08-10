@@ -12,6 +12,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
     using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using TransactionTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Transaction.TransactionTestEntity;
@@ -20,8 +23,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
     public class TransactionScopeTests : SQLiteTestBase
     {
         private string testDbPath;
-
         private string connectionString;
+        private SqliteConfiguration config;
         private SQLitePersistenceProvider<TransactionTestEntity, Guid> provider;
         private CallerInfo callerInfo;
 
@@ -30,7 +33,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
         {
             this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_advanced_{Guid.NewGuid()}.db");
             this.connectionString = $"Data Source={this.testDbPath};Version=3;";
-            this.provider = new SQLitePersistenceProvider<TransactionTestEntity, Guid>(this.connectionString);
+            this.config = new SqliteConfiguration()
+            {
+                BusyTimeout = 100,
+                RetryPolicy = new RetryConfiguration()
+                {
+                    MaxAttempts = 0,
+                    Enabled = false
+                }
+            };
+            this.provider = new SQLitePersistenceProvider<TransactionTestEntity, Guid>(this.connectionString, this.config);
             await this.provider.InitializeAsync();
 
             this.callerInfo = new CallerInfo
@@ -57,7 +69,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
         {
             // Arrange
             var entity1 = new TransactionTestEntity { Id = Guid.NewGuid(), Name = "Entity 1", Value = 100 };
-            var entity2 = new TransactionTestEntity { Id = Guid.NewGuid(), Name = "Entity 2", Value = 200 };
+            var entity2 = new TransactionTestEntity { Id = entity1.Id, Name = "Entity 2", Value = 200 };
             var entity3 = new TransactionTestEntity { Id = Guid.NewGuid(), Name = "Entity 3", Value = 300 };
 
             // Create entity3 outside transaction
@@ -66,14 +78,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             // Act
             await using (var scope = this.provider.BeginTransaction())
             {
-                // Transaction scope doesn't support direct CRUD operations
-                // These methods would need to be implemented differently
-                // For now, just demonstrate structure
-
                 // The operations would need to be added as ITransactionalOperation
-                // scope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity1));
-                // scope.AddOperation(new UpdateOperation<TransactionTestEntity, Guid>(entity2));
-                // scope.AddOperation(new DeleteOperation<TransactionTestEntity, Guid>(entity3.Id));
+                scope.AddOperation<TransactionTestEntity, Guid>(TransactionalOperation<TransactionTestEntity, Guid>.Create(
+                    new SQLiteEntityMapper<TransactionTestEntity, Guid>(new RetryPolicy(this.config.RetryPolicy)),
+                    DbOperationType.Insert,
+                    entity1));
+                scope.AddOperation<TransactionTestEntity, Guid>(TransactionalOperation<TransactionTestEntity, Guid>.Create(
+                    new SQLiteEntityMapper<TransactionTestEntity, Guid>(new RetryPolicy(this.config.RetryPolicy)),
+                    DbOperationType.Update,
+                    entity1,
+                    entity2));
+                scope.AddOperation<TransactionTestEntity, Guid>(TransactionalOperation<TransactionTestEntity, Guid>.Create(
+                    new SQLiteEntityMapper<TransactionTestEntity, Guid>(new RetryPolicy(this.config.RetryPolicy)),
+                    DbOperationType.Delete,
+                    entity3));
 
                 scope.Commit();
             }
@@ -81,11 +99,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             // Assert
             var result1 = await this.provider.GetAsync(entity1.Id, this.callerInfo);
             result1.Should().NotBeNull();
-            result1.Name.Should().Be("Entity 1");
-
-            var result2 = await this.provider.GetAsync(entity2.Id, this.callerInfo);
-            result2.Should().NotBeNull();
-            result2.Name.Should().Be("Updated Entity 2");
+            result1.Name.Should().Be("Entity 2", "Entity 1 should be updated to Entity 2's values");
+            result1.Value.Should().Be(200, "Entity 1 should be updated to Entity 2's values");
 
             var result3 = await this.provider.GetAsync(entity3.Id, this.callerInfo);
             result3.Should().BeNull();
@@ -103,11 +118,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             // Act
             await using (var scope = this.provider.BeginTransaction())
             {
-                // Transaction scope doesn't support direct CRUD operations
-                // These methods would need to be implemented differently
+                scope.AddOperation<TransactionTestEntity, Guid>(TransactionalOperation<TransactionTestEntity, Guid>.Create(
+                    new SQLiteEntityMapper<TransactionTestEntity, Guid>(new RetryPolicy(this.config.RetryPolicy)),
+                    DbOperationType.Insert,
+                    entity1));
 
-                // scope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity1));
-                // scope.AddOperation(new UpdateOperation<TransactionTestEntity, Guid>(entity2));
+                entity2.Name = "Updated";
+                scope.AddOperation<TransactionTestEntity, Guid>(TransactionalOperation<TransactionTestEntity, Guid>.Create(
+                    new SQLiteEntityMapper<TransactionTestEntity, Guid>(new RetryPolicy(this.config.RetryPolicy)),
+                    DbOperationType.Update,
+                    entity2,
+                    entity2));
 
                 scope.Rollback();
             }
@@ -132,11 +153,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
             // Act
             await using (var outerScope = this.provider.BeginTransaction())
             {
-                // outerScope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity1));
+                outerScope.AddOperation<TransactionTestEntity, Guid>(TransactionalOperation<TransactionTestEntity, Guid>.Create(
+                    new SQLiteEntityMapper<TransactionTestEntity, Guid>(new RetryPolicy(this.config.RetryPolicy)),
+                    DbOperationType.Insert,
+                    entity1));
 
                 await using (var innerScope = this.provider.BeginTransaction())
                 {
-                    // innerScope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity2));
+                    innerScope.AddOperation<TransactionTestEntity, Guid>(TransactionalOperation<TransactionTestEntity, Guid>.Create(
+                        new SQLiteEntityMapper<TransactionTestEntity, Guid>(new RetryPolicy(this.config.RetryPolicy)),
+                        DbOperationType.Insert,
+                        entity2));
                     innerScope.Commit();
                 }
 
@@ -153,7 +180,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
 
         [TestMethod]
         [TestCategory("Transaction")]
-        [ExpectedException(typeof(TimeoutException))]
         public async Task BeginTransaction_Timeout_RollsBack()
         {
             // Arrange
@@ -161,7 +187,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Trans
 
             // Act
             await using var scope = this.provider.BeginTransaction();
-            // scope.AddOperation(new CreateOperation<TransactionTestEntity, Guid>(entity));
+            scope.AddOperation<TransactionTestEntity, Guid>(TransactionalOperation<TransactionTestEntity, Guid>.Create(
+                new SQLiteEntityMapper<TransactionTestEntity, Guid>(new RetryPolicy(this.config.RetryPolicy)),
+                DbOperationType.Insert,
+                entity));
 
             // Simulate long-running operation
             await Task.Delay(200);

@@ -17,6 +17,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.Integration;
     using FluentAssertions;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -26,8 +27,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
     {
         private string testDbPath;
         private string altTestDbPath;
-
         private string connectionString;
+        private SqliteConfiguration config;
+
         private SQLitePersistenceProvider<Order, Guid> orderProvider;
         private SQLitePersistenceProvider<OrderItem, Guid> orderItemProvider;
         private SQLitePersistenceProvider<Product, Guid> productProvider;
@@ -39,7 +41,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             this.testDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"test_{Guid.NewGuid()}.db");
             this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.altTestDbPath = Path.Combine(Directory.GetCurrentDirectory(), $"alt_test_{Guid.NewGuid()}.db");
-            var config = new SqliteConfiguration
+            this.config = new SqliteConfiguration
             {
                 JournalMode = JournalMode.WAL,
                 CacheSize = 10000,
@@ -48,9 +50,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
                                           // To enable foreign keys, all related entities must use the same provider/connection.
             };
 
-            this.orderProvider = new SQLitePersistenceProvider<Order, Guid>(this.connectionString, config);
-            this.orderItemProvider = new SQLitePersistenceProvider<OrderItem, Guid>(this.connectionString, config);
-            this.productProvider = new SQLitePersistenceProvider<Product, Guid>(this.connectionString, config);
+            this.orderProvider = new SQLitePersistenceProvider<Order, Guid>(this.connectionString, this.config);
+            this.orderItemProvider = new SQLitePersistenceProvider<OrderItem, Guid>(this.connectionString, this.config);
+            this.productProvider = new SQLitePersistenceProvider<Product, Guid>(this.connectionString, this.config);
 
             await this.orderProvider.InitializeAsync();
             await this.orderItemProvider.InitializeAsync();
@@ -212,7 +214,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
             {
                 // Step 1: Create order first (must be committed before creating items due to foreign key)
                 transactionScope.AddOperation<Order, Guid>(TransactionalOperation<Order, Guid>.Create(
-                    new SQLiteEntityMapper<Order, Guid>(),
+                    new SQLiteEntityMapper<Order, Guid>(new RetryPolicy(this.config.RetryPolicy)),
                     DbOperationType.Insert,
                     order));
 
@@ -239,7 +241,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
                 foreach (var orderItem in orderItems)
                 {
                     transactionScope.AddOperation<OrderItem, Guid>(TransactionalOperation<OrderItem, Guid>.Create(
-                        new SQLiteEntityMapper<OrderItem, Guid>(),
+                        new SQLiteEntityMapper<OrderItem, Guid>(new RetryPolicy(this.config.RetryPolicy)),
                         DbOperationType.Insert,
                         orderItem));
                 }
@@ -249,7 +251,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
                 order.Version += 1;
                 order.LastWriteTime = DateTimeOffset.UtcNow;
                 transactionScope.AddOperation<Order, Guid>(TransactionalOperation<Order, Guid>.Create(
-                    new SQLiteEntityMapper<Order, Guid>(),
+                    new SQLiteEntityMapper<Order, Guid>(new RetryPolicy(this.config.RetryPolicy)),
                     DbOperationType.Update,
                     order,
                     order));
@@ -259,7 +261,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
                 order.Version += 1;
                 order.LastWriteTime = DateTimeOffset.UtcNow;
                 transactionScope.AddOperation<Order, Guid>(TransactionalOperation<Order, Guid>.Create(
-                    new SQLiteEntityMapper<Order, Guid>(),
+                    new SQLiteEntityMapper<Order, Guid>(new RetryPolicy(this.config.RetryPolicy)),
                     DbOperationType.Update,
                     order,
                     order));
@@ -306,13 +308,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
 
             // Step 4: Verify migration
             var migratedProducts = await this.productProvider.GetAllAsync(this.callerInfo);
-            migratedProducts.Count().Should().Be(exportData.Count);
+            migratedProducts!.Count().Should().Be(exportData.Count);
 
             foreach (var original in exportData)
             {
                 var migrated = migratedProducts.FirstOrDefault(p => p.Id == original.Id);
                 migrated.Should().NotBeNull();
-                migrated.Name.Should().Be(original.Name);
+                migrated!.Name.Should().Be(original.Name);
                 migrated.Price.Should().Be(original.Price);
             }
         }

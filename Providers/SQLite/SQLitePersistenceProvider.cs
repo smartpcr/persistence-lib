@@ -71,14 +71,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         {
             this.connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
             this.configuration = configuration ?? new SqliteConfiguration();
-            this.Mapper = new SQLiteEntityMapper<T, TKey>();
-            this.versionMapper = new VersionMapper();
-            this.entryListMappingMapper = new EntryListMappingMapper();
-            this.auditMapper = new SQLiteAuditMapper();
-            this.isInitialized = false;
-
-            // Initialize retry policy based on configuration
             this.retryPolicy = RetryPolicy.FromConfiguration(this.configuration.RetryPolicy);
+
+            this.Mapper = new SQLiteEntityMapper<T, TKey>(this.retryPolicy);
+            this.versionMapper = new VersionMapper(this.retryPolicy);
+            this.entryListMappingMapper = new EntryListMappingMapper(this.retryPolicy);
+            this.auditMapper = new SQLiteAuditMapper(this.retryPolicy);
+            this.isInitialized = false;
         }
 
         /// <summary>

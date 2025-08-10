@@ -14,6 +14,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using System.Text;
     using Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
 
 
     /// <summary>
@@ -23,6 +24,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     /// <typeparam name="TKey">The key type.</typeparam>
     public class SQLiteEntityMapper<T, TKey> : BaseEntityMapper<T, TKey> where T : class, IEntity<TKey> where TKey : IEquatable<TKey>
     {
+        private readonly RetryPolicy retryPolicy;
+
+        public SQLiteEntityMapper(RetryPolicy retryPolicy)
+        {
+            this.retryPolicy = retryPolicy;
+        }
 
         #region SQLite-Specific Overrides
 
@@ -43,14 +50,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             return identifier;
         }
-        
+
         protected override string GetAutoIncrementSyntax() => "AUTOINCREMENT";
-        
+
         protected override string GetCurrentTimestampFunction() => "datetime('now')";
-        
+
         protected override string GetBooleanLiteral(bool value) => value ? "1" : "0";
-        
-        protected override IDbCommand CreateDbCommand() => new SQLiteCommand();
+
+        protected override IDbCommand CreateDbCommand() => new ResilientSQLiteCommand(new SQLiteCommand(), this.retryPolicy);
 
         /// <summary>
         /// SQLite stores datetime as text, so we need to use datetime() function for proper comparison.
@@ -87,16 +94,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             // SQLite specific: INSERT OR REPLACE
             var columns = this.GetInsertColumns();
-            
+
             if (this.EnableSoftDelete)
             {
                 // For soft delete, we need to handle versioning differently
                 throw new NotSupportedException("Upsert with soft delete is not yet implemented for SQLite");
             }
-            
+
             var columnList = string.Join(", ", columns.Select(this.EscapeIdentifier));
             var paramList = string.Join(", ", columns.Select(c => this.GetParameterPrefix() + c));
-            
+
             command.CommandText = $"INSERT OR REPLACE INTO {this.GetFullTableName()} ({columnList}) VALUES ({paramList})";
             this.AddEntityParameters(command, context.Entity);
         }
@@ -163,6 +170,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             return base.GeneratePrimaryKeyDefinition();
         }
 
-        #endregion 
+        #endregion
     }
 }

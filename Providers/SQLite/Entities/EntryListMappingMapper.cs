@@ -8,6 +8,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 {
     using System.Data.SQLite;
     using Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
 
     /// <summary>
     /// Provides mapping functionality for EntryListMapping entities.
@@ -17,7 +18,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// <summary>
         /// Initializes a new instance of the <see cref="EntryListMappingMapper"/> class.
         /// </summary>
-        public EntryListMappingMapper() : base()
+        public EntryListMappingMapper(RetryPolicy retryPolicy) : base(retryPolicy)
         {
         }
 

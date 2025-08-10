@@ -15,7 +15,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     /// <summary>
     /// Wrapper for SQLiteCommand that provides automatic retry logic for transient errors.
     /// </summary>
-    public class ResilientSQLiteCommand : IAsyncDisposable, IDisposable
+    public class ResilientSQLiteCommand : IAsyncDisposable, IDbCommand
     {
         private readonly SQLiteCommand command;
         private readonly RetryPolicy retryPolicy;
@@ -34,6 +34,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// </summary>
         public SQLiteCommand Command => this.command;
 
+        public void Prepare()
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Gets or sets the command text.
         /// </summary>
@@ -42,6 +47,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             get => this.command.CommandText;
             set => this.command.CommandText = value;
         }
+
+        public int CommandTimeout { get; set; }
 
         /// <summary>
         /// Gets or sets the command type.
@@ -52,6 +59,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             set => this.command.CommandType = value;
         }
 
+        IDbConnection IDbCommand.Connection
+        {
+            get => this.Command.Connection;
+            set => this.Command.Connection = (SQLiteConnection)value;
+        }
+
         /// <summary>
         /// Gets or sets the connection.
         /// </summary>
@@ -60,6 +73,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             get => this.command.Connection;
             set => this.command.Connection = value;
         }
+
+        IDataParameterCollection IDbCommand.Parameters => this.Parameters;
+
+        IDbTransaction IDbCommand.Transaction
+        {
+            get => this.Command.Transaction;
+            set => this.Command.Transaction = (SQLiteTransaction) value;
+        }
+
+        public UpdateRowSource UpdatedRowSource { get; set; }
 
         /// <summary>
         /// Gets or sets the transaction.
@@ -90,6 +113,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             return await this.command.ExecuteNonQueryAsync(cancellationToken);
         }
 
+        public void Cancel()
+        {
+            this.command.Cancel();
+        }
+
+        public IDbDataParameter CreateParameter()
+        {
+            return this.command.CreateParameter();
+        }
+
         /// <summary>
         /// Executes a non-query command synchronously with retry logic.
         /// </summary>
@@ -101,6 +134,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
 
             return this.command.ExecuteNonQuery();
+        }
+
+        IDataReader IDbCommand.ExecuteReader()
+        {
+            return this.ExecuteReader();
+        }
+
+        public IDataReader ExecuteReader(CommandBehavior behavior)
+        {
+            return this.Command.ExecuteReader(behavior);
         }
 
         /// <summary>

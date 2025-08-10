@@ -7,8 +7,12 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Mappings
 {
     using Contracts;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
 
     public class SQLiteAuditMapper : SQLiteEntityMapper<AuditRecord, long>
     {
+        public SQLiteAuditMapper(RetryPolicy retryPolicy) : base(retryPolicy)
+        {
+        }
     }
 }

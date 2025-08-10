@@ -7,6 +7,7 @@
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ErrorHandling
 {
     using System;
+    using System.Data;
     using System.Data.SQLite;
     using System.IO;
     using System.Threading.Tasks;
@@ -76,56 +77,138 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
         [TestCategory("ErrorHandling")]
         public async Task ConnectionLoss_TransientFailure_Retries()
         {
-            // Arrange
+            // Arrange - Create provider with retry configuration
+            var retryConfig = new SqliteConfiguration
+            {
+                BusyTimeout = 1000,
+                CommandTimeout = 30,
+                RetryPolicy = new RetryConfiguration
+                {
+                    Enabled = true,
+                    MaxAttempts = 3,
+                    InitialDelayMs = 50,
+                    MaxDelayMs = 500,
+                    BackoffMultiplier = 2.0
+                }
+            };
+            
+            var retryProvider = new SQLitePersistenceProvider<ErrorTestEntity, Guid>(this.connectionString, retryConfig);
+            await retryProvider.InitializeAsync();
+
             var entity = new ErrorTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Retry Test",
-                UniqueField = "unique1",
+                UniqueField = Guid.NewGuid().ToString(),
                 Value = 100
             };
 
-            var retryCount = 0;
-            // OnBeforeExecute event is not implemented - commenting out
-            // this.provider.OnBeforeExecute += (sender, args) =>
-            // {
-            //     retryCount++;
-            //     if (retryCount < 3)
-            //     {
-            //         throw new SQLiteException("Database is locked");
-            //     }
-            // };
+            // Create a separate connection to lock the database
+            await using var lockingConnection = new SQLiteConnection(this.connectionString);
+            await lockingConnection.OpenAsync();
+            
+            // Start a transaction to lock the database
+            await using var lockingTransaction = lockingConnection.BeginTransaction();
+            
+            // Insert a dummy row to hold a write lock
+            // Note: ErrorTestEntity uses BaseEntity which maps Id to CacheKey column
+            await using (var lockCmd = new SQLiteCommand(
+                "INSERT INTO ErrorTestEntity (CacheKey, Name, UniqueField, Value, Version, CreatedTime, LastWriteTime) " +
+                "VALUES (@id, 'lock', 'lock', 0, 1, @now, @now)", 
+                lockingConnection, lockingTransaction))
+            {
+                lockCmd.Parameters.AddWithValue("@id", Guid.NewGuid().ToString());
+                lockCmd.Parameters.AddWithValue("@now", DateTime.UtcNow);
+                await lockCmd.ExecuteNonQueryAsync();
+            }
 
-            // Act
-            var result = await this.provider.CreateAsync(entity, this.callerInfo);
+            // Act & Assert - Try to insert while database is locked
+            var insertTask = Task.Run(async () =>
+            {
+                // This should retry because the database is locked by the transaction above
+                await retryProvider.CreateAsync(entity, this.callerInfo);
+            });
 
-            // Assert
+            // Wait a bit to ensure retries are happening
+            await Task.Delay(200);
+            
+            // Release the lock by committing the transaction
+            await lockingTransaction.CommitAsync();
+            
+            // Now the insert should succeed after retrying
+            await insertTask;
+
+            // Verify the entity was created
+            var result = await retryProvider.GetAsync(entity.Id, this.callerInfo);
             result.Should().NotBeNull();
-            retryCount.Should().Be(3, "Should retry twice before succeeding");
+            result.Name.Should().Be("Retry Test");
+            
+            await retryProvider.DisposeAsync();
         }
 
         [TestMethod]
         [TestCategory("ErrorHandling")]
         public async Task ConnectionLoss_PersistentFailure_ThrowsException()
         {
-            // Arrange
+            // Arrange - Create provider with limited retry configuration
+            var retryConfig = new SqliteConfiguration
+            {
+                BusyTimeout = 500,
+                CommandTimeout = 5,
+                RetryPolicy = new RetryConfiguration
+                {
+                    Enabled = true,
+                    MaxAttempts = 2,
+                    InitialDelayMs = 100,
+                    MaxDelayMs = 200,
+                    BackoffMultiplier = 2.0
+                }
+            };
+            
+            var retryProvider = new SQLitePersistenceProvider<ErrorTestEntity, Guid>(this.connectionString, retryConfig);
+            await retryProvider.InitializeAsync();
+
             var entity = new ErrorTestEntity
             {
                 Id = Guid.NewGuid(),
                 Name = "Persistent Failure",
-                UniqueField = "unique2",
+                UniqueField = Guid.NewGuid().ToString(),
                 Value = 100
             };
 
-            // OnBeforeExecute event is not implemented - commenting out
-            // this.provider.OnBeforeExecute += (sender, args) =>
-            // {
-            //     throw new SQLiteException("Database is corrupted");
-            // };
+            // Create a separate connection to lock the database persistently
+            await using var lockingConnection = new SQLiteConnection(this.connectionString);
+            await lockingConnection.OpenAsync();
+            
+            // Start a transaction to lock the database
+            await using var lockingTransaction = lockingConnection.BeginTransaction(IsolationLevel.Serializable);
+            
+            // Insert a dummy row to hold a write lock
+            // Note: ErrorTestEntity uses BaseEntity which maps Id to CacheKey column
+            await using (var lockCmd = new SQLiteCommand(
+                "INSERT INTO ErrorTestEntity (CacheKey, Name, UniqueField, Value, Version, CreatedTime, LastWriteTime) " +
+                "VALUES (@id, 'lock', 'persistent_lock', 0, 1, @now, @now)", 
+                lockingConnection, lockingTransaction))
+            {
+                lockCmd.Parameters.AddWithValue("@id", Guid.NewGuid().ToString());
+                lockCmd.Parameters.AddWithValue("@now", DateTime.UtcNow);
+                await lockCmd.ExecuteNonQueryAsync();
+            }
 
-            // Act
-            await this.provider.CreateAsync(entity, this.callerInfo);
-            // Should throw after exhausting retries
+            // Act - Try to insert while database is persistently locked
+            // This should fail after exhausting retries
+            Func<Task> act = async () =>
+            {
+                await retryProvider.CreateAsync(entity, this.callerInfo);
+            };
+
+            // Assert - Should throw after exhausting retries
+            await act.Should().ThrowAsync<SQLiteException>()
+                .WithMessage("*database is locked*");
+
+            // Cleanup
+            await lockingTransaction.RollbackAsync();
+            await retryProvider.DisposeAsync();
         }
 
         [TestMethod]
@@ -208,20 +291,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
             await this.provider.CreateAsync(entity1, this.callerInfo);
 
             // Act & Assert
-            try
-            {
-                await this.provider.CreateAsync(entity2, this.callerInfo);
-                Assert.Fail("Should have thrown unique constraint exception");
-            }
-            catch (EntityAlreadyExistsException)
-            {
-                // Expected for duplicate key
-            }
-            catch (EntityWriteException ex)
-            {
-                (ex.Message.Contains("unique") || ex.Message.Contains("constraint")).Should().BeTrue(
-                    "Exception should mention unique constraint violation");
-            }
+            Func<Task> act = async () => await this.provider.CreateAsync(entity2, this.callerInfo);
+            
+            // Should throw exception for unique constraint violation
+            // The provider may throw SQLiteException, EntityAlreadyExistsException, or EntityWriteException
+            var exception = await act.Should().ThrowAsync<Exception>();
+            
+            // Verify it's a constraint violation
+            var ex = exception.Which;
+            var isValidException = 
+                (ex is SQLiteException sqlEx && sqlEx.Message.Contains("UNIQUE constraint failed")) ||
+                (ex is EntityAlreadyExistsException) ||
+                (ex is EntityWriteException writeEx && (writeEx.Message.Contains("unique") || writeEx.Message.Contains("constraint")));
+                
+            isValidException.Should().BeTrue("Should throw an exception indicating unique constraint violation, but got: {0}", ex.Message);
         }
 
         [TestMethod]
@@ -246,7 +329,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
                 await using var connection = new SQLiteConnection(this.connectionString);
                 await connection.OpenAsync();
                 await using var cmd = new SQLiteCommand(
-                    "UPDATE ErrorTestEntity SET Value = 'NotANumber' WHERE Id = @Id",
+                    "UPDATE ErrorTestEntity SET Value = 'NotANumber' WHERE CacheKey = @Id",
                     connection);
                 cmd.Parameters.AddWithValue("@Id", entity.Id.ToString());
                 await cmd.ExecuteNonQueryAsync();

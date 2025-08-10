@@ -13,7 +13,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Entities;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
 
     /// <summary>
     /// SQLite implementation of a cache provider that stores CacheEntry&lt;T&gt; objects.
@@ -25,16 +27,19 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private readonly SQLitePersistenceProvider<CacheEntry<T>, string> persistenceProvider;
         private readonly string connectionString;
         private readonly string tableName;
+        private readonly SqliteConfiguration configuration;
         private readonly IEntityMapper<CacheEntry<T>, string> mapper;
         private readonly TimeSpan defaultExpiration;
 
         public SQLiteCacheProvider(
             string connectionString,
             string tableName = "CacheEntry",
+            SqliteConfiguration configuration = null,
             TimeSpan? defaultExpiration = null)
         {
             this.connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
             this.tableName = tableName;
+            this.configuration = configuration ?? new SqliteConfiguration();
             this.defaultExpiration = defaultExpiration ?? TimeSpan.FromHours(1);
 
             // Create mapper and persistence provider
@@ -267,14 +272,16 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
             var results = new List<CacheEntry<T>>();
 
-            using var connection = new SQLiteConnection(this.connectionString);
+            await using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync(cancellationToken);
 
-            using var command = new SQLiteCommand(sql, connection);
+            await using var command = new ResilientSQLiteCommand(
+                new SQLiteCommand(sql, connection),
+                new RetryPolicy(this.configuration.RetryPolicy));
             command.Parameters.AddWithValue("@tag", $"%{tag}%");
             command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
-            using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             while (await reader.ReadAsync(cancellationToken))
             {
                 var entry = this.mapper.MapFromReader(reader);
@@ -302,10 +309,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                 SELECT changes();";
 
-            using var connection = new SQLiteConnection(this.connectionString);
+            await using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync(cancellationToken);
 
-            using var command = new SQLiteCommand(sql, connection);
+            await using var command = new ResilientSQLiteCommand(
+                new SQLiteCommand(sql, connection),
+                new RetryPolicy(this.configuration.RetryPolicy));
             command.Parameters.AddWithValue("@now", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
 
             var rowsAffected = Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken));
@@ -317,40 +326,46 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// </summary>
         public async Task InitializeAsync(CancellationToken cancellationToken = default)
         {
-            using var connection = new SQLiteConnection(this.connectionString);
+            await using var connection = new SQLiteConnection(this.connectionString);
             await connection.OpenAsync(cancellationToken);
 
             // Create Version table first (referenced by CacheEntry)
             var createVersionTableSql = @"
-                CREATE TABLE IF NOT EXISTS Version (
-                    Version INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Timestamp TEXT NOT NULL DEFAULT (datetime('now'))
-                );";
+CREATE TABLE IF NOT EXISTS Version (
+    Version INTEGER PRIMARY KEY AUTOINCREMENT,
+    Timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+);";
 
-            using (var cmd = new SQLiteCommand(createVersionTableSql, connection))
+            await using (var cmd = new ResilientSQLiteCommand(
+                             new SQLiteCommand(createVersionTableSql, connection),
+                             new RetryPolicy(this.configuration.RetryPolicy)))
             {
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
 
             // Create CacheEntity table (referenced by CacheEntry)
             var createCacheEntityTableSql = @"
-                CREATE TABLE IF NOT EXISTS CacheEntity (
-                    TypeName TEXT NOT NULL,
-                    AssemblyVersion TEXT NOT NULL,
-                    SerializationType TEXT NOT NULL DEFAULT 'JSON',
-                    Description TEXT,
-                    CreatedTime TEXT NOT NULL DEFAULT (datetime('now')),
-                    PRIMARY KEY (TypeName, AssemblyVersion)
-                );";
+CREATE TABLE IF NOT EXISTS CacheEntity (
+    TypeName TEXT NOT NULL,
+    AssemblyVersion TEXT NOT NULL,
+    SerializationType TEXT NOT NULL DEFAULT 'JSON',
+    Description TEXT,
+    CreatedTime TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (TypeName, AssemblyVersion)
+);";
 
-            using (var cmd = new SQLiteCommand(createCacheEntityTableSql, connection))
+            await using (var cmd = new ResilientSQLiteCommand(
+                             new SQLiteCommand(createCacheEntityTableSql, connection),
+                             new RetryPolicy(this.configuration.RetryPolicy)))
             {
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
 
             // Create CacheEntry table
             var createTableSql = this.mapper.GenerateCreateTableSql();
-            using (var cmd = new SQLiteCommand(createTableSql, connection))
+            await using (var cmd = new ResilientSQLiteCommand(
+                             new SQLiteCommand(createTableSql, connection),
+                             new RetryPolicy(this.configuration.RetryPolicy)))
             {
                 await cmd.ExecuteNonQueryAsync(cancellationToken);
             }
@@ -358,7 +373,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Create indexes
             foreach (var indexSql in this.mapper.GenerateCreateIndexSql())
             {
-                using var indexCmd = new SQLiteCommand(indexSql, connection);
+                await using var indexCmd = new ResilientSQLiteCommand(
+                    new SQLiteCommand(indexSql, connection),
+                    new RetryPolicy(this.configuration.RetryPolicy));
                 await indexCmd.ExecuteNonQueryAsync(cancellationToken);
             }
         }

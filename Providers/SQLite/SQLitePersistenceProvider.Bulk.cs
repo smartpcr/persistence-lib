@@ -81,9 +81,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 long nextVersion = 1;
                 if (this.Mapper.EnableSoftDelete)
                 {
-                    await using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
+                    using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
                     versionCmd.Connection = connection;
-                    var versionResult = await versionCmd.ExecuteScalarAsync(cancellationToken);
+                    var versionResult = versionCmd.ExecuteScalar();
                     nextVersion = Convert.ToInt64(versionResult);
                 }
 
@@ -338,14 +338,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 {
                     // Fall through to try System.Text.Json
                 }
-                
+
                 // If Newtonsoft fails or returns empty, try System.Text.Json
                 // with case-insensitive property matching
                 var jsonOptions = new SystemJson.JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 };
-                
+
                 return SystemJsonSerializer.Deserialize<List<T>>(content, jsonOptions);
             }
         }
@@ -431,7 +431,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                 // Always populate ExportedEntities for both in-memory and file exports
                 result.ExportedEntities = exportedEntities;
-                
+
                 // Write to files if export path is specified
                 if (!string.IsNullOrEmpty(options.ExportFolder))
                 {
@@ -896,14 +896,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 {
                     // Fall through to try System.Text.Json
                 }
-                
+
                 // If Newtonsoft fails or returns empty, try System.Text.Json
                 // with case-insensitive property matching
                 var jsonOptions = new SystemJson.JsonSerializerOptions
                 {
                     PropertyNameCaseInsensitive = true
                 };
-                
+
                 return SystemJsonSerializer.Deserialize<List<T>>(content, jsonOptions);
             }
         }
@@ -930,14 +930,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             try
             {
                 string firstLine = null;
-                
+
                 // Check if file is compressed
                 if (Path.GetExtension(filePath).ToLowerInvariant() == ".gz")
                 {
                     using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
                     using var gzipStream = new GZipStream(fileStream, CompressionMode.Decompress);
                     using var reader = new StreamReader(gzipStream);
-                    
+
                     // Read first non-empty line
                     while ((firstLine = reader.ReadLine()) != null)
                     {
@@ -949,7 +949,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 else
                 {
                     using var reader = new StreamReader(filePath);
-                    
+
                     // Read first non-empty line
                     while ((firstLine = reader.ReadLine()) != null)
                     {

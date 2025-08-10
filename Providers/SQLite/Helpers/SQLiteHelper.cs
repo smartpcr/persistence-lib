@@ -44,7 +44,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<DatabaseInfo> GetDatabaseInfoAsync()
         {
             var dbInfo = new DatabaseInfo();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
             // Get file path from connection string
             var builder = new SQLiteConnectionStringBuilder(this.connectionString);
@@ -54,11 +54,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             dbInfo.Stats = await this.GetDatabaseStatsAsync(dbInfo.FilePath);
 
             // Get SQLite version and pragma settings
-            dbInfo.SqliteVersion = await this.GetScalarStringAsync(connection, "SELECT sqlite_version()");
-            dbInfo.JournalMode = await this.GetScalarStringAsync(connection, "PRAGMA journal_mode");
-            dbInfo.PageSize = await this.GetScalarIntAsync(connection, "PRAGMA page_size");
-            dbInfo.CacheSize = await this.GetScalarIntAsync(connection, "PRAGMA cache_size");
-            dbInfo.ForeignKeysEnabled = await this.GetScalarIntAsync(connection, "PRAGMA foreign_keys") == 1;
+            dbInfo.SqliteVersion = await this.GetScalarStringAsync(conn, "SELECT sqlite_version()");
+            dbInfo.JournalMode = await this.GetScalarStringAsync(conn, "PRAGMA journal_mode");
+            dbInfo.PageSize = await this.GetScalarIntAsync(conn, "PRAGMA page_size");
+            dbInfo.CacheSize = await this.GetScalarIntAsync(conn, "PRAGMA cache_size");
+            dbInfo.ForeignKeysEnabled = await this.GetScalarIntAsync(conn, "PRAGMA foreign_keys") == 1;
 
             // Get tables
             dbInfo.Tables = await this.GetTablesAsync();
@@ -87,7 +87,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<TableInfo>> GetTablesAsync()
         {
             var tables = new List<TableInfo>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
             var sql = @"
                 SELECT name, sql, rootpage, type
@@ -95,41 +95,39 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
                 ORDER BY name";
 
-            using (var cmd = new SQLiteCommand(sql, connection))
-            using (var reader = await cmd.ExecuteReaderAsync())
+            await using var cmd = new SQLiteCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                while (await reader.ReadAsync())
+                var tableName = reader.GetString(0);
+                var table = new TableInfo
                 {
-                    var tableName = reader.GetString(0);
-                    var table = new TableInfo
-                    {
-                        TableName = tableName,
-                        CreateSql = reader.IsDBNull(1) ? null : reader.GetString(1),
-                        RootPage = reader.GetInt32(2)
-                    };
+                    TableName = tableName,
+                    CreateSql = reader.IsDBNull(1) ? null : reader.GetString(1),
+                    RootPage = reader.GetInt32(2)
+                };
 
-                    // Check for WITHOUT ROWID and STRICT
-                    if (!string.IsNullOrEmpty(table.CreateSql))
-                    {
-                        table.IsWithoutRowId = table.CreateSql.Contains("WITHOUT ROWID", StringComparison.OrdinalIgnoreCase);
-                        table.IsStrict = table.CreateSql.Contains("STRICT", StringComparison.OrdinalIgnoreCase);
-                    }
-
-                    // Get columns
-                    table.Columns = await this.GetTableColumnsAsync(tableName);
-                    table.HasPrimaryKey = table.Columns.Any(c => c.IsPrimaryKey);
-
-                    // Get row count
-                    table.RowCount = await this.GetScalarLongAsync(connection, $"SELECT COUNT(*) FROM [{tableName}]");
-
-                    // Get table-specific indexes
-                    table.Indexes = await this.GetTableIndexesAsync(tableName);
-
-                    // Get table-specific foreign keys
-                    table.ForeignKeys = await this.GetTableForeignKeysAsync(tableName);
-
-                    tables.Add(table);
+                // Check for WITHOUT ROWID and STRICT
+                if (!string.IsNullOrEmpty(table.CreateSql))
+                {
+                    table.IsWithoutRowId = table.CreateSql.Contains("WITHOUT ROWID", StringComparison.OrdinalIgnoreCase);
+                    table.IsStrict = table.CreateSql.Contains("STRICT", StringComparison.OrdinalIgnoreCase);
                 }
+
+                // Get columns
+                table.Columns = await this.GetTableColumnsAsync(tableName);
+                table.HasPrimaryKey = table.Columns.Any(c => c.IsPrimaryKey);
+
+                // Get row count
+                table.RowCount = await this.GetScalarLongAsync(this.connection, $"SELECT COUNT(*) FROM [{tableName}]");
+
+                // Get table-specific indexes
+                table.Indexes = await this.GetTableIndexesAsync(tableName);
+
+                // Get table-specific foreign keys
+                table.ForeignKeys = await this.GetTableForeignKeysAsync(tableName);
+
+                tables.Add(table);
             }
 
             return tables;
@@ -141,10 +139,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<ColumnInfo>> GetTableColumnsAsync(string tableName)
         {
             var columns = new List<ColumnInfo>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
-            using (var cmd = new SQLiteCommand($"PRAGMA table_info([{tableName}])", connection))
-            using (var reader = await cmd.ExecuteReaderAsync())
+            await using (var cmd = new SQLiteCommand($"PRAGMA table_info([{tableName}])", conn))
+            await using (var reader = await cmd.ExecuteReaderAsync())
             {
                 while (await reader.ReadAsync())
                 {
@@ -205,51 +203,49 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<IndexInfo>> GetAllIndexesAsync()
         {
             var indexes = new List<IndexInfo>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
             var sql = @"
-                SELECT name, tbl_name, sql, rootpage
-                FROM sqlite_master
-                WHERE type = 'index' AND name NOT LIKE 'sqlite_%'
-                ORDER BY tbl_name, name";
+SELECT name, tbl_name, sql, rootpage
+FROM sqlite_master
+WHERE type = 'index' AND name NOT LIKE 'sqlite_%'
+ORDER BY tbl_name, name";
 
-            using (var cmd = new SQLiteCommand(sql, connection))
-            using (var reader = await cmd.ExecuteReaderAsync())
+            await using var cmd = new SQLiteCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                while (await reader.ReadAsync())
+                var indexName = reader.GetString(0);
+                var index = new IndexInfo
                 {
-                    var indexName = reader.GetString(0);
-                    var index = new IndexInfo
-                    {
-                        IndexName = indexName,
-                        TableName = reader.GetString(1),
-                        CreateSql = reader.IsDBNull(2) ? null : reader.GetString(2),
-                        RootPage = reader.GetInt32(3),
-                        IsAutoIndex = reader.IsDBNull(2)
-                    };
+                    IndexName = indexName,
+                    TableName = reader.GetString(1),
+                    CreateSql = reader.IsDBNull(2) ? null : reader.GetString(2),
+                    RootPage = reader.GetInt32(3),
+                    IsAutoIndex = reader.IsDBNull(2)
+                };
 
-                    // Parse CREATE INDEX statement for details
-                    if (!string.IsNullOrEmpty(index.CreateSql))
-                    {
-                        index.IsUnique = index.CreateSql.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase);
-                        index.IsPartial = index.CreateSql.Contains("WHERE", StringComparison.OrdinalIgnoreCase);
+                // Parse CREATE INDEX statement for details
+                if (!string.IsNullOrEmpty(index.CreateSql))
+                {
+                    index.IsUnique = index.CreateSql.Contains("UNIQUE", StringComparison.OrdinalIgnoreCase);
+                    index.IsPartial = index.CreateSql.Contains("WHERE", StringComparison.OrdinalIgnoreCase);
 
-                        // Extract WHERE clause for partial indexes
-                        if (index.IsPartial)
+                    // Extract WHERE clause for partial indexes
+                    if (index.IsPartial)
+                    {
+                        var whereIndex = index.CreateSql.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase);
+                        if (whereIndex > 0)
                         {
-                            var whereIndex = index.CreateSql.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase);
-                            if (whereIndex > 0)
-                            {
-                                index.WhereClause = index.CreateSql.Substring(whereIndex + 5).Trim();
-                            }
+                            index.WhereClause = index.CreateSql.Substring(whereIndex + 5).Trim();
                         }
                     }
-
-                    // Get index columns
-                    index.Columns = await this.GetIndexColumnsAsync(indexName);
-
-                    indexes.Add(index);
                 }
+
+                // Get index columns
+                index.Columns = await this.GetIndexColumnsAsync(indexName);
+
+                indexes.Add(index);
             }
 
             return indexes;
@@ -261,35 +257,33 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<IndexInfo>> GetTableIndexesAsync(string tableName)
         {
             var indexes = new List<IndexInfo>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
-            using (var cmd = new SQLiteCommand($"PRAGMA index_list([{tableName}])", connection))
-            using (var reader = await cmd.ExecuteReaderAsync())
+            await using var cmd = new SQLiteCommand($"PRAGMA index_list([{tableName}])", conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                while (await reader.ReadAsync())
+                var indexName = reader.GetString(1);
+                var index = new IndexInfo
                 {
-                    var indexName = reader.GetString(1);
-                    var index = new IndexInfo
-                    {
-                        IndexName = indexName,
-                        TableName = tableName,
-                        IsUnique = reader.GetInt32(2) == 1,
-                        IsPartial = reader.GetInt32(4) == 1
-                    };
+                    IndexName = indexName,
+                    TableName = tableName,
+                    IsUnique = reader.GetInt32(2) == 1,
+                    IsPartial = reader.GetInt32(4) == 1
+                };
 
-                    // Get index columns
-                    index.Columns = await this.GetIndexColumnsAsync(indexName);
+                // Get index columns
+                index.Columns = await this.GetIndexColumnsAsync(indexName);
 
-                    // Get CREATE SQL
-                    var sqlQuery = "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = @name";
-                    using (var sqlCmd = new SQLiteCommand(sqlQuery, connection))
-                    {
-                        sqlCmd.Parameters.AddWithValue("@name", indexName);
-                        index.CreateSql = await sqlCmd.ExecuteScalarAsync() as string;
-                    }
-
-                    indexes.Add(index);
+                // Get CREATE SQL
+                var sqlQuery = "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = @name";
+                await using (var sqlCmd = new SQLiteCommand(sqlQuery, this.connection))
+                {
+                    sqlCmd.Parameters.AddWithValue("@name", indexName);
+                    index.CreateSql = await sqlCmd.ExecuteScalarAsync() as string;
                 }
+
+                indexes.Add(index);
             }
 
             return indexes;
@@ -301,48 +295,44 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<IndexColumn>> GetIndexColumnsAsync(string indexName)
         {
             var columns = new List<IndexColumn>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
-            using (var cmd = new SQLiteCommand($"PRAGMA index_xinfo([{indexName}])", connection))
+            await using var cmd = new SQLiteCommand($"PRAGMA index_xinfo([{indexName}])", conn);
+            try
             {
-                try
+                await using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
                 {
-                    using (var reader = await cmd.ExecuteReaderAsync())
+                    var column = new IndexColumn
                     {
-                        while (await reader.ReadAsync())
-                        {
-                            var column = new IndexColumn
-                            {
-                                SequenceNumber = reader.GetInt32(0),
-                                ColumnId = reader.GetInt32(1),
-                                ColumnName = reader.IsDBNull(2) ? null : reader.GetString(2),
-                                IsDescending = reader.GetInt32(3) == 1,
-                                Collation = reader.GetString(4),
-                                IsKey = reader.GetInt32(5) == 1
-                            };
-                            columns.Add(column);
-                        }
-                    }
+                        SequenceNumber = reader.GetInt32(0),
+                        ColumnId = reader.GetInt32(1),
+                        ColumnName = reader.IsDBNull(2) ? null : reader.GetString(2),
+                        IsDescending = reader.GetInt32(3) == 1,
+                        Collation = reader.GetString(4),
+                        IsKey = reader.GetInt32(5) == 1
+                    };
+                    columns.Add(column);
                 }
-                catch
+
+            }
+            catch
+            {
+                // Fallback to index_info if index_xinfo is not available
+                await using var fallbackCmd = new SQLiteCommand($"PRAGMA index_info([{indexName}])", conn);
+                await using var reader = await fallbackCmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
                 {
-                    // Fallback to index_info if index_xinfo is not available
-                    using (var fallbackCmd = new SQLiteCommand($"PRAGMA index_info([{indexName}])", connection))
-                    using (var reader = await fallbackCmd.ExecuteReaderAsync())
+                    var column = new IndexColumn
                     {
-                        while (await reader.ReadAsync())
-                        {
-                            var column = new IndexColumn
-                            {
-                                SequenceNumber = reader.GetInt32(0),
-                                ColumnId = reader.GetInt32(1),
-                                ColumnName = reader.GetString(2),
-                                IsKey = true
-                            };
-                            columns.Add(column);
-                        }
-                    }
+                        SequenceNumber = reader.GetInt32(0),
+                        ColumnId = reader.GetInt32(1),
+                        ColumnName = reader.GetString(2),
+                        IsKey = true
+                    };
+                    columns.Add(column);
                 }
+
             }
 
             return columns;
@@ -373,9 +363,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<ForeignKeyInfo>> GetTableForeignKeysAsync(string tableName)
         {
             var foreignKeys = new List<ForeignKeyInfo>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
-            await using var cmd = new SQLiteCommand($"PRAGMA foreign_key_list([{tableName}])", connection);
+            await using var cmd = new SQLiteCommand($"PRAGMA foreign_key_list([{tableName}])", conn);
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync())
             {
@@ -403,38 +393,36 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<CheckConstraintInfo>> GetTableCheckConstraintsAsync(string tableName)
         {
             var constraints = new List<CheckConstraintInfo>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
             // Check constraints are embedded in the CREATE TABLE statement
             var sql = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = @name";
-            using (var cmd = new SQLiteCommand(sql, connection))
-            {
-                cmd.Parameters.AddWithValue("@name", tableName);
-                var createSql = await cmd.ExecuteScalarAsync() as string;
+            await using var cmd = new SQLiteCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@name", tableName);
+            var createSql = await cmd.ExecuteScalarAsync() as string;
 
-                if (!string.IsNullOrEmpty(createSql))
+            if (!string.IsNullOrEmpty(createSql))
+            {
+                // Parse CHECK constraints from CREATE TABLE statement
+                // This is a simplified parser - a full implementation would need more robust SQL parsing
+                var checkIndex = 0;
+                while ((checkIndex = createSql.IndexOf("CHECK", checkIndex, StringComparison.OrdinalIgnoreCase)) != -1)
                 {
-                    // Parse CHECK constraints from CREATE TABLE statement
-                    // This is a simplified parser - a full implementation would need more robust SQL parsing
-                    var checkIndex = 0;
-                    while ((checkIndex = createSql.IndexOf("CHECK", checkIndex, StringComparison.OrdinalIgnoreCase)) != -1)
+                    var startParen = createSql.IndexOf('(', checkIndex);
+                    if (startParen != -1)
                     {
-                        var startParen = createSql.IndexOf('(', checkIndex);
-                        if (startParen != -1)
+                        var endParen = this.FindMatchingParenthesis(createSql, startParen);
+                        if (endParen != -1)
                         {
-                            var endParen = this.FindMatchingParenthesis(createSql, startParen);
-                            if (endParen != -1)
+                            var checkExpression = createSql.Substring(startParen + 1, endParen - startParen - 1);
+                            constraints.Add(new CheckConstraintInfo
                             {
-                                var checkExpression = createSql.Substring(startParen + 1, endParen - startParen - 1);
-                                constraints.Add(new CheckConstraintInfo
-                                {
-                                    TableName = tableName,
-                                    CheckExpression = checkExpression
-                                });
-                            }
+                                TableName = tableName,
+                                CheckExpression = checkExpression
+                            });
                         }
-                        checkIndex++;
                     }
+                    checkIndex++;
                 }
             }
 
@@ -447,53 +435,49 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<TriggerInfo>> GetTableTriggersAsync(string tableName)
         {
             var triggers = new List<TriggerInfo>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
             var sql = @"
-                SELECT name, sql
-                FROM sqlite_master
-                WHERE type = 'trigger' AND tbl_name = @tableName
-                ORDER BY name";
+SELECT name, sql
+FROM sqlite_master
+WHERE type = 'trigger' AND tbl_name = @tableName
+ORDER BY name";
 
-            using (var cmd = new SQLiteCommand(sql, connection))
+            await using var cmd = new SQLiteCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@tableName", tableName);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                cmd.Parameters.AddWithValue("@tableName", tableName);
-                using (var reader = await cmd.ExecuteReaderAsync())
+                var trigger = new TriggerInfo
                 {
-                    while (await reader.ReadAsync())
-                    {
-                        var trigger = new TriggerInfo
-                        {
-                            TriggerName = reader.GetString(0),
-                            TableName = tableName,
-                            CreateSql = reader.GetString(1)
-                        };
+                    TriggerName = reader.GetString(0),
+                    TableName = tableName,
+                    CreateSql = reader.GetString(1)
+                };
 
-                        // Parse trigger details from CREATE TRIGGER statement
-                        if (!string.IsNullOrEmpty(trigger.CreateSql))
-                        {
-                            var upperSql = trigger.CreateSql.ToUpper();
+                // Parse trigger details from CREATE TRIGGER statement
+                if (!string.IsNullOrEmpty(trigger.CreateSql))
+                {
+                    var upperSql = trigger.CreateSql.ToUpper();
 
-                            // Determine trigger timing
-                            if (upperSql.Contains("BEFORE"))
-                                trigger.TriggerTiming = "BEFORE";
-                            else if (upperSql.Contains("AFTER"))
-                                trigger.TriggerTiming = "AFTER";
-                            else if (upperSql.Contains("INSTEAD OF"))
-                                trigger.TriggerTiming = "INSTEAD OF";
+                    // Determine trigger timing
+                    if (upperSql.Contains("BEFORE"))
+                        trigger.TriggerTiming = "BEFORE";
+                    else if (upperSql.Contains("AFTER"))
+                        trigger.TriggerTiming = "AFTER";
+                    else if (upperSql.Contains("INSTEAD OF"))
+                        trigger.TriggerTiming = "INSTEAD OF";
 
-                            // Determine trigger event
-                            if (upperSql.Contains("INSERT"))
-                                trigger.TriggerEvent = "INSERT";
-                            else if (upperSql.Contains("UPDATE"))
-                                trigger.TriggerEvent = "UPDATE";
-                            else if (upperSql.Contains("DELETE"))
-                                trigger.TriggerEvent = "DELETE";
-                        }
-
-                        triggers.Add(trigger);
-                    }
+                    // Determine trigger event
+                    if (upperSql.Contains("INSERT"))
+                        trigger.TriggerEvent = "INSERT";
+                    else if (upperSql.Contains("UPDATE"))
+                        trigger.TriggerEvent = "UPDATE";
+                    else if (upperSql.Contains("DELETE"))
+                        trigger.TriggerEvent = "DELETE";
                 }
+
+                triggers.Add(trigger);
             }
 
             return triggers;
@@ -505,27 +489,25 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public async Task<List<ViewInfo>> GetViewsAsync()
         {
             var views = new List<ViewInfo>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
             var sql = @"
-                SELECT name, sql, rootpage
-                FROM sqlite_master
-                WHERE type = 'view'
-                ORDER BY name";
+SELECT name, sql, rootpage
+FROM sqlite_master
+WHERE type = 'view'
+ORDER BY name";
 
-            using (var cmd = new SQLiteCommand(sql, connection))
-            using (var reader = await cmd.ExecuteReaderAsync())
+            await using var cmd = new SQLiteCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                while (await reader.ReadAsync())
+                var view = new ViewInfo
                 {
-                    var view = new ViewInfo
-                    {
-                        ViewName = reader.GetString(0),
-                        CreateSql = reader.GetString(1),
-                        RootPage = reader.GetInt32(2)
-                    };
-                    views.Add(view);
-                }
+                    ViewName = reader.GetString(0),
+                    CreateSql = reader.GetString(1),
+                    RootPage = reader.GetInt32(2)
+                };
+                views.Add(view);
             }
 
             return views;
@@ -708,71 +690,63 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 stats.LastModified = fileInfo.LastWriteTime;
             }
 
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
 
             // Get page statistics
-            stats.PageCount = await this.GetScalarIntAsync(connection, "PRAGMA page_count");
-            stats.FreePageCount = await this.GetScalarIntAsync(connection, "PRAGMA freelist_count");
+            stats.PageCount = await this.GetScalarIntAsync(conn, "PRAGMA page_count");
+            stats.FreePageCount = await this.GetScalarIntAsync(conn, "PRAGMA freelist_count");
 
             // Get encoding and other settings
-            stats.Encoding = await this.GetScalarStringAsync(connection, "PRAGMA encoding");
+            stats.Encoding = await this.GetScalarStringAsync(conn, "PRAGMA encoding");
             stats.AutoVacuum = await this.GetAutoVacuumModeAsync();
-            stats.UserVersion = await this.GetScalarIntAsync(connection, "PRAGMA user_version");
-            stats.ApplicationId = await this.GetScalarIntAsync(connection, "PRAGMA application_id");
+            stats.UserVersion = await this.GetScalarIntAsync(conn, "PRAGMA user_version");
+            stats.ApplicationId = await this.GetScalarIntAsync(conn, "PRAGMA application_id");
 
             // Count database objects
-            stats.TableCount = await this.GetScalarIntAsync(connection,
+            stats.TableCount = await this.GetScalarIntAsync(conn,
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'");
-            stats.IndexCount = await this.GetScalarIntAsync(connection,
+            stats.IndexCount = await this.GetScalarIntAsync(conn,
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%'");
-            stats.TriggerCount = await this.GetScalarIntAsync(connection,
+            stats.TriggerCount = await this.GetScalarIntAsync(conn,
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'trigger'");
-            stats.ViewCount = await this.GetScalarIntAsync(connection,
+            stats.ViewCount = await this.GetScalarIntAsync(conn,
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'view'");
 
             return stats;
         }
 
-        private async Task<string> GetScalarStringAsync(SQLiteConnection connection, string sql)
+        private async Task<string> GetScalarStringAsync(SQLiteConnection conn, string sql)
         {
-            using (var cmd = new SQLiteCommand(sql, connection))
-            {
-                var result = await cmd.ExecuteScalarAsync();
-                return result?.ToString();
-            }
+            await using var cmd = new SQLiteCommand(sql, conn);
+            var result = await cmd.ExecuteScalarAsync();
+            return result?.ToString();
         }
 
-        private async Task<int> GetScalarIntAsync(SQLiteConnection connection, string sql)
+        private async Task<int> GetScalarIntAsync(SQLiteConnection conn, string sql)
         {
-            using (var cmd = new SQLiteCommand(sql, connection))
-            {
-                var result = await cmd.ExecuteScalarAsync();
-                return Convert.ToInt32(result ?? 0);
-            }
+            await using var cmd = new SQLiteCommand(sql, conn);
+            var result = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt32(result ?? 0);
         }
 
-        private async Task<long> GetScalarLongAsync(SQLiteConnection connection, string sql)
+        private async Task<long> GetScalarLongAsync(SQLiteConnection conn, string sql)
         {
-            using (var cmd = new SQLiteCommand(sql, connection))
-            {
-                var result = await cmd.ExecuteScalarAsync();
-                return Convert.ToInt64(result ?? 0);
-            }
+            await using var cmd = new SQLiteCommand(sql, conn);
+            var result = await cmd.ExecuteScalarAsync();
+            return Convert.ToInt64(result ?? 0);
         }
 
         private async Task<List<string>> GetTableNamesAsync()
         {
             var tables = new List<string>();
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
             var sql = "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name";
 
-            using (var cmd = new SQLiteCommand(sql, connection))
-            using (var reader = await cmd.ExecuteReaderAsync())
+            await using var cmd = new SQLiteCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
             {
-                while (await reader.ReadAsync())
-                {
-                    tables.Add(reader.GetString(0));
-                }
+                tables.Add(reader.GetString(0));
             }
 
             return tables;
@@ -781,25 +755,24 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private async Task<bool> IsColumnAutoIncrementAsync(string tableName, string columnName)
         {
             // Check if the table uses AUTOINCREMENT
-            var connection = await this.GetConnectionAsync();
+            var conn = await this.GetConnectionAsync();
             var sql = "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = @tableName";
-            using (var cmd = new SQLiteCommand(sql, connection))
+            await using var cmd = new SQLiteCommand(sql, conn);
+            cmd.Parameters.AddWithValue("@tableName", tableName);
+            var createSql = await cmd.ExecuteScalarAsync() as string;
+            if (!string.IsNullOrEmpty(createSql))
             {
-                cmd.Parameters.AddWithValue("@tableName", tableName);
-                var createSql = await cmd.ExecuteScalarAsync() as string;
-                if (!string.IsNullOrEmpty(createSql))
-                {
-                    return createSql.Contains($"{columnName}") &&
-                           createSql.Contains("AUTOINCREMENT", StringComparison.OrdinalIgnoreCase);
-                }
+                return createSql.Contains($"{columnName}") &&
+                       createSql.Contains("AUTOINCREMENT", StringComparison.OrdinalIgnoreCase);
             }
+
             return false;
         }
 
         private async Task<string> GetAutoVacuumModeAsync()
         {
-            var connection = await this.GetConnectionAsync();
-            var mode = await this.GetScalarIntAsync(connection, "PRAGMA auto_vacuum");
+            var conn = await this.GetConnectionAsync();
+            var mode = await this.GetScalarIntAsync(conn, "PRAGMA auto_vacuum");
             return mode switch
             {
                 0 => "NONE",
@@ -813,7 +786,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         {
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
             double len = bytes;
-            int order = 0;
+            var order = 0;
             while (len >= 1024 && order < sizes.Length - 1)
             {
                 order++;
@@ -824,8 +797,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
         private int FindMatchingParenthesis(string sql, int startIndex)
         {
-            int depth = 1;
-            for (int i = startIndex + 1; i < sql.Length; i++)
+            var depth = 1;
+            for (var i = startIndex + 1; i < sql.Length; i++)
             {
                 if (sql[i] == '(')
                     depth++;

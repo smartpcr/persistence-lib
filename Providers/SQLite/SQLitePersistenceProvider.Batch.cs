@@ -68,10 +68,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         long newVersion = 1;
                         if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
                         {
-                            await using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
+                            using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                             versionCommand.Connection = connection;
                             versionCommand.Transaction = transaction;
-                            newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
+                            newVersion = Convert.ToInt64(versionCommand.ExecuteScalar());
                         }
 
                         var batchResults = new List<T>();
@@ -244,7 +244,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
             {
                 var results = new List<T>();
 
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Use mapper's CreateCommand with SelectOptions for consistency
                 var context = new CommandContext<T, TKey>
@@ -352,7 +352,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                             using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                             versionCommand.Connection = connection;
                             versionCommand.Transaction = transaction;
-                            newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
+                            newVersion = Convert.ToInt64(versionCommand.ExecuteScalar());
                         }
 
                         var batchResults = new List<T>();
@@ -591,7 +591,7 @@ SELECT changes();";
                             using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                             versionCommand.Connection = connection;
                             versionCommand.Transaction = transaction;
-                            newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
+                            newVersion = Convert.ToInt64(versionCommand.ExecuteScalar());
                         }
 
                         var batchDeleted = 0;

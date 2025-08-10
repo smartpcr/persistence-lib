@@ -52,10 +52,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     // step 1, if soft-delete is enabled, get next version
                     if (this.Mapper.EnableSoftDelete)
                     {
-                        await using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
+                        using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                         versionCommand.Connection = connection;
                         versionCommand.Transaction = transaction;
-                        newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
+                        newVersion = Convert.ToInt64(versionCommand.ExecuteScalar());
                         entity.Version = newVersion;
                     }
 
@@ -386,10 +386,10 @@ LIMIT 1";
                     // Step 2: Insert into Version table to get next version
                     if (versionedEntity != null)
                     {
-                        await using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
+                        using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                         versionCommand.Connection = connection;
                         versionCommand.Transaction = transaction;
-                        var newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
+                        var newVersion = Convert.ToInt64(versionCommand.ExecuteScalar());
                         entity.Version = newVersion;
                     }
                     else
@@ -538,10 +538,10 @@ LIMIT 1";
                 if (this.Mapper.EnableSoftDelete)
                 {
                     // Step 2. insert into Version table to get next version
-                    await using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
+                    using var versionCommand = this.versionMapper.CreateGetNextVersionCommand();
                     versionCommand.Connection = connection;
                     versionCommand.Transaction = transaction;
-                    var newVersion = Convert.ToInt64(await versionCommand.ExecuteScalarAsync(cancellationToken));
+                    var newVersion = Convert.ToInt64(versionCommand.ExecuteScalar());
 
                     // Step 3. insert with new version and IsDeleted = 1
                     var deletedEntity = oldValue;

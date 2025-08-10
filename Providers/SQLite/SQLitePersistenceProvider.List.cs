@@ -65,9 +65,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 {
                     // Step 1: Check if listCacheKey already exists in EntryListMapping
                     var checkListExistsSql = @"
-                        SELECT COUNT(*)
-                        FROM EntryListMapping
-                        WHERE ListCacheKey = @listCacheKey";
+SELECT COUNT(*)
+FROM EntryListMapping
+WHERE ListCacheKey = @listCacheKey";
 
                     await using (var checkListCmd = this.CreateCommand(checkListExistsSql, connection, transaction))
                     {
@@ -83,10 +83,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     long version = 1;
                     if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
                     {
-                        await using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
+                        using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
                         versionCmd.Connection = connection;
                         versionCmd.Transaction = transaction;
-                        version = Convert.ToInt64(await versionCmd.ExecuteScalarAsync(cancellationToken));
+                        version = Convert.ToInt64(versionCmd.ExecuteScalar());
                     }
 
                     var now = DateTime.UtcNow;
@@ -99,9 +99,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                         // Check if entity already exists
                         var checkEntitySql = $@"
-                            SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
-                            FROM {this.EscapedTableName}
-                            WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
+SELECT {string.Join(",\n  ", this.Mapper.GetSelectColumns())}
+FROM {this.EscapedTableName}
+WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
 
                         if (this.Mapper.EnableSoftDelete || versionedEntity != null)
                         {
@@ -256,10 +256,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 // Get all entity keys and versions from the list mapping
                 var mappings = new List<(string EntryCacheKey, long Version)>();
                 var listSql = @"
-                    SELECT EntryCacheKey, Version
-                    FROM EntryListMapping
-                    WHERE ListCacheKey = @listCacheKey
-                    ORDER BY EntryCacheKey";
+SELECT EntryCacheKey, Version
+FROM EntryListMapping
+WHERE ListCacheKey = @listCacheKey
+ORDER BY EntryCacheKey";
 
                 await using (var listCmd = this.CreateCommand(listSql, connection))
                 {
@@ -329,10 +329,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                         try
                         {
                             var updateSql = @"
-                                UPDATE EntryListMapping
-                                SET Version = @version, LastWriteTime = @lastWriteTime
-                                WHERE ListCacheKey = @listCacheKey
-                                AND EntryCacheKey = @entryCacheKey";
+UPDATE EntryListMapping
+SET Version = @version, LastWriteTime = @lastWriteTime
+WHERE ListCacheKey = @listCacheKey
+AND EntryCacheKey = @entryCacheKey";
 
                             await using var updateCmd = this.CreateCommand(updateSql, connection, transaction);
                             updateCmd.Parameters.AddWithValue("@version", entity.Version);
@@ -422,9 +422,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     // Step 1: Get all existing mappings from EntryListMapping
                     var existingMappings = new Dictionary<string, long>(); // EntryCacheKey -> Version
                     var getMappingsSql = @"
-                        SELECT EntryCacheKey, Version
-                        FROM EntryListMapping
-                        WHERE ListCacheKey = @listCacheKey";
+SELECT EntryCacheKey, Version
+FROM EntryListMapping
+WHERE ListCacheKey = @listCacheKey";
 
                     await using (var getMappingsCmd = this.CreateCommand(getMappingsSql, connection, transaction))
                     {
@@ -440,17 +440,17 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     long batchVersion = 1;
                     if (this.Mapper.EnableSoftDelete || typeof(IVersionedEntity<TKey>).IsAssignableFrom(typeof(T)))
                     {
-                        await using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
+                        using var versionCmd = this.versionMapper.CreateGetNextVersionCommand();
                         versionCmd.Connection = connection;
                         versionCmd.Transaction = transaction;
-                        batchVersion = Convert.ToInt64(await versionCmd.ExecuteScalarAsync(cancellationToken));
+                        batchVersion = Convert.ToInt64(versionCmd.ExecuteScalar());
                     }
 
                     // Step 3: Delete existing list mappings (we'll recreate them)
-                    await using var deleteListCmd = this.entryListMappingMapper.CreateDeleteByListKeyCommand(listCacheKey);
+                    using var deleteListCmd = this.entryListMappingMapper.CreateDeleteByListKeyCommand(listCacheKey);
                     deleteListCmd.Connection = connection;
                     deleteListCmd.Transaction = transaction;
-                    await deleteListCmd.ExecuteNonQueryAsync(cancellationToken);
+                    deleteListCmd.ExecuteNonQuery();
 
                     var now = DateTime.UtcNow;
 
@@ -555,9 +555,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                                         .ToList();
 
                                     var updateSql = $@"
-                                        UPDATE {this.EscapedTableName}
-                                        SET {string.Join(", ", updateColumns)}
-                                        WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;";
+UPDATE {this.EscapedTableName}
+SET {string.Join(", ", updateColumns)}
+WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;";
 
                                     await using var updateCmd = this.CreateCommand(updateSql, connection, transaction);
                                     this.Mapper.AddParameters(updateCmd.Command, entity);
@@ -664,9 +664,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 {
                     // Only delete the list mappings - DO NOT delete entities
                     var deleteListSql = @"
-                        DELETE FROM EntryListMapping
-                        WHERE ListCacheKey = @listCacheKey;
-                        SELECT changes();";
+DELETE FROM EntryListMapping
+WHERE ListCacheKey = @listCacheKey;
+SELECT changes();";
 
                     await using var deleteListCmd = this.CreateCommand(deleteListSql, connection, transaction);
                     deleteListCmd.Parameters.AddWithValue("@listCacheKey", listCacheKey);

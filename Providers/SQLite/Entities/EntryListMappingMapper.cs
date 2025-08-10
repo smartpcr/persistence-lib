@@ -6,6 +6,7 @@
 
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Entities
 {
+    using System.Data;
     using System.Data.SQLite;
     using Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Resilience;
@@ -28,10 +29,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// <param name="listCacheKey">The list cache key.</param>
         /// <param name="entryCacheKey">The entry cache key.</param>
         /// <returns>The SQL command.</returns>
-        public SQLiteCommand CreateSelectByKeysCommand(string listCacheKey, string entryCacheKey)
+        public IDbCommand CreateSelectByKeysCommand(string listCacheKey, string entryCacheKey)
         {
             var sql = $"SELECT * FROM {this.GetTableName()} WHERE ListCacheKey = @ListCacheKey AND EntryCacheKey = @EntryCacheKey";
-            var cmd = new SQLiteCommand(sql);
+            var cmd = new ResilientSQLiteCommand(new SQLiteCommand(sql), this.RetryPolicy);
             cmd.Parameters.AddWithValue("@ListCacheKey", listCacheKey);
             cmd.Parameters.AddWithValue("@EntryCacheKey", entryCacheKey);
             return cmd;
@@ -42,10 +43,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// </summary>
         /// <param name="listCacheKey">The list cache key.</param>
         /// <returns>The SQL command.</returns>
-        public SQLiteCommand CreateSelectByListKeyCommand(string listCacheKey)
+        public IDbCommand CreateSelectByListKeyCommand(string listCacheKey)
         {
             var sql = $"SELECT * FROM {this.GetTableName()} WHERE ListCacheKey = @ListCacheKey ORDER BY EntryCacheKey";
-            var cmd = new SQLiteCommand(sql);
+            var cmd = new ResilientSQLiteCommand(new SQLiteCommand(sql), this.RetryPolicy);
             cmd.Parameters.AddWithValue("@ListCacheKey", listCacheKey);
             return cmd;
         }
@@ -55,10 +56,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// </summary>
         /// <param name="listCacheKey">The list cache key.</param>
         /// <returns>The SQL command.</returns>
-        public SQLiteCommand CreateDeleteByListKeyCommand(string listCacheKey)
+        public IDbCommand CreateDeleteByListKeyCommand(string listCacheKey)
         {
             var sql = $"DELETE FROM {this.GetTableName()} WHERE ListCacheKey = @ListCacheKey";
-            var cmd = new SQLiteCommand(sql);
+            var cmd = new ResilientSQLiteCommand(new SQLiteCommand(sql), this.RetryPolicy);
             cmd.Parameters.AddWithValue("@ListCacheKey", listCacheKey);
             return cmd;
         }

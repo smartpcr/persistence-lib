@@ -6,6 +6,7 @@
 
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Entities
 {
+    using System.Data;
     using System.Data.Common;
     using System.Data.SQLite;
     using System.Linq;
@@ -52,9 +53,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// <summary>
         /// Creates a command to get the next version number.
         /// </summary>
-        public SQLiteCommand CreateGetNextVersionCommand()
+        public IDbCommand CreateGetNextVersionCommand()
         {
-            var command = new SQLiteCommand();
+            var command = new ResilientSQLiteCommand(new SQLiteCommand(), this.RetryPolicy);
             command.CommandText = @$"
                 INSERT INTO {this.GetTableName()} DEFAULT VALUES;
                 SELECT last_insert_rowid();";
@@ -64,9 +65,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// <summary>
         /// Creates a command to get the current version number.
         /// </summary>
-        public SQLiteCommand CreateGetCurrentVersionCommand()
+        public IDbCommand CreateGetCurrentVersionCommand()
         {
-            var command = new SQLiteCommand();
+            var command = new ResilientSQLiteCommand(new SQLiteCommand(), this.RetryPolicy);
             command.CommandText = $"SELECT MAX(Version) FROM {this.GetTableName()};";
             return command;
         }

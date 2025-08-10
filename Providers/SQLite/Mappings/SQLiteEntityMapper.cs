@@ -8,7 +8,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 {
     using System;
     using System.Data;
-    using System.Data.SqlClient;
     using System.Data.SQLite;
     using System.Linq;
     using System.Text;
@@ -24,11 +23,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     /// <typeparam name="TKey">The key type.</typeparam>
     public class SQLiteEntityMapper<T, TKey> : BaseEntityMapper<T, TKey> where T : class, IEntity<TKey> where TKey : IEquatable<TKey>
     {
-        private readonly RetryPolicy retryPolicy;
+        protected RetryPolicy RetryPolicy { get; }
 
         public SQLiteEntityMapper(RetryPolicy retryPolicy)
         {
-            this.retryPolicy = retryPolicy;
+            this.RetryPolicy = retryPolicy;
         }
 
         #region SQLite-Specific Overrides
@@ -57,7 +56,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
         protected override string GetBooleanLiteral(bool value) => value ? "1" : "0";
 
-        protected override IDbCommand CreateDbCommand() => new ResilientSQLiteCommand(new SQLiteCommand(), this.retryPolicy);
+        protected override IDbCommand CreateDbCommand() => new ResilientSQLiteCommand(new SQLiteCommand(), this.RetryPolicy);
 
         /// <summary>
         /// SQLite stores datetime as text, so we need to use datetime() function for proper comparison.

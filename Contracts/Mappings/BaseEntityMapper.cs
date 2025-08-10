@@ -413,6 +413,12 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                 return guid.ToString("D");
             }
 
+            // Convert enum values to strings for better readability in database
+            if (value.GetType().IsEnum)
+            {
+                return value.ToString();
+            }
+
             return value;
         }
 
@@ -806,10 +812,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
             {
                 return ((bool)(object)key) ? "1" : "0";
             }
-            // For enum values, use the underlying integer value
+            // For enum values, use the string representation for better readability
             else if (underlyingType.IsEnum)
             {
-                return Convert.ToInt32(key).ToString();
+                return key.ToString();
             }
             // For Guid values
             else if (underlyingType == typeof(Guid))
@@ -890,11 +896,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
                     else
                         return (TKey)(object)bool.Parse(serialized);
                 }
-                // For enum values, parse from integer representation
+                // For enum values, parse from string representation
                 else if (underlyingType.IsEnum)
                 {
-                    var enumValue = int.Parse(serialized);
-                    return (TKey)Enum.ToObject(underlyingType, enumValue);
+                    // Try to parse as enum string first
+                    if (Enum.TryParse(underlyingType, serialized, true, out var enumValue))
+                    {
+                        return (TKey)enumValue;
+                    }
+                    // Fall back to integer parsing for backward compatibility
+                    if (int.TryParse(serialized, out var intValue))
+                    {
+                        return (TKey)Enum.ToObject(underlyingType, intValue);
+                    }
+                    throw new InvalidOperationException($"Cannot parse '{serialized}' as enum type {underlyingType.Name}");
                 }
                 // For Guid values
                 else if (underlyingType == typeof(Guid))
@@ -1496,6 +1511,22 @@ FROM {fromClause}{joinClause}
             }
             else if (underlyingType.IsEnum)
             {
+                // Handle enum values stored as strings
+                if (dbValue is string enumString)
+                {
+                    // Try to parse the string value to the enum
+                    if (Enum.TryParse(underlyingType, enumString, true, out var enumValue))
+                    {
+                        return enumValue;
+                    }
+                    // If string parsing fails, try to interpret as numeric value
+                    if (int.TryParse(enumString, out var numericValue))
+                    {
+                        return Enum.ToObject(underlyingType, numericValue);
+                    }
+                    throw new InvalidOperationException($"Cannot convert '{enumString}' to enum type {underlyingType.Name}");
+                }
+                // Handle enum values stored as integers (backward compatibility)
                 return Enum.ToObject(underlyingType, dbValue);
             }
             else if (underlyingType == typeof(byte[]))
@@ -2287,7 +2318,8 @@ FROM {fromClause}{joinClause}
 
             if (value.GetType().IsEnum)
             {
-                return ((int)value).ToString();
+                // Store enum default values as strings for consistency
+                return $"'{value.ToString()}'";
             }
 
             return value.ToString();

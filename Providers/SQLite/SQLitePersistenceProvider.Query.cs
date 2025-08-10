@@ -127,7 +127,7 @@ FROM {this.EscapedTableName}
                 {
                     try
                     {
-                        await this.WriteAuditRecordAsync(entities[0], "Query", callerInfo, null, null, cancellationToken);
+                        await this.WriteAuditRecordAsync(entities[0], AuditOperation.Read, callerInfo, null, null, cancellationToken);
                     }
                     catch
                     {

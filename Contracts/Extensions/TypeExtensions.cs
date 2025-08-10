@@ -111,7 +111,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
             // Enum types
             if (underlyingType.IsEnum)
             {
-                return SqlDbType.Int; // Store enums as integers by default
+                return SqlDbType.NVarChar; // Store enums as string by default
             }
 
             // Char types
@@ -156,9 +156,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
             switch (sqlType)
             {
                 case SqlDbType.NVarChar:
+                    var underlyingType = Nullable.GetUnderlyingType(clrType) ?? clrType;
                     if (clrType == typeof(string))
                     {
                         size = 255; // Default size for strings
+                    }
+                    else if (underlyingType.IsEnum)
+                    {
+                        size = 50; // Reasonable size for enum string values
                     }
                     else
                     {
@@ -291,7 +296,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Exte
                 Type t when t == typeof(DateTimeOffset) => $"'{((DateTimeOffset)value):yyyy-MM-dd HH:mm:ss.fff zzz}'",
                 Type t when t == typeof(Guid) => $"'{value}'",
                 Type t when t == typeof(byte[]) => $"0x{BitConverter.ToString((byte[])value).Replace("-", "")}",
-                Type t when t.IsEnum => ((int)value).ToString(),
+                Type t when t.IsEnum => $"N'{value.ToString()}'", // Store enums as strings
                 Type t when IsNumericType(t) => value.ToString(),
                 _ => $"N'{value.ToString().Replace("'", "''")}'",
             };

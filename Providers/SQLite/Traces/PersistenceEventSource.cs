@@ -37,6 +37,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             public const EventKeywords Bulk = (EventKeywords)0x0040;
             public const EventKeywords Cache = (EventKeywords)0x0080;
             public const EventKeywords Resilience = (EventKeywords)0x0100;
+            public const EventKeywords Audit = (EventKeywords)0x0200;
         }
 
         /// <summary>
@@ -54,6 +55,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             public const EventTask Bulk = (EventTask)8;
             public const EventTask Maintenance = (EventTask)9;
             public const EventTask Retry = (EventTask)10;
+            public const EventTask Audit = (EventTask)11;
         }
 
         #region Create Operations
@@ -380,6 +382,45 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public void NonTransientErrorDetected(string exceptionType, string exceptionMessage, string errorDetails, string callerFile, string callerMember, int callerLine)
         {
             this.WriteEvent(40, exceptionType, exceptionMessage, errorDetails, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        #endregion
+
+        #region Audit Operations
+
+        [Event(41, Level = EventLevel.Informational, Keywords = Keywords.Audit, Task = Tasks.Audit,
+            Message = "Starting audit write operation for {0} entity {1}, operation: {2} [Called from {3}.{4}:{5}]")]
+        public void AuditWriteStart(string entityType, string entityId, string auditOperation, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(41, entityType, entityId, auditOperation, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        [Event(42, Level = EventLevel.Informational, Keywords = Keywords.Audit | Keywords.Performance, Task = Tasks.Audit,
+            Message = "Completed audit write operation for {0} entity {1}, operation: {2} in {3}ms [Called from {4}.{5}:{6}]")]
+        public void AuditWriteStop(string entityType, string entityId, string auditOperation, long elapsedMilliseconds, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(42, entityType, entityId, auditOperation, elapsedMilliseconds, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        [Event(43, Level = EventLevel.Error, Keywords = Keywords.Audit | Keywords.Error, Task = Tasks.Audit,
+            Message = "Failed to write audit record for {0} entity {1}, operation: {2} in {3}ms. Exception: {4} - {5} [Called from {6}.{7}:{8}]")]
+        public void AuditWriteError(string entityType, string entityId, string auditOperation, long elapsedMilliseconds, string exceptionType, string exceptionMessage, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(43, entityType, entityId, auditOperation, elapsedMilliseconds, exceptionType, exceptionMessage, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        [Event(44, Level = EventLevel.Informational, Keywords = Keywords.Audit, Task = Tasks.Audit,
+            Message = "Starting audit read operation for {0} entity {1} [Called from {2}.{3}:{4}]")]
+        public void AuditReadStart(string entityType, string entityId, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(44, entityType, entityId, callerFile ?? "", callerMember ?? "", callerLine);
+        }
+
+        [Event(45, Level = EventLevel.Informational, Keywords = Keywords.Audit | Keywords.Performance, Task = Tasks.Audit,
+            Message = "Completed audit read operation for {0} entity {1} in {2}ms. Found {3} audit records. [Called from {4}.{5}:{6}]")]
+        public void AuditReadStop(string entityType, string entityId, long elapsedMilliseconds, int recordCount, string callerFile, string callerMember, int callerLine)
+        {
+            this.WriteEvent(45, entityType, entityId, elapsedMilliseconds, recordCount, callerFile ?? "", callerMember ?? "", callerLine);
         }
 
         #endregion

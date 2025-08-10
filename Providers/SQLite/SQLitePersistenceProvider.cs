@@ -54,13 +54,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         private readonly string connectionString;
         private readonly VersionMapper versionMapper;
         private readonly EntryListMappingMapper entryListMappingMapper;
-        private readonly SqliteConfiguration configuration;
-        private readonly IEntityMapper<AuditRecord, long> auditMapper;
         private readonly RetryPolicy retryPolicy;
         private bool isInitialized;
         private bool isDisposed;
 
-        public IEntityMapper<T, TKey> Mapper { get; private set; }
+        public IEntityMapper<T, TKey> Mapper { get; }
+        protected SqliteConfiguration Configuration { get; }
+        protected IEntityMapper<AuditRecord, long> AuditMapper { get; }
 
         /// <summary>
         /// Gets the properly escaped table name for use in SQL statements.
@@ -70,13 +70,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         public SQLitePersistenceProvider(string connectionString, SqliteConfiguration configuration = null)
         {
             this.connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
-            this.configuration = configuration ?? new SqliteConfiguration();
-            this.retryPolicy = RetryPolicy.FromConfiguration(this.configuration.RetryPolicy);
+            this.Configuration = configuration ?? new SqliteConfiguration();
+            this.retryPolicy = RetryPolicy.FromConfiguration(this.Configuration.RetryPolicy);
 
             this.Mapper = new SQLiteEntityMapper<T, TKey>(this.retryPolicy);
             this.versionMapper = new VersionMapper(this.retryPolicy);
             this.entryListMappingMapper = new EntryListMappingMapper(this.retryPolicy);
-            this.auditMapper = new SQLiteAuditMapper(this.retryPolicy);
+            this.AuditMapper = new SQLiteAuditMapper(this.retryPolicy);
             this.isInitialized = false;
         }
 
@@ -196,7 +196,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 ? new SQLiteCommand(commandText, connection, transaction)
                 : new SQLiteCommand(commandText, connection);
 
-            command.CommandTimeout = this.configuration.CommandTimeout;
+            command.CommandTimeout = this.Configuration.CommandTimeout;
 
             return new ResilientSQLiteCommand(command, this.retryPolicy);
         }

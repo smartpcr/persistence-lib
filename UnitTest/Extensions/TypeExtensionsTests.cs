@@ -105,13 +105,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
 
         [TestMethod]
         [TestCategory("Extensions")]
-        public void ToSqlDbType_EnumType_ReturnsInt()
+        public void ToSqlDbType_EnumType_ReturnsNVarChar()
         {
             // Act
             var result = typeof(TestEnum).ToSqlDbType();
 
-            // Assert
-            result.Should().Be(SqlDbType.Int);
+            // Assert - Enums are now stored as strings
+            result.Should().Be(SqlDbType.NVarChar);
         }
 
         [TestMethod]
@@ -172,6 +172,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
             size.Should().BeNull();
             precision.Should().Be(18);
             scale.Should().Be(2);
+        }
+
+        [TestMethod]
+        [TestCategory("Extensions")]
+        public void ToSqlDbType_WithMetadata_EnumType_ReturnsStringWithSize()
+        {
+            // Act
+            var sqlType = typeof(TestEnum).ToSqlDbType(out var size, out var precision, out var scale);
+
+            // Assert
+            sqlType.Should().Be(SqlDbType.NVarChar);
+            size.Should().Be(50); // Reasonable size for enum string values
+            precision.Should().BeNull();
+            scale.Should().BeNull();
         }
 
         [TestMethod]
@@ -506,13 +520,13 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Exten
 
         [TestMethod]
         [TestCategory("Extensions")]
-        public void ToSqlColumnDefinition_EnumColumn_ReturnsInt()
+        public void ToSqlColumnDefinition_EnumColumn_ReturnsNVarChar()
         {
             // Act
             var result = typeof(TestEnum).ToSqlColumnDefinition("Status", defaultValue: TestEnum.Value1);
 
-            // Assert
-            result.Should().Be("[Status] INT NOT NULL DEFAULT 1");
+            // Assert - Enums are now stored as strings
+            result.Should().Be("[Status] NVARCHAR(50) NOT NULL DEFAULT N'Value1'");
         }
 
         [TestMethod]

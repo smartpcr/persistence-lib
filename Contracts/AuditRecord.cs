@@ -8,9 +8,15 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
 {
     using System;
     using System.Data;
-    using System.Runtime.Serialization;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
-    using Newtonsoft.Json;
+
+    public enum AuditOperation
+    {
+        Create,
+        Read,
+        Update,
+        Delete
+    }
 
     /// <summary>
     /// Unified audit record for all entity operations.
@@ -34,7 +40,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
 
         [Column("Operation", NotNull = true)]
         [Index("IX_Audit_Operation")]
-        public string Operation { get; set; }
+        [Check("Operation IN ('Create', 'Read', 'Update', 'Delete')", Name = "CK_Audit_Operation_Valid")]
+        public AuditOperation Operation { get; set; }
 
         [Column("OldVersion")]
         public long? OldVersion { get; set; }
@@ -51,9 +58,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         [Column("Size")]
         public long? Size { get; set; }
 
-        [Column("UserId")]
-        public string UserId { get; set; }
-
         [Column("OldValue", SqlDbType.NVarChar)]
         public string OldValue { get; set; }
 
@@ -62,7 +66,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
 
         public static AuditRecord CreateAuditRecord<T, TKey>(
             TKey id,
-            string operation,
+            AuditOperation operation,
             CallerInfo callerInfo,
             long? newVersion,
             long? oldVersion,
@@ -82,8 +86,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
                 Size = size ?? 0,
                 CallerFile = callerInfo?.CallerFilePath,
                 CallerMember = callerInfo?.CallerMemberName,
-                CallerLineNumber = callerInfo?.CallerLineNumber ?? 0,
-                UserId = callerInfo?.UserId
+                CallerLineNumber = callerInfo?.CallerLineNumber ?? 0
             };
 
             return audit;

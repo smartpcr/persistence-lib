@@ -110,7 +110,7 @@ LIMIT 1";
 
                     // Step 4: Insert entity using new command pattern
                     var context = CommandContext<T, TKey>.ForInsert(entity);
-                    context.CommandTimeout = this.configuration.CommandTimeout;
+                    context.CommandTimeout = this.Configuration.CommandTimeout;
                     context.Transaction = transaction;
 
                     using var insertCommand = this.Mapper.CreateCommand(DbOperationType.Insert, context);
@@ -146,7 +146,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                         try
                         {
                             // step 6. add audit trail
-                            await this.WriteAuditRecordAsync(result, "CREATE", callerInfo, null, null, cancellationToken);
+                            await this.WriteAuditRecordAsync(result, AuditOperation.Create, callerInfo, null, null, cancellationToken);
                         }
                         catch
                         {
@@ -239,7 +239,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                 {
                     try
                     {
-                        await this.WriteAuditRecordAsync(result, "READ", callerInfo, null, true, cancellationToken);
+                        await this.WriteAuditRecordAsync(result, AuditOperation.Read, callerInfo, null, true, cancellationToken);
                     }
                     catch
                     {
@@ -306,7 +306,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                 {
                     try
                     {
-                        await this.WriteAuditRecordAsync(results.First(), "READ", callerInfo, null, true, cancellationToken);
+                        await this.WriteAuditRecordAsync(results.First(), AuditOperation.Read, callerInfo, null, true, cancellationToken);
                     }
                     catch
                     {
@@ -403,7 +403,7 @@ LIMIT 1";
 
                     // Use new command pattern for update
                     var context = CommandContext<T, TKey>.ForUpdate(entity, oldValue);
-                    context.CommandTimeout = this.configuration.CommandTimeout;
+                    context.CommandTimeout = this.Configuration.CommandTimeout;
                     context.Transaction = transaction;
 
                     using var command = this.Mapper.CreateCommand(
@@ -440,7 +440,7 @@ LIMIT 1";
                     {
                         try
                         {
-                            await this.WriteAuditRecordAsync(entity, "UPDATE", callerInfo, oldValue, null, cancellationToken);
+                            await this.WriteAuditRecordAsync(entity, AuditOperation.Update, callerInfo, oldValue, null, cancellationToken);
                         }
                         catch
                         {
@@ -583,7 +583,7 @@ SELECT changes();";
                 {
                     try
                     {
-                        await this.WriteAuditRecordAsync(oldValue, "DELETE", callerInfo, null, null, cancellationToken);
+                        await this.WriteAuditRecordAsync(oldValue, AuditOperation.Delete, callerInfo, null, null, cancellationToken);
                     }
                     catch
                     {

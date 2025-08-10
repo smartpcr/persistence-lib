@@ -35,6 +35,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         /// When true, the primary key becomes composite (Id + Version) and rows are immutable.
         /// When false, only the Id field is used as primary key and rows can be updated.
         /// Default is true for backward compatibility.
+        /// Entity must implement IVersionedEntity&lt;TKey&gt; interface to support versioning.
         /// </summary>
         public bool SoftDeleteEnabled { get; set; } = false;
 
@@ -42,6 +43,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         /// A flag indicating whether this table should be synchronized with a list-entity mapping.
         /// This is only enabled when list key is used to read/write entities.
         /// The table EntityListMapping will be used to synchronize entities with a list.
+        /// Entity does not need to implement any extra interfaces to support this.
         /// </summary>
         public bool SyncWithList { get; set; } = false;
 
@@ -57,6 +59,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         /// Gets or sets the expiry span as a string in the format "d.hh:mm:ss".
         /// This is a convenience property for setting ExpirySpan in attribute declarations.
         /// Example: "7.00:00:00" for 7 days, "1.00:00:00" for 1 day, "0.01:00:00" for 1 hour.
+        /// Entity must implement IExpirableEntity&lt;TKey&gt; interface to support expiration.
         /// </summary>
         public string ExpirySpanString
         {
@@ -69,11 +72,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mapp
         /// This property is only relevant when ExpirySpan is set.
         /// When true, expired entities are moved to an archive table instead of being deleted.
         /// Default is false.
+        /// Entity must implement IArchivableEntity&lt;TKey&gt; interface to support archiving.
         /// </summary>
         public bool EnableArchive { get; set; } = false;
 
         /// <summary>
         /// Gets or sets a value indicating whether the audit trail feature is enabled.
+        /// Entity does not need to implement any extra interfaces to support audit trail.
+        /// When true, all changes to the entity will be logged in Audit table.
         /// </summary>
         public bool EnableAuditTrail { get; set; } = false;
 

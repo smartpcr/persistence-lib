@@ -181,7 +181,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
                         };
 
                         var mappingContext = CommandContext<EntryListMapping, string>.ForInsert(listMapping);
-                        mappingContext.CommandTimeout = this.configuration.CommandTimeout;
+                        mappingContext.CommandTimeout = this.Configuration.CommandTimeout;
                         mappingContext.Transaction = transaction;
                         using var listMappingCmd = this.entryListMappingMapper.CreateCommand(DbOperationType.Insert, mappingContext);
                         listMappingCmd.Connection = connection;
@@ -199,7 +199,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key";
                         {
                             foreach (var createdEntity in results)
                             {
-                                await this.WriteAuditRecordAsync(createdEntity, "CREATE_LIST", callerInfo, null, null,
+                                await this.WriteAuditRecordAsync(createdEntity, AuditOperation.Create, callerInfo, null, null,
                                     cancellationToken);
                             }
                         }
@@ -364,7 +364,7 @@ AND EntryCacheKey = @entryCacheKey";
                     try
                     {
                         var firstEntity = results.First();
-                        await this.WriteAuditRecordAsync(firstEntity, "READ_LIST", callerInfo, null, true, cancellationToken);
+                        await this.WriteAuditRecordAsync(firstEntity, AuditOperation.Read, callerInfo, null, true, cancellationToken);
                     }
                     catch
                     {
@@ -589,7 +589,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;";
                         };
 
                         var mappingContext = CommandContext<EntryListMapping, string>.ForInsert(listMapping);
-                        mappingContext.CommandTimeout = this.configuration.CommandTimeout;
+                        mappingContext.CommandTimeout = this.Configuration.CommandTimeout;
                         mappingContext.Transaction = transaction;
                         using var listMappingCmd = this.entryListMappingMapper.CreateCommand(DbOperationType.Insert, mappingContext);
                         listMappingCmd.Connection = connection;
@@ -607,7 +607,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key;";
                         {
                             foreach (var updatedEntity in results)
                             {
-                                await this.WriteAuditRecordAsync(updatedEntity, "UPDATE_LIST", callerInfo, null, null,
+                                await this.WriteAuditRecordAsync(updatedEntity, AuditOperation.Update, callerInfo, null, null,
                                     cancellationToken);
                             }
                         }

@@ -33,7 +33,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Confi
             this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             this.callerInfo = new CallerInfo
             {
-                UserId = "TestUser",
                 CorrelationId = Guid.NewGuid().ToString()
             };
         }

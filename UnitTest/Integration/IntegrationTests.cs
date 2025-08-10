@@ -60,7 +60,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Integ
 
             this.callerInfo = new CallerInfo
             {
-                UserId = "IntegrationTest",
                 CorrelationId = Guid.NewGuid().ToString()
             };
 

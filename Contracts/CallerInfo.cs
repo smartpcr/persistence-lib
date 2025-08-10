@@ -14,11 +14,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
     public class CallerInfo
     {
         /// <summary>
-        /// Gets or sets the user identifier.
-        /// </summary>
-        public string UserId { get; set; }
-
-        /// <summary>
         /// Gets or sets the correlation identifier for tracking related operations.
         /// </summary>
         public string CorrelationId { get; set; }

@@ -38,7 +38,13 @@
       "Bash(sed:*)",
       "Bash(dotnet clean:*)",
       "Bash(dotnet test:*)",
-      "Bash(dotnet run:*)"
+      "Bash(dotnet run:*)",
+      "Bash(for:*)",
+      "Bash(do)",
+      "Bash(if grep -q \"UserId = \"\"TestUser\"\"\" \"$file\")",
+      "Bash(then)",
+      "Bash(echo \"Fixed: $file\")",
+      "Bash(fi)"
     ],
     "deny": []
   }

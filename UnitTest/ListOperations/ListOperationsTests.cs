@@ -37,7 +37,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.ListO
 
             this.callerInfo = new CallerInfo
             {
-                UserId = "TestUser",
                 CorrelationId = Guid.NewGuid().ToString()
             };
         }

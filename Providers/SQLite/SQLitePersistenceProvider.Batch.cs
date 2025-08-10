@@ -189,7 +189,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                             {
                                 try
                                 {
-                                    await this.WriteAuditRecordAsync(result, "CREATE", callerInfo, null, null, cancellationToken);
+                                    await this.WriteAuditRecordAsync(result, AuditOperation.Create, callerInfo, null, null, cancellationToken);
                                 }
                                 catch
                                 {
@@ -256,7 +256,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                         IncludeExpired = includeExpired
                         // No WHERE clause - we want all entities
                     },
-                    CommandTimeout = this.configuration.CommandTimeout
+                    CommandTimeout = this.Configuration.CommandTimeout
                 };
 
                 using var command = this.Mapper.CreateCommand(DbOperationType.Select, context);
@@ -283,7 +283,7 @@ WHERE {this.Mapper.GetPrimaryKeyColumn()} = @key
                     {
                         // Log a single audit entry for the GetAll operation
                         var firstEntity = results.First();
-                        await this.WriteAuditRecordAsync(firstEntity, "READ_ALL", callerInfo, null, true, cancellationToken);
+                        await this.WriteAuditRecordAsync(firstEntity, AuditOperation.Read, callerInfo, null, true, cancellationToken);
                     }
                     catch
                     {
@@ -499,7 +499,7 @@ SELECT changes();";
                                 try
                                 {
                                     var oldEntity = batch[i]; // Original entity before update
-                                    await this.WriteAuditRecordAsync(batchResults[i], "UPDATE", callerInfo, oldEntity, null, cancellationToken);
+                                    await this.WriteAuditRecordAsync(batchResults[i], AuditOperation.Update, callerInfo, oldEntity, null, cancellationToken);
                                 }
                                 catch
                                 {
@@ -688,7 +688,7 @@ SELECT changes();";
                                 {
                                     try
                                     {
-                                        await this.WriteAuditRecordAsync(oldValue, "DELETE", callerInfo, null, null, cancellationToken);
+                                        await this.WriteAuditRecordAsync(oldValue, AuditOperation.Delete, callerInfo, null, null, cancellationToken);
                                     }
                                     catch
                                     {

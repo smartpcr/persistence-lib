@@ -22,14 +22,14 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         /// <summary>
         /// Writes an audit record for an entity operation.
         /// </summary>
-        private async Task WriteAuditRecordAsync(T entity, string action, CallerInfo callerInfo, T oldEntity, bool? cacheHit, CancellationToken cancellationToken)
+        private async Task WriteAuditRecordAsync(T entity, AuditOperation action, CallerInfo callerInfo, T oldEntity, bool? cacheHit, CancellationToken cancellationToken)
         {
-            if (this.auditMapper == null) return;
+            if (this.AuditMapper == null) return;
             if (entity == null) return;
 
             try
             {
-                using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
+                await using var connection = await this.CreateAndOpenConnectionAsync(cancellationToken);
 
                 // Create the audit record
                 var auditRecord = AuditRecord.CreateAuditRecord<T, TKey>(
@@ -47,8 +47,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
 
                 // Insert the audit record
                 var context = CommandContext<AuditRecord, long>.ForInsert(auditRecord);
-                context.CommandTimeout = this.configuration.CommandTimeout;
-                using var command = this.auditMapper.CreateCommand(DbOperationType.Insert, context);
+                context.CommandTimeout = this.Configuration.CommandTimeout;
+                using var command = this.AuditMapper.CreateCommand(DbOperationType.Insert, context);
                 command.Connection = connection;
                 command.ExecuteNonQuery();
             }

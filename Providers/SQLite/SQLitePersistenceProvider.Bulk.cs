@@ -828,7 +828,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             }
 
             var context = CommandContext<T, TKey>.ForInsert(entity);
-            context.CommandTimeout = this.configuration.CommandTimeout;
+            context.CommandTimeout = this.Configuration.CommandTimeout;
             using var cmd = this.Mapper.CreateCommand(DbOperationType.Insert, context);
             cmd.Connection = connection;
             cmd.ExecuteNonQuery();
@@ -847,7 +847,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             entity.LastWriteTime = DateTime.UtcNow;
 
             var context = CommandContext<T, TKey>.ForUpdate(entity, oldEntity);
-            context.CommandTimeout = this.configuration.CommandTimeout;
+            context.CommandTimeout = this.Configuration.CommandTimeout;
             using var cmd = this.Mapper.CreateCommand(DbOperationType.Update, context);
             cmd.Connection = connection;
             cmd.ExecuteNonQuery();

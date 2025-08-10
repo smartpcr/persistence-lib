@@ -57,7 +57,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Error
 
             this.callerInfo = new CallerInfo
             {
-                UserId = "TestUser",
                 CorrelationId = Guid.NewGuid().ToString()
             };
         }

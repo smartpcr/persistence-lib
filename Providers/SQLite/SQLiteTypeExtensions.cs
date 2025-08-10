@@ -11,7 +11,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
     using System.Reflection;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
 
-    internal static class TypeExtensions
+    internal static class SQLiteTypeExtensions
     {
         public static bool IsAnonymousType(this Type type)
         {

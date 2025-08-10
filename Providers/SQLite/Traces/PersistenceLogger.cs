@@ -706,5 +706,98 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
         }
 
         #endregion
+
+        #region Audit Operations
+
+        /// <summary>
+        /// Logs the start of an audit write operation.
+        /// </summary>
+        /// <param name="entityType">The type of entity being audited</param>
+        /// <param name="entityId">The entity ID being audited</param>
+        /// <param name="auditOperation">The audit operation being performed</param>
+        /// <param name="callerFile">The file path of the caller (automatically populated)</param>
+        /// <param name="callerMember">The member name of the caller (automatically populated)</param>
+        /// <param name="callerLine">The line number of the caller (automatically populated)</param>
+        public static void AuditWriteStart(string entityType, string entityId, string auditOperation,
+            [CallerFilePath] string callerFile = "",
+            [CallerMemberName] string callerMember = "",
+            [CallerLineNumber] int callerLine = 0)
+        {
+            EventSource.AuditWriteStart(entityType, entityId, auditOperation, callerFile, callerMember, callerLine);
+        }
+
+        /// <summary>
+        /// Logs the completion of an audit write operation.
+        /// </summary>
+        /// <param name="entityType">The type of entity being audited</param>
+        /// <param name="entityId">The entity ID being audited</param>
+        /// <param name="auditOperation">The audit operation being performed</param>
+        /// <param name="stopwatch">The stopwatch measuring the operation duration</param>
+        /// <param name="callerFile">The file path of the caller (automatically populated)</param>
+        /// <param name="callerMember">The member name of the caller (automatically populated)</param>
+        /// <param name="callerLine">The line number of the caller (automatically populated)</param>
+        public static void AuditWriteStop(string entityType, string entityId, string auditOperation, Stopwatch stopwatch,
+            [CallerFilePath] string callerFile = "",
+            [CallerMemberName] string callerMember = "",
+            [CallerLineNumber] int callerLine = 0)
+        {
+            EventSource.AuditWriteStop(entityType, entityId, auditOperation, stopwatch.ElapsedMilliseconds, callerFile, callerMember, callerLine);
+        }
+
+        /// <summary>
+        /// Logs a failed audit write operation.
+        /// </summary>
+        /// <param name="entityType">The type of entity being audited</param>
+        /// <param name="entityId">The entity ID being audited</param>
+        /// <param name="auditOperation">The audit operation being performed</param>
+        /// <param name="stopwatch">The stopwatch measuring the operation duration</param>
+        /// <param name="exception">The exception that occurred</param>
+        /// <param name="callerFile">The file path of the caller (automatically populated)</param>
+        /// <param name="callerMember">The member name of the caller (automatically populated)</param>
+        /// <param name="callerLine">The line number of the caller (automatically populated)</param>
+        public static void AuditWriteError(string entityType, string entityId, string auditOperation, Stopwatch stopwatch, Exception exception,
+            [CallerFilePath] string callerFile = "",
+            [CallerMemberName] string callerMember = "",
+            [CallerLineNumber] int callerLine = 0)
+        {
+            EventSource.AuditWriteError(entityType, entityId, auditOperation, stopwatch.ElapsedMilliseconds, 
+                exception.GetType().Name, exception.Message, callerFile, callerMember, callerLine);
+        }
+
+        /// <summary>
+        /// Logs the start of an audit read operation.
+        /// </summary>
+        /// <param name="entityType">The type of entity being queried</param>
+        /// <param name="entityId">The entity ID being queried</param>
+        /// <param name="callerFile">The file path of the caller (automatically populated)</param>
+        /// <param name="callerMember">The member name of the caller (automatically populated)</param>
+        /// <param name="callerLine">The line number of the caller (automatically populated)</param>
+        public static void AuditReadStart(string entityType, string entityId,
+            [CallerFilePath] string callerFile = "",
+            [CallerMemberName] string callerMember = "",
+            [CallerLineNumber] int callerLine = 0)
+        {
+            EventSource.AuditReadStart(entityType, entityId, callerFile, callerMember, callerLine);
+        }
+
+        /// <summary>
+        /// Logs the completion of an audit read operation.
+        /// </summary>
+        /// <param name="entityType">The type of entity being queried</param>
+        /// <param name="entityId">The entity ID being queried</param>
+        /// <param name="stopwatch">The stopwatch measuring the operation duration</param>
+        /// <param name="recordCount">The number of audit records found</param>
+        /// <param name="callerFile">The file path of the caller (automatically populated)</param>
+        /// <param name="callerMember">The member name of the caller (automatically populated)</param>
+        /// <param name="callerLine">The line number of the caller (automatically populated)</param>
+        public static void AuditReadStop(string entityType, string entityId, Stopwatch stopwatch, int recordCount,
+            [CallerFilePath] string callerFile = "",
+            [CallerMemberName] string callerMember = "",
+            [CallerLineNumber] int callerLine = 0)
+        {
+            EventSource.AuditReadStop(entityType, entityId, stopwatch.ElapsedMilliseconds, recordCount, callerFile, callerMember, callerLine);
+        }
+
+        #endregion
     }
 }

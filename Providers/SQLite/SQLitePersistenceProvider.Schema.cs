@@ -90,7 +90,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                 {
                     if (!SQLiteProviderSharedState.AuditTableCreated)
                     {
-                        var createAuditTableSql = this.auditMapper.GenerateCreateTableSql();
+                        var createAuditTableSql = this.AuditMapper.GenerateCreateTableSql();
                         using var createAuditCmd = this.CreateCommand(createAuditTableSql, connection);
                         createAuditCmd.ExecuteNonQuery(); // Use synchronous inside lock with retry
                         SQLiteProviderSharedState.AuditTableCreated = true;
@@ -114,8 +114,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Database-specific pragmas (persist across connections)
             var databasePragmas = new Dictionary<string, object>
             {
-                { "page_size", this.configuration.PageSize },
-                { "journal_mode", this.configuration.JournalMode.ToString().ToUpper() }
+                { "page_size", this.Configuration.PageSize },
+                { "journal_mode", this.Configuration.JournalMode.ToString().ToUpper() }
             };
 
             foreach (var pragma in databasePragmas)
@@ -137,10 +137,10 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             // Connection-specific pragmas (must be set for each connection)
             var connectionPragmas = new Dictionary<string, object>
             {
-                { "cache_size", this.configuration.CacheSize },
-                { "synchronous", this.configuration.SynchronousMode.ToString().ToUpper() },
-                { "busy_timeout", this.configuration.BusyTimeout },
-                { "foreign_keys", this.configuration.EnableForeignKeys ? "ON" : "OFF" }
+                { "cache_size", this.Configuration.CacheSize },
+                { "synchronous", this.Configuration.SynchronousMode.ToString().ToUpper() },
+                { "busy_timeout", this.Configuration.BusyTimeout },
+                { "foreign_keys", this.Configuration.EnableForeignKeys ? "ON" : "OFF" }
             };
 
             foreach (var pragma in connectionPragmas)

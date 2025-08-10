@@ -6,17 +6,19 @@
 
 namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.AuditTrail
 {
-    using System.IO;
     using System;
     using System.Collections.Generic;
+    using System.IO;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
-    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Config;
     using AuditTestEntity = Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities.AuditTrail.AuditTestEntity;
     using FluentAssertions;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Audit;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLite.Helpers;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Providers;
 
@@ -26,15 +28,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
         private string testDbPath;
         private string connectionString;
         private SQLitePersistenceProvider<AuditTestEntity, Guid> provider;
+        private IAuditProvider auditProvider;
         private CallerInfo callerInfo;
 
         [TestInitialize]
         public async Task Setup()
         {
-            this.connectionString = "Data Source=:memory:";
+            this.testDbPath = Path.Combine(Path.GetTempPath(), $"test_{Guid.NewGuid():N}.db");
+            this.connectionString = $"Data Source={this.testDbPath};Version=3;";
             var config = new SqliteConfiguration();
             this.provider = new SQLitePersistenceProvider<AuditTestEntity, Guid>(this.connectionString, config);
             await this.provider.InitializeAsync();
+            this.auditProvider = new SQLiteAuditProvider(this.connectionString, config);
 
             this.callerInfo = new CallerInfo
             {
@@ -50,11 +55,9 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             if (this.provider != null)
             {
                 await this.provider.DisposeAsync();
-
-
-                this.SafeDeleteDatabase(this.testDbPath);
-
             }
+
+            this.SafeDeleteDatabase(this.testDbPath);
         }
 
         [TestMethod]
@@ -74,9 +77,26 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             await this.provider.CreateAsync(entity, this.callerInfo);
 
             // Assert
-            var auditRecords = await this.provider.GetByKeyAsync(
+            var records = (await this.provider.GetByKeyAsync(
                 entity.Id,
-                callerInfo: this.callerInfo);
+                callerInfo: this.callerInfo))?.ToList();
+            records.Should().NotBeNull();
+            records!.Count.Should().Be(1);
+            records.First().Name.Should().Be("Audit Test");
+
+            var sqlHelper = new SQLiteHelper(this.connectionString);
+            var tables = await sqlHelper.GetTablesAsync();
+            tables.Any(t => t.TableName == "AuditTestEntity").Should().BeTrue();
+            tables.Any(t => t.TableName == "Audit").Should().BeTrue();
+
+            var auditRecords = await this.auditProvider.GetAuditRecordsAsync(nameof(AuditTestEntity), null, CancellationToken.None);
+            auditRecords.Should().NotBeNull();
+            auditRecords.Count.Should().Be(1);
+            var createAudit = auditRecords.First();
+            createAudit.Operation.Should().Be(AuditOperation.Create);
+            createAudit.EntityId.Should().Be(entity.Id.ToString());
+            createAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            createAudit.Version.Should().Be(records.First().Version);
 
             // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
             // auditRecords.Should().NotBeNull();
@@ -225,8 +245,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
         public async Task QueryAuditTrail_ByUser_ReturnsUserActivity()
         {
             // Arrange
-            var user1Caller = new CallerInfo { UserId = "User1", CorrelationId = Guid.NewGuid().ToString() };
-            var user2Caller = new CallerInfo { UserId = "User2", CorrelationId = Guid.NewGuid().ToString() };
+            var user1Caller = new CallerInfo { CorrelationId = Guid.NewGuid().ToString() };
+            var user2Caller = new CallerInfo { CorrelationId = Guid.NewGuid().ToString() };
 
             // User1 creates entities
             for (int i = 0; i < 3; i++)

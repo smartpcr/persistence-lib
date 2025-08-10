@@ -10,6 +10,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
     using System.Collections.Generic;
     using System.Data;
     using System.Data.SQLite;
+    using System.Linq;
     using System.Linq.Expressions;
     using System.Threading.Tasks;
     using FluentAssertions;
@@ -383,5 +384,215 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entit
             deserialized.ComplexData.Should().NotBeNull();
             deserialized.ComplexData.Should().Be(original.ComplexData);
         }
+
+        #region Enum Check Constraint Tests
+
+        public enum OrderStatus
+        {
+            New,
+            Processing,
+            Shipped,
+            Delivered,
+            Cancelled
+        }
+
+        [Table("OrderEntity")]
+        private class OrderEntity : Contracts.IEntity<Guid>
+        {
+            [PrimaryKey]
+            [Column("Id", SqlDbType.UniqueIdentifier)]
+            public Guid Id { get; set; }
+
+            [Column("Status", SqlDbType.NVarChar)]
+            public OrderStatus Status { get; set; }
+
+            [Column("OptionalStatus", SqlDbType.NVarChar)]
+            public OrderStatus? OptionalStatus { get; set; }
+
+            [Column("Version", SqlDbType.BigInt)]
+            public long Version { get; set; }
+
+            public DateTimeOffset CreatedTime { get; set; }
+            public DateTimeOffset LastWriteTime { get; set; }
+
+            public long EstimateEntitySize() => 100;
+        }
+
+        private class SQLiteOrderMapper : Provider.SQLite.Mappings.SQLiteEntityMapper<OrderEntity, Guid>
+        {
+            public SQLiteOrderMapper() : base(new Provider.SQLite.Resilience.RetryPolicy(0))
+            {
+            }
+
+            public string TestGenerateCreateTableSql() => this.GenerateCreateTableSql();
+            public Contracts.Mappings.PropertyMapping GetPropertyMapping(string propertyName) =>
+                this.PropertyMappings.Values.FirstOrDefault(p => p.PropertyName == propertyName);
+        }
+
+        [TestMethod]
+        [TestCategory("EntityMapping")]
+        [TestCategory("EnumHandling")]
+        public void SQLiteEntityMapper_WithEnum_GeneratesCheckConstraint()
+        {
+            // Arrange
+            var mapper = new SQLiteOrderMapper();
+
+            // Act
+            var statusMapping = mapper.GetPropertyMapping("Status");
+
+            // Assert
+            statusMapping.Should().NotBeNull();
+            statusMapping.CheckConstraint.Should().NotBeNullOrEmpty();
+            statusMapping.CheckConstraint.Should().Contain("IN ('New', 'Processing', 'Shipped', 'Delivered', 'Cancelled')");
+            statusMapping.CheckConstraintName.Should().Be("CK_OrderEntity_Status_Enum");
+        }
+
+        [TestMethod]
+        [TestCategory("EntityMapping")]
+        [TestCategory("EnumHandling")]
+        public void SQLiteEntityMapper_WithNullableEnum_GeneratesCheckConstraintWithNull()
+        {
+            // Arrange
+            var mapper = new SQLiteOrderMapper();
+
+            // Act
+            var optionalStatusMapping = mapper.GetPropertyMapping("OptionalStatus");
+
+            // Assert
+            optionalStatusMapping.Should().NotBeNull();
+            optionalStatusMapping.CheckConstraint.Should().NotBeNullOrEmpty();
+            optionalStatusMapping.CheckConstraint.Should().Contain("IS NULL OR");
+            optionalStatusMapping.CheckConstraint.Should().Contain("IN ('New', 'Processing', 'Shipped', 'Delivered', 'Cancelled')");
+            optionalStatusMapping.CheckConstraintName.Should().Be("CK_OrderEntity_OptionalStatus_Enum");
+        }
+
+        [TestMethod]
+        [TestCategory("EntityMapping")]
+        [TestCategory("EnumHandling")]
+        public void SQLiteEntityMapper_CreateTableSql_IncludesEnumCheckConstraints()
+        {
+            // Arrange
+            var mapper = new SQLiteOrderMapper();
+
+            // Act
+            var createTableSql = mapper.TestGenerateCreateTableSql();
+
+            // Assert
+            createTableSql.Should().NotBeNullOrEmpty();
+            
+            // Check for Status constraint
+            createTableSql.Should().Contain("CONSTRAINT CK_OrderEntity_Status_Enum CHECK");
+            createTableSql.Should().Contain("Status");
+            createTableSql.Should().Contain("IN ('New', 'Processing', 'Shipped', 'Delivered', 'Cancelled')");
+            
+            // Check for OptionalStatus constraint
+            createTableSql.Should().Contain("CONSTRAINT CK_OrderEntity_OptionalStatus_Enum CHECK");
+            createTableSql.Should().Contain("OptionalStatus IS NULL OR");
+            
+            // Should use TEXT type for enum columns in SQLite
+            createTableSql.Should().Contain("Status TEXT");
+            createTableSql.Should().Contain("OptionalStatus TEXT");
+        }
+
+        [TestMethod]
+        [TestCategory("EntityMapping")]
+        [TestCategory("EnumHandling")]
+        public void SQLiteEntityMapper_InsertCommand_WithValidEnum_Succeeds()
+        {
+            // Arrange
+            var mapper = new Provider.SQLite.Mappings.SQLiteEntityMapper<OrderEntity, Guid>(
+                new Provider.SQLite.Resilience.RetryPolicy(0));
+            var entity = new OrderEntity
+            {
+                Id = Guid.NewGuid(),
+                Status = OrderStatus.Processing,
+                OptionalStatus = OrderStatus.Shipped,
+                Version = 1,
+                CreatedTime = DateTimeOffset.UtcNow,
+                LastWriteTime = DateTimeOffset.UtcNow
+            };
+
+            var context = CommandContext<OrderEntity, Guid>.ForInsert(entity);
+
+            // Act
+            var command = mapper.CreateCommand(DbOperationType.Insert, context);
+
+            // Assert
+            command.Should().NotBeNull();
+            
+            // Check that enum values are passed as strings
+            IDataParameter statusParam = null;
+            IDataParameter optionalStatusParam = null;
+            
+            foreach (IDataParameter param in command.Parameters)
+            {
+                if (param.ParameterName == "@Status")
+                    statusParam = param;
+                else if (param.ParameterName == "@OptionalStatus")
+                    optionalStatusParam = param;
+            }
+
+            statusParam.Should().NotBeNull();
+            statusParam.Value.Should().BeOfType<string>();
+            statusParam.Value.Should().Be("Processing");
+
+            optionalStatusParam.Should().NotBeNull();
+            optionalStatusParam.Value.Should().BeOfType<string>();
+            optionalStatusParam.Value.Should().Be("Shipped");
+        }
+
+        [TestMethod]
+        [TestCategory("EntityMapping")]
+        [TestCategory("EnumHandling")]
+        public void SQLiteEntityMapper_UpdateCommand_WithValidEnum_Succeeds()
+        {
+            // Arrange
+            var mapper = new Provider.SQLite.Mappings.SQLiteEntityMapper<OrderEntity, Guid>(
+                new Provider.SQLite.Resilience.RetryPolicy(0));
+            var entity = new OrderEntity
+            {
+                Id = Guid.NewGuid(),
+                Status = OrderStatus.Delivered,
+                OptionalStatus = null, // Test null handling
+                Version = 2,
+                CreatedTime = DateTimeOffset.UtcNow,
+                LastWriteTime = DateTimeOffset.UtcNow
+            };
+
+            var oldEntity = new OrderEntity
+            {
+                Id = entity.Id,
+                Status = OrderStatus.Shipped,
+                OptionalStatus = OrderStatus.Processing,
+                Version = 1,
+                CreatedTime = entity.CreatedTime,
+                LastWriteTime = entity.LastWriteTime
+            };
+
+            var context = CommandContext<OrderEntity, Guid>.ForUpdate(entity, oldEntity);
+
+            // Act
+            var command = mapper.CreateCommand(DbOperationType.Update, context);
+
+            // Assert
+            command.Should().NotBeNull();
+            
+            // Find Status parameter
+            IDataParameter statusParam = null;
+            foreach (IDataParameter param in command.Parameters)
+            {
+                if (param.ParameterName == "@Status")
+                {
+                    statusParam = param;
+                    break;
+                }
+            }
+
+            statusParam.Should().NotBeNull();
+            statusParam.Value.Should().BeOfType<string>();
+            statusParam.Value.Should().Be("Delivered");
+        }
+
+        #endregion
     }
 }

@@ -10,6 +10,7 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
     using System.Data;
     using System.Linq;
     using FluentAssertions;
+    using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts.Mappings;
     using Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Entities;
     using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -571,6 +572,198 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Mappi
 
         }
 
+
+        #endregion
+
+        #region Enum Check Constraint Tests
+
+        private class TestComplexEntityMapper : BaseEntityMapper<ComplexEntity, Guid>
+        {
+            public PropertyMapping GetPropertyMapping(string propertyName)
+            {
+                return this.PropertyMappings.Values.FirstOrDefault(p => p.PropertyName == propertyName);
+            }
+        }
+
+        [TestMethod]
+        [TestCategory("Mappings")]
+        [TestCategory("EnumHandling")]
+        public void PropertyMapping_WithEnum_GeneratesCheckConstraint()
+        {
+            // Arrange
+            var mapper = new TestComplexEntityMapper();
+
+            // Act
+            var enumProperty = mapper.GetPropertyMapping("EnumField");
+
+            // Assert
+            enumProperty.Should().NotBeNull();
+            enumProperty.CheckConstraint.Should().NotBeNullOrEmpty();
+            enumProperty.CheckConstraint.Should().Contain("IN ('Value1', 'Value2', 'Value3')");
+            enumProperty.CheckConstraintName.Should().Be("CK_ComplexEntity_EnumField_Enum");
+        }
+
+        [TestMethod]
+        [TestCategory("Mappings")]
+        [TestCategory("EnumHandling")]
+        public void PropertyMapping_WithNullableEnum_GeneratesCheckConstraintAllowingNull()
+        {
+            // Arrange
+            var mapper = new TestNullableEnumMapper();
+
+            // Act
+            var enumProperty = mapper.GetPropertyMapping("NullableStatus");
+
+            // Assert
+            enumProperty.Should().NotBeNull();
+            enumProperty.CheckConstraint.Should().NotBeNullOrEmpty();
+            enumProperty.CheckConstraint.Should().Contain("IS NULL OR");
+            enumProperty.CheckConstraint.Should().Contain("IN ('Active', 'Inactive', 'Pending')");
+            enumProperty.CheckConstraintName.Should().Be("CK_TestNullableEnumEntity_NullableStatus_Enum");
+        }
+
+        [TestMethod]
+        [TestCategory("Mappings")]
+        [TestCategory("EnumHandling")]
+        public void GenerateCreateTableSql_WithEnum_IncludesCheckConstraint()
+        {
+            // Arrange
+            var mapper = new BaseEntityMapper<ComplexEntity, Guid>();
+
+            // Act
+            var createTableSql = mapper.GenerateCreateTableSql();
+
+            // Assert
+            createTableSql.Should().NotBeNullOrEmpty();
+            createTableSql.Should().Contain("CONSTRAINT CK_ComplexEntity_EnumField_Enum CHECK");
+            createTableSql.Should().Contain("EnumField");
+            createTableSql.Should().Contain("IN ('Value1', 'Value2', 'Value3')");
+        }
+
+        [TestMethod]
+        [TestCategory("Mappings")]
+        [TestCategory("EnumHandling")]
+        public void PropertyMapping_WithEnumAndExistingCheckAttribute_UsesAttributeConstraint()
+        {
+            // Arrange
+            var mapper = new TestEnumWithCheckAttributeMapper();
+
+            // Act
+            var enumProperty = mapper.GetPropertyMapping("Status");
+
+            // Assert
+            enumProperty.Should().NotBeNull();
+            enumProperty.CheckConstraint.Should().Be("Status IN ('Active', 'Pending')"); // Custom constraint
+            enumProperty.CheckConstraintName.Should().Be("CK_Custom_Status");
+        }
+
+        [TestMethod]
+        [TestCategory("Mappings")]
+        [TestCategory("EnumHandling")]
+        public void GenerateCreateTableSql_WithMultipleEnums_IncludesAllCheckConstraints()
+        {
+            // Arrange
+            var mapper = new TestMultipleEnumsMapper();
+
+            // Act
+            var createTableSql = mapper.GenerateCreateTableSql();
+
+            // Assert
+            createTableSql.Should().NotBeNullOrEmpty();
+            createTableSql.Should().Contain("CONSTRAINT CK_TestMultipleEnumsEntity_Status_Enum");
+            createTableSql.Should().Contain("CONSTRAINT CK_TestMultipleEnumsEntity_Priority_Enum");
+            createTableSql.Should().Contain("IN ('Active', 'Inactive', 'Pending')");
+            createTableSql.Should().Contain("IN ('Low', 'Medium', 'High', 'Critical')");
+        }
+
+        // Test helper classes for enum constraint tests
+        public enum TestStatus
+        {
+            Active,
+            Inactive,
+            Pending
+        }
+
+        public enum TestPriority
+        {
+            Low,
+            Medium,
+            High,
+            Critical
+        }
+
+        [Table("TestNullableEnumEntity")]
+        private class TestNullableEnumEntity : IEntity<Guid>
+        {
+            [PrimaryKey]
+            public Guid Id { get; set; }
+            
+            [Column("NullableStatus", SqlDbType.NVarChar)]
+            public TestStatus? NullableStatus { get; set; }
+            
+            public long Version { get; set; }
+            public DateTimeOffset CreatedTime { get; set; }
+            public DateTimeOffset LastWriteTime { get; set; }
+            public long EstimateEntitySize() => 100;
+        }
+
+        private class TestNullableEnumMapper : BaseEntityMapper<TestNullableEnumEntity, Guid>
+        {
+            public PropertyMapping GetPropertyMapping(string propertyName)
+            {
+                return this.PropertyMappings.Values.FirstOrDefault(p => p.PropertyName == propertyName);
+            }
+        }
+
+        [Table("TestEnumWithCheckAttributeEntity")]
+        private class TestEnumWithCheckAttributeEntity : IEntity<Guid>
+        {
+            [PrimaryKey]
+            public Guid Id { get; set; }
+            
+            [Column("Status", SqlDbType.NVarChar)]
+            [Check("Status IN ('Active', 'Pending')", Name = "CK_Custom_Status")]
+            public TestStatus Status { get; set; }
+            
+            public long Version { get; set; }
+            public DateTimeOffset CreatedTime { get; set; }
+            public DateTimeOffset LastWriteTime { get; set; }
+            public long EstimateEntitySize() => 100;
+        }
+
+        private class TestEnumWithCheckAttributeMapper : BaseEntityMapper<TestEnumWithCheckAttributeEntity, Guid>
+        {
+            public PropertyMapping GetPropertyMapping(string propertyName)
+            {
+                return this.PropertyMappings.Values.FirstOrDefault(p => p.PropertyName == propertyName);
+            }
+        }
+
+        [Table("TestMultipleEnumsEntity")]
+        private class TestMultipleEnumsEntity : IEntity<Guid>
+        {
+            [PrimaryKey]
+            public Guid Id { get; set; }
+            
+            [Column("Status", SqlDbType.NVarChar)]
+            public TestStatus Status { get; set; }
+            
+            [Column("Priority", SqlDbType.NVarChar)]
+            public TestPriority Priority { get; set; }
+            
+            public long Version { get; set; }
+            public DateTimeOffset CreatedTime { get; set; }
+            public DateTimeOffset LastWriteTime { get; set; }
+            public long EstimateEntitySize() => 100;
+        }
+
+        private class TestMultipleEnumsMapper : BaseEntityMapper<TestMultipleEnumsEntity, Guid>
+        {
+            public PropertyMapping GetPropertyMapping(string propertyName)
+            {
+                return this.PropertyMappings.Values.FirstOrDefault(p => p.PropertyName == propertyName);
+            }
+        }
 
         #endregion
     }

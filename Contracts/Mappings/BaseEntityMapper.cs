@@ -2230,6 +2230,25 @@ FROM {fromClause}{joinClause}
                 mapping.CheckConstraint = checkAttr.Expression;
                 mapping.CheckConstraintName = checkAttr.Name ?? $"CK_{this.TableName}_{mapping.ColumnName}";
             }
+            else if (property.PropertyType.IsEnum || (Nullable.GetUnderlyingType(property.PropertyType)?.IsEnum ?? false))
+            {
+                // Auto-generate check constraint for enum properties
+                var enumType = property.PropertyType.IsEnum ? property.PropertyType : Nullable.GetUnderlyingType(property.PropertyType);
+                var enumValues = Enum.GetNames(enumType);
+                var quotedValues = string.Join(", ", enumValues.Select(v => $"'{v}'"));
+                
+                // For nullable enums, also allow NULL
+                var isNullable = Nullable.GetUnderlyingType(property.PropertyType) != null;
+                if (isNullable)
+                {
+                    mapping.CheckConstraint = $"{this.EscapeIdentifier(mapping.ColumnName)} IS NULL OR {this.EscapeIdentifier(mapping.ColumnName)} IN ({quotedValues})";
+                }
+                else
+                {
+                    mapping.CheckConstraint = $"{this.EscapeIdentifier(mapping.ColumnName)} IN ({quotedValues})";
+                }
+                mapping.CheckConstraintName = $"CK_{this.TableName}_{mapping.ColumnName}_Enum";
+            }
 
             // Computed column
             var computedAttr = property.GetCustomAttribute<ComputedAttribute>();

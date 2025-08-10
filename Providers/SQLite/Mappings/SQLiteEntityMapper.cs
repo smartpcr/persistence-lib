@@ -82,7 +82,8 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
             if (value is DateTime dt) return dt.ToString("O");
             if (value is TimeSpan ts) return ts.TotalSeconds;
             if (value is Guid g) return g.ToString();
-            if (value is Enum e) return Convert.ToInt32(e);
+            // Note: Enum handling is done in base class (stores as string)
+            // Don't override enum handling here
             return base.ConvertParameterValue(value);
         }
 

@@ -91,23 +91,20 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
 
             var auditRecords = await this.auditProvider.GetAuditRecordsAsync(nameof(AuditTestEntity), null, CancellationToken.None);
             auditRecords.Should().NotBeNull();
-            auditRecords.Count.Should().Be(1);
-            var createAudit = auditRecords.First();
+            auditRecords.Count.Should().Be(2);
+            var createAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Create);
+            createAudit.Should().NotBeNull();
             createAudit.Operation.Should().Be(AuditOperation.Create);
             createAudit.EntityId.Should().Be(entity.Id.ToString());
             createAudit.EntityType.Should().Be(nameof(AuditTestEntity));
             createAudit.Version.Should().Be(records.First().Version);
 
-            // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // auditRecords.Should().NotBeNull();
-            // auditRecords.Count().Should().Be(1);
-            // var createAudit = auditRecords.First();
-            // createAudit.Operation.Should().Be("CREATE");
-            // createAudit.EntityId.Should().Be(entity.Id.ToString());
-            // createAudit.EntityType.Should().Be("AuditTestEntity");
-            // createAudit.UserId.Should().Be("TestUser");
-            // createAudit.NewValue.Should().NotBeNull();
-            // createAudit.OldValue.Should().BeNull();
+            var readAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Read);
+            readAudit.Should().NotBeNull();
+            readAudit.Operation.Should().Be(AuditOperation.Read);
+            readAudit.EntityId.Should().Be(entity.Id.ToString());
+            readAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            readAudit.Version.Should().Be(records.First().Version);
         }
 
         [TestMethod]
@@ -131,17 +128,22 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             await this.provider.UpdateAsync(created, this.callerInfo);
 
             // Assert
-            // QueryAuditTrailAsync is not implemented - mock for compilation
-            var auditRecords = new List<AuditRecord>();
+            var auditRecords = await this.auditProvider.GetAuditRecordsAsync(nameof(AuditTestEntity), null, CancellationToken.None);
+            auditRecords.Should().NotBeNull();
+            auditRecords.Count.Should().Be(2);
+            var createAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Create);
+            createAudit.Should().NotBeNull();
+            createAudit.Operation.Should().Be(AuditOperation.Create);
+            createAudit.EntityId.Should().Be(entity.Id.ToString());
+            createAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            createAudit.Version.Should().Be(1);
 
-            // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // auditRecords.Count(.Should().BeTrue() >= 2);
-            // var updateAudit = auditRecords.FirstOrDefault(a => a.Operation == "UPDATE");
-            // updateAudit.Should().NotBeNull();
-            // updateAudit.OldValue.Should().NotBeNull();
-            // updateAudit.NewValue.Should().NotBeNull();
-            // updateAudit.OldValue.Should().Contain("Original Name");
-            // updateAudit.NewValue.Should().Contain("Updated Name");
+            var updateAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Update);
+            updateAudit.Should().NotBeNull();
+            updateAudit.Operation.Should().Be(AuditOperation.Update);
+            updateAudit.EntityId.Should().Be(entity.Id.ToString());
+            updateAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            updateAudit.Version.Should().Be(2);
         }
 
         [TestMethod]
@@ -162,14 +164,22 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             await this.provider.DeleteAsync(entity.Id, this.callerInfo);
 
             // Assert
-            // QueryAuditTrailAsync is not implemented - mock for compilation
-            var auditRecords = new List<AuditRecord>();
+            var auditRecords = await this.auditProvider.GetAuditRecordsAsync(nameof(AuditTestEntity), null, CancellationToken.None);
+            auditRecords.Should().NotBeNull();
+            auditRecords.Count.Should().Be(2);
+            var createAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Create);
+            createAudit.Should().NotBeNull();
+            createAudit.Operation.Should().Be(AuditOperation.Create);
+            createAudit.EntityId.Should().Be(entity.Id.ToString());
+            createAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            createAudit.Version.Should().Be(1);
 
-            // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // var deleteAudit = auditRecords.FirstOrDefault(a => a.Operation == "DELETE");
-            // deleteAudit.Should().NotBeNull();
-            // deleteAudit.OldValue.Should().NotBeNull();
-            // deleteAudit.OldValue.Should().Contain("To Delete");
+            var deleteAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Delete);
+            deleteAudit.Should().NotBeNull();
+            deleteAudit.Operation.Should().Be(AuditOperation.Delete);
+            deleteAudit.EntityId.Should().Be(entity.Id.ToString());
+            deleteAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            deleteAudit.Version.Should().Be(1);
         }
 
         [TestMethod]
@@ -188,16 +198,18 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             await this.provider.CreateAsync(entity, this.callerInfo);
 
             // Assert
-            // QueryAuditTrailAsync is not implemented - mock for compilation
-            var auditRecords = new List<AuditRecord>();
-
-            // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // var audit = auditRecords.First();
-            // audit.UserId.Should().Be("TestUser");
-            // audit.CorrelationId.Should().Be(this.callerInfo.CorrelationId); // CorrelationId not in AuditRecord
-            // audit.CallerMember.Should().Be("TestMethod"); // Property name is CallerMember
-            // audit.CallerFile.Should().Be("TestFile.cs"); // Property name is CallerFile
-            // audit.CallerLineNumber.Should().Be(42);
+            var auditRecords = await this.auditProvider.GetAuditRecordsAsync(nameof(AuditTestEntity), null, CancellationToken.None);
+            auditRecords.Should().NotBeNull();
+            auditRecords.Count.Should().Be(1);
+            var createAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Create);
+            createAudit.Should().NotBeNull();
+            createAudit.Operation.Should().Be(AuditOperation.Create);
+            createAudit.EntityId.Should().Be(entity.Id.ToString());
+            createAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            createAudit.Version.Should().Be(1);
+            createAudit.CallerMember.Should().Be("TestMethod"); // Property name is CallerMember
+            createAudit.CallerFile.Should().Be("TestFile.cs"); // Property name is CallerFile
+            createAudit.CallerLineNumber.Should().Be(42);
         }
 
         [TestMethod]
@@ -227,54 +239,23 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.UnitTest.Audit
             // Delete
             await this.provider.DeleteAsync(created.Id, this.callerInfo);
 
-            // Act
-            // QueryAuditTrailAsync is not implemented - mock for compilation
-            var auditHistory = new List<AuditRecord>();
-
             // Assert
-            auditHistory.Should().NotBeNull();
-            // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // auditHistory.Count(.Should().BeTrue() >= 4); // CREATE, UPDATE, UPDATE, DELETE
-            // var operations = auditHistory.Select(a => a.Operation).ToList();
-            // operations[0].Should().Be("CREATE");
-            // operations[operations.Count - 1].Should().Be("DELETE");
-        }
+            var auditRecords = await this.auditProvider.GetAuditRecordsAsync(nameof(AuditTestEntity), null, CancellationToken.None);
+            auditRecords.Should().NotBeNull();
+            auditRecords.Count.Should().Be(4);
+            var createAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Create);
+            createAudit.Should().NotBeNull();
+            createAudit.Operation.Should().Be(AuditOperation.Create);
+            createAudit.EntityId.Should().Be(entity.Id.ToString());
+            createAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            createAudit.Version.Should().Be(1);
 
-        [TestMethod]
-        [TestCategory("AuditTrail")]
-        public async Task QueryAuditTrail_ByUser_ReturnsUserActivity()
-        {
-            // Arrange
-            var user1Caller = new CallerInfo { CorrelationId = Guid.NewGuid().ToString() };
-            var user2Caller = new CallerInfo { CorrelationId = Guid.NewGuid().ToString() };
-
-            // User1 creates entities
-            for (int i = 0; i < 3; i++)
-            {
-                await this.provider.CreateAsync(
-                    new AuditTestEntity { Id = Guid.NewGuid(), Name = $"User1 Entity {i}", Value = i },
-                    user1Caller);
-            }
-
-            // User2 creates entities
-            for (int i = 0; i < 2; i++)
-            {
-                await this.provider.CreateAsync(
-                    new AuditTestEntity { Id = Guid.NewGuid(), Name = $"User2 Entity {i}", Value = i },
-                    user2Caller);
-            }
-
-            // Act
-            // QueryAuditTrailAsync is not implemented - mock for compilation
-            var user1Activity = new List<AuditRecord>();
-            var user2Activity = new List<AuditRecord>();
-
-            // Assert
-            // Since QueryAuditTrailAsync is not implemented, these assertions are commented out:
-            // user1Activity.Count().Should().Be(3);
-            // user1Activity.All(a => a.UserId == "User1").Should().BeTrue();
-            // user2Activity.Count().Should().Be(2);
-            // user2Activity.All(a => a.UserId == "User2").Should().BeTrue();
+            var deleteAudit = auditRecords.First(ar => ar.Operation == AuditOperation.Delete);
+            deleteAudit.Should().NotBeNull();
+            deleteAudit.Operation.Should().Be(AuditOperation.Delete);
+            deleteAudit.EntityId.Should().Be(entity.Id.ToString());
+            deleteAudit.EntityType.Should().Be(nameof(AuditTestEntity));
+            deleteAudit.Version.Should().Be(3);
         }
     }
 }

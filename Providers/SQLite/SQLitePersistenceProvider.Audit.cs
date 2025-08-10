@@ -40,11 +40,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Provider.SQLit
                     oldEntity?.Version ?? 0,
                     entity.EstimateEntitySize());
 
-                // Set base entity tracking fields (CreatedTime and LastWriteTime will track when audit was created)
-                auditRecord.CreatedTime = DateTimeOffset.UtcNow;
-                auditRecord.LastWriteTime = auditRecord.CreatedTime;
-                auditRecord.Version = 1; // Audit records don't need versioning
-
                 // Insert the audit record
                 var context = CommandContext<AuditRecord, long>.ForInsert(auditRecord);
                 context.CommandTimeout = this.Configuration.CommandTimeout;

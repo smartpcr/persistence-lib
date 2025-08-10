@@ -27,9 +27,6 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         [PrimaryKey(Order = 1, IsAutoIncrement = true)]
         public new long Id { get; set; }
 
-        [NotMapped]
-        public new long Version { get; set; }
-
         [Column("EntityType", NotNull = true)]
         [Index("IX_Audit_EntityType_EntityId", Order = 1)]
         public string EntityType { get; set; }
@@ -58,11 +55,11 @@ namespace Microsoft.AzureStack.Services.Update.Common.Persistence.Contracts
         [Column("Size")]
         public long? Size { get; set; }
 
-        [Column("OldValue", SqlDbType.NVarChar)]
-        public string OldValue { get; set; }
-
-        [Column("NewValue", SqlDbType.NVarChar)]
-        public string NewValue { get; set; }
+        // [Column("OldValue", SqlDbType.NVarChar)]
+        // public string OldValue { get; set; }
+        //
+        // [Column("NewValue", SqlDbType.NVarChar)]
+        // public string NewValue { get; set; }
 
         public static AuditRecord CreateAuditRecord<T, TKey>(
             TKey id,
